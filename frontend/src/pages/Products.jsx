@@ -77,7 +77,6 @@ const Products = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const [viewMode, setViewMode] = useState("grid");
   const [sortBy, setSortBy] = useState("name");
   const [deleteDialog, setDeleteDialog] = useState({
     open: false,
@@ -731,20 +730,6 @@ const Products = () => {
                 }}
               >
                 <FilterList />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title={viewMode === "grid" ? "List View" : "Grid View"}>
-              <IconButton
-                onClick={() =>
-                  setViewMode(viewMode === "grid" ? "list" : "grid")
-                }
-                sx={{
-                  bgcolor: "rgba(0,0,0,0.04)",
-                  borderRadius: 2,
-                  "&:hover": { bgcolor: "rgba(0,0,0,0.08)" },
-                }}
-              >
-                {viewMode === "grid" ? <ViewList /> : <GridView />}
               </IconButton>
             </Tooltip>
           </Stack>

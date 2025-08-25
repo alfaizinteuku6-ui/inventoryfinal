@@ -1,5 +1,4 @@
-// frontend/src/contexts/NotificationContext.jsx
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useCallback } from 'react';
 import { Snackbar, Alert } from '@mui/material';
 
 const NotificationContext = createContext();
@@ -19,28 +18,27 @@ const NotificationProvider = ({ children }) => {
     severity: 'info',
   });
 
-  const showNotification = (message, severity = 'info') => {
-    setNotification({
-      open: true,
-      message,
-      severity,
-    });
-  };
+  const showNotification = useCallback((message, severity = 'info') => {
+    if (!message) return;
+    setNotification({ open: true, message, severity });
+  }, []);
 
-  const hideNotification = () => {
-    setNotification(prev => ({
-      ...prev,
-      open: false,
-    }));
+  const hideNotification = useCallback(() => {
+    setNotification(prev => ({ ...prev, open: false }));
+  }, []);
+
+  const handleClose = (event, reason) => {
+    if (reason === 'clickaway') return;
+    hideNotification();
   };
 
   const value = {
     showNotification,
     hideNotification,
-    success: (message) => showNotification(message, 'success'),
-    error: (message) => showNotification(message, 'error'),
-    warning: (message) => showNotification(message, 'warning'),
-    info: (message) => showNotification(message, 'info'),
+    success: (msg) => showNotification(msg, 'success'),
+    error: (msg) => showNotification(msg, 'error'),
+    warning: (msg) => showNotification(msg, 'warning'),
+    info: (msg) => showNotification(msg, 'info'),
   };
 
   return (
@@ -49,11 +47,11 @@ const NotificationProvider = ({ children }) => {
       <Snackbar
         open={notification.open}
         autoHideDuration={6000}
-        onClose={hideNotification}
+        onClose={handleClose}
         anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
-        <Alert 
-          onClose={hideNotification} 
+        <Alert
+          onClose={handleClose}
           severity={notification.severity}
           sx={{ width: '100%' }}
         >

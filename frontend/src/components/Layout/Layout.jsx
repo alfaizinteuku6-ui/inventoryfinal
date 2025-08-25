@@ -39,7 +39,6 @@ import {
   Receipt as ReceiptIcon,
 } from "@mui/icons-material";
 import { useAuth } from "../../contexts/AuthContext";
-
 const drawerWidth = 280;
 
 const menuItems = [
@@ -82,6 +81,9 @@ const Layout = () => {
   const [notificationAnchor, setNotificationAnchor] = useState(null);
 
   const { user, logout } = useAuth();
+  console.log(user);
+  
+
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
@@ -242,7 +244,7 @@ const Layout = () => {
             </IconButton>
             <Box>
               <Typography variant="h6" fontWeight="600">
-                Welcome back, {user?.name || "User"}!
+                Welcome back, {user?.username || "User"}!
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 {new Date().toLocaleDateString("en-US", {
@@ -370,7 +372,7 @@ const Layout = () => {
             Store Manager
           </Typography>
         </Box>
-        <MenuItem onClick={handleMenuClose}>
+        <MenuItem onClick={()=> {navigate("/profile"); handleMenuClose();}}>
           <ListItemIcon>
             <AccountCircle fontSize="small" />
           </ListItemIcon>

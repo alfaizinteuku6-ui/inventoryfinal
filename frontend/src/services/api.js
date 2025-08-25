@@ -70,6 +70,11 @@ export const auth = {
   },
 };
 
+export const accounts ={
+  getMe : () => api.get('/accounts/users/me/'),
+  updateMe : (data) => api.put('/accounts/users/me/', data),
+} 
+
 export const products = {
   getAll: (params) => api.get('/products/', { params }),
   getById: (id) => api.get(`/products/${id}/`),

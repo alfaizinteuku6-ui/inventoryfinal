@@ -1,48 +1,55 @@
 from django.contrib import admin
-from django.utils.html import format_html
-from .models import Product
+from .models import Category, Product, StockMovement
+
+
+@admin.register(Category)
+class CategoryAdmin(admin.ModelAdmin):
+    list_display = ("name", "parent", "created_at", "updated_at", 'is_active')
+    search_fields = ("name",)
+    ordering = ("name",)
 
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     list_display = (
-        "name",
-        "sku",
-        "barcode",
-        "category",
-        "is_active",
-        "selling_price",
-        "stock_quantity",
-        "is_low_stock",
-        "profit_margin",
-        "image_preview",
-        "is_active"
+        "name", "sku", "barcode", "category", "selling_price", "cost_price",
+        "stock_quantity", "min_stock_level", "max_stock_level",
+        "is_active", "is_low_stock", "profit_margin_display"
     )
-    list_filter = ("category", "tax_rate")
-    search_fields = ("name", "sku", "barcode", "description")
-    readonly_fields = ("profit_margin", "is_low_stock", "image_preview")
+    list_filter = ("category", "is_active")
+    search_fields = ("name", "sku", "barcode")
     ordering = ("name",)
-
-    def image_preview(self, obj):
-        if obj.image:
-            return format_html(
-                '<img src="{}" width="80" height="80" style="object-fit:cover;" />',
-                obj.image.url,
-            )
-        return "-"
-    image_preview.short_description = "Image Preview"
-
+    readonly_fields = ("barcode", "profit_margin", "created_at", "updated_at")
+    
     fieldsets = (
-        ("Basic Info", {
-            "fields": ("name", "description", "sku", "barcode", "category", "image", "image_preview", "is_active")
+        (None, {
+            "fields": ("name", "description", "sku", "barcode", "category", "image")
         }),
         ("Pricing", {
-            "fields": ("cost_price", "selling_price", "tax_rate", "profit_margin")
+            "fields": ("cost_price", "selling_price", "tax_rate")
         }),
         ("Inventory", {
-            "fields": ("stock_quantity", "min_stock_level", "max_stock_level", "is_low_stock")
+            "fields": ("stock_quantity", "min_stock_level", "max_stock_level", "is_active")
         }),
-        ("Additional", {
+        ("Additional Info", {
             "fields": ("weight", "dimensions")
         }),
+        ("Timestamps", {
+            "fields": ("created_at", "updated_at"),
+        }),
     )
+
+    def profit_margin_display(self, obj):
+        return f"{obj.profit_margin:.2f}%"
+    profit_margin_display.short_description = "Profit Margin"
+
+
+@admin.register(StockMovement)
+class StockMovementAdmin(admin.ModelAdmin):
+    list_display = (
+        "product", "movement_type", "quantity", "reference", "user", "created_at"
+    )
+    list_filter = ("movement_type", "created_at")
+    search_fields = ("product__name", "reference", "notes")
+    ordering = ("-created_at",)
+    autocomplete_fields = ("product", "user")

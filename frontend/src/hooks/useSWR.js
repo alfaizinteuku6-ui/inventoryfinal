@@ -1,5 +1,5 @@
 import useSWR from 'swr';
-import { products, categories, sales, customers, vendors, stockMovements } from '../services/api';
+import { products, categories, sales, customers, vendors, stockMovements, accounts } from '../services/api';
 
 const fetcher = (url, params) => {
   const [endpoint, ...args] = url.split('|');
@@ -25,11 +25,17 @@ const fetcher = (url, params) => {
       return sales.getSalesReport(params).then(res => res.data);
     case 'customers':
       return customers.getAll(params).then(res => res.data);
+    case 'auth-user':
+      return accounts.getMe().then(res => res.data);
     case 'vendors':
       return vendors.getAll(params).then(res => res.data);
     default:
       throw new Error(`Unknown endpoint: ${endpoint}`);
   }
+};
+
+export const useAuthUser = () => {
+  return useSWR('auth-user', fetcher);
 };
 
 export const useSalesDashboard = (params = {}) => {
