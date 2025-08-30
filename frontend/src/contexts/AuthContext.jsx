@@ -7,15 +7,7 @@ const TOKEN_STORAGE_KEY = "access_token";
 const REFRESH_TOKEN_STORAGE_KEY = "refresh_token";
 const TOKEN_REFRESH_THRESHOLD = 5 * 60 * 1000; // 5 minutes
 
-const AuthContext = createContext();
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
-};
+export const AuthContext = createContext();
 
 // Utility functions
 const isTokenExpired = (token) => {

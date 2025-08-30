@@ -34,8 +34,17 @@ const fetcher = (url, params) => {
   }
 };
 
-export const useAuthUser = () => {
-  return useSWR('auth-user', fetcher);
+export const useAuthUser = (shouldFetch = true) => {
+  return useSWR(shouldFetch ? 'auth-user' : null, fetcher, {
+    shouldRetryOnError: (error) => {
+      // Don't retry on auth errors
+      return error?.response?.status !== 401 && error?.response?.status !== 403;
+    },
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    errorRetryCount: 1,
+    errorRetryInterval: 5000,
+  });
 };
 
 export const useSalesDashboard = (params = {}) => {

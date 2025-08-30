@@ -38,7 +38,7 @@ import {
   Store as StoreIcon,
   Receipt as ReceiptIcon,
 } from "@mui/icons-material";
-import { useAuth } from "../../contexts/AuthContext";
+import { useAuth } from "../../hooks/useAuth";
 const drawerWidth = 280;
 
 const menuItems = [

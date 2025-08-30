@@ -40,6 +40,10 @@ api.interceptors.response.use(
 
       try {
         const refreshToken = localStorage.getItem('refresh_token');
+        if (!refreshToken) {
+          throw new Error('No refresh token');
+        }
+
         const response = await axios.post(`${API_BASE_URL}/auth/refresh/`, {
           refresh: refreshToken,
         });
@@ -50,9 +54,10 @@ api.interceptors.response.use(
 
         return api(originalRequest);
       } catch (refreshError) {
+        // Clear tokens and dispatch logout event
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
-        window.location.href = '/login';
+        window.dispatchEvent(new CustomEvent('auth:logout'));
         return Promise.reject(refreshError);
       }
     }
@@ -61,13 +66,12 @@ api.interceptors.response.use(
   }
 );
 
+
 // API functions
 export const auth = {
   login: (credentials) => api.post('/auth/login/', credentials),
-  logout: () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-  },
+  refresh: (data) => api.post('/auth/refresh/', data),
+  logout: (data) => api.post('/auth/logout/', data), 
 };
 
 export const accounts ={

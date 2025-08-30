@@ -7,7 +7,8 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 
 // Components
 import Layout from './components/Layout/Layout';
-import AuthProvider, { useAuth } from './contexts/AuthContext';
+import AuthProvider from './contexts/AuthContext';
+import { useAuth } from './hooks/useAuth';
 import NotificationProvider from './contexts/NotificationContext';
 import ErrorBoundary from './components/ErrorBoundary';
 
