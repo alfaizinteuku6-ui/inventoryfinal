@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -19,8 +19,8 @@ import {
   InputAdornment,
   useTheme,
   Stack,
-  Collapse
-} from '@mui/material';
+  Collapse,
+} from "@mui/material";
 import {
   Edit,
   Delete,
@@ -31,27 +31,39 @@ import {
   Phone,
   Work,
   AttachMoney,
-} from '@mui/icons-material';
-
+  PowerSettingsNew,
+} from "@mui/icons-material";
 // Staff Tab Component
-function StaffTab({ staffMembers, canManageStaff, onCreateStaff, onUpdateStaff, onDeleteStaff, loading }) {
+function StaffTab({
+  userProfile,
+  staffMembers,
+  canManageStaff,
+  onCreateStaff,
+  onUpdateStaff,
+  onDeleteStaff,
+  onActivateStaff,
+  loading,
+}) {
   const [addingStaff, setAddingStaff] = useState(false);
   const [editingStaff, setEditingStaff] = useState(null);
   const [staffForm, setStaffForm] = useState({});
   const theme = useTheme();
+  const [originalForm, setOriginalForm] = useState({});
+  const isModified = JSON.stringify(staffForm) !== JSON.stringify(originalForm);
 
   const initializeForm = (staff = null) => {
-    setStaffForm(staff || {
-      username: '',
-      email: '',
-      first_name: '',
-      last_name: '',
-      phone: '',
-      role: 'staff',
-      hire_date: new Date().toISOString().split('T')[0],
-      salary: '',
-      commission_rate: 0
-    });
+    const form = staff || {
+      email: "",
+      first_name: "",
+      last_name: "",
+      phone: "",
+      role: "staff",
+      hire_date: new Date().toISOString().split("T")[0],
+      salary: "",
+      commission_rate: 0,
+    };
+    setStaffForm(form);
+    setOriginalForm(form); // snapshot for comparison
   };
 
   const handleAdd = () => {
@@ -67,14 +79,27 @@ function StaffTab({ staffMembers, canManageStaff, onCreateStaff, onUpdateStaff, 
   };
 
   const handleSave = async () => {
-    if (editingStaff) {
-      await onUpdateStaff(editingStaff.id, staffForm);
-      setEditingStaff(null);
-    } else {
-      await onCreateStaff(staffForm);
-      setAddingStaff(false);
+    const staffData = {
+      ...staffForm,
+      vendor: staffForm.vendor || userProfile?.vendor || "",
+      username: editingStaff
+        ? staffForm.username // don’t override when editing
+        : `${staffForm.first_name}_${staffForm.last_name}`,
+    };
+
+    try {
+      if (editingStaff) {
+        await onUpdateStaff(editingStaff.id, staffData);
+        setEditingStaff(null);
+      } else {
+        await onCreateStaff(staffData);
+        setAddingStaff(false);
+      }
+      initializeForm();
+    } catch (err) {
+      console.error("Failed to save staff:", err);
+      // show user-friendly error
     }
-    initializeForm();
   };
 
   const handleCancel = () => {
@@ -85,12 +110,12 @@ function StaffTab({ staffMembers, canManageStaff, onCreateStaff, onUpdateStaff, 
 
   const getRoleColor = (role) => {
     const colors = {
-      owner: 'error',
-      admin: 'primary',
-      manager: 'secondary',
-      staff: 'default'
+      owner: "error",
+      admin: "primary",
+      manager: "secondary",
+      staff: "default",
     };
-    return colors[role] || 'default';
+    return colors[role] || "default";
   };
 
   if (!canManageStaff) {
@@ -105,7 +130,14 @@ function StaffTab({ staffMembers, canManageStaff, onCreateStaff, onUpdateStaff, 
     <Box>
       <Card sx={{ mb: 3 }}>
         <CardContent sx={{ p: 3 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              mb: 2,
+            }}
+          >
             <Box>
               <Typography variant="h5" fontWeight="bold" gutterBottom>
                 Staff Management
@@ -130,9 +162,16 @@ function StaffTab({ staffMembers, canManageStaff, onCreateStaff, onUpdateStaff, 
       <Collapse in={addingStaff || editingStaff !== null}>
         <Card sx={{ mb: 3, border: `2px solid ${theme.palette.primary.main}` }}>
           <CardContent sx={{ p: 4 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                mb: 3,
+              }}
+            >
               <Typography variant="h6" fontWeight="bold">
-                {editingStaff ? 'Edit Staff Member' : 'Add New Staff Member'}
+                {editingStaff ? "Edit Staff Member" : "Add New Staff Member"}
               </Typography>
               <Stack direction="row" spacing={1}>
                 <Button
@@ -146,11 +185,11 @@ function StaffTab({ staffMembers, canManageStaff, onCreateStaff, onUpdateStaff, 
                 <Button
                   variant="contained"
                   startIcon={<Save />}
+                  disabled={loading || !isModified}
                   onClick={handleSave}
-                  disabled={loading}
                   sx={{ borderRadius: 3 }}
                 >
-                  {editingStaff ? 'Update' : 'Add'} Staff
+                  {editingStaff ? "Update" : "Add"} Staff
                 </Button>
               </Stack>
             </Box>
@@ -160,8 +199,10 @@ function StaffTab({ staffMembers, canManageStaff, onCreateStaff, onUpdateStaff, 
                 <TextField
                   fullWidth
                   label="First Name"
-                  value={staffForm.first_name || ''}
-                  onChange={(e) => setStaffForm({...staffForm, first_name: e.target.value})}
+                  value={staffForm.first_name || ""}
+                  onChange={(e) =>
+                    setStaffForm({ ...staffForm, first_name: e.target.value })
+                  }
                   required
                 />
               </Grid>
@@ -169,8 +210,10 @@ function StaffTab({ staffMembers, canManageStaff, onCreateStaff, onUpdateStaff, 
                 <TextField
                   fullWidth
                   label="Last Name"
-                  value={staffForm.last_name || ''}
-                  onChange={(e) => setStaffForm({...staffForm, last_name: e.target.value})}
+                  value={staffForm.last_name || ""}
+                  onChange={(e) =>
+                    setStaffForm({ ...staffForm, last_name: e.target.value })
+                  }
                   required
                 />
               </Grid>
@@ -179,8 +222,10 @@ function StaffTab({ staffMembers, canManageStaff, onCreateStaff, onUpdateStaff, 
                   fullWidth
                   label="Email"
                   type="email"
-                  value={staffForm.email || ''}
-                  onChange={(e) => setStaffForm({...staffForm, email: e.target.value})}
+                  value={staffForm.email || ""}
+                  onChange={(e) =>
+                    setStaffForm({ ...staffForm, email: e.target.value })
+                  }
                   required
                 />
               </Grid>
@@ -188,8 +233,10 @@ function StaffTab({ staffMembers, canManageStaff, onCreateStaff, onUpdateStaff, 
                 <TextField
                   fullWidth
                   label="Phone"
-                  value={staffForm.phone || ''}
-                  onChange={(e) => setStaffForm({...staffForm, phone: e.target.value})}
+                  value={staffForm.phone || ""}
+                  onChange={(e) =>
+                    setStaffForm({ ...staffForm, phone: e.target.value })
+                  }
                   required
                 />
               </Grid>
@@ -197,8 +244,10 @@ function StaffTab({ staffMembers, canManageStaff, onCreateStaff, onUpdateStaff, 
                 <FormControl fullWidth required>
                   <InputLabel>Role</InputLabel>
                   <Select
-                    value={staffForm.role || 'staff'}
-                    onChange={(e) => setStaffForm({...staffForm, role: e.target.value})}
+                    value={staffForm.role || "staff"}
+                    onChange={(e) =>
+                      setStaffForm({ ...staffForm, role: e.target.value })
+                    }
                   >
                     <MenuItem value="staff">👤 Staff</MenuItem>
                     <MenuItem value="manager">👨‍💼 Manager</MenuItem>
@@ -211,8 +260,10 @@ function StaffTab({ staffMembers, canManageStaff, onCreateStaff, onUpdateStaff, 
                   fullWidth
                   label="Hire Date"
                   type="date"
-                  value={staffForm.hire_date || ''}
-                  onChange={(e) => setStaffForm({...staffForm, hire_date: e.target.value})}
+                  value={staffForm.hire_date || ""}
+                  onChange={(e) =>
+                    setStaffForm({ ...staffForm, hire_date: e.target.value })
+                  }
                   InputLabelProps={{ shrink: true }}
                 />
               </Grid>
@@ -221,10 +272,14 @@ function StaffTab({ staffMembers, canManageStaff, onCreateStaff, onUpdateStaff, 
                   fullWidth
                   label="Salary"
                   type="number"
-                  value={staffForm.salary || ''}
-                  onChange={(e) => setStaffForm({...staffForm, salary: e.target.value})}
+                  value={staffForm.salary || ""}
+                  onChange={(e) =>
+                    setStaffForm({ ...staffForm, salary: e.target.value })
+                  }
                   InputProps={{
-                    startAdornment: <InputAdornment position="start">₹</InputAdornment>,
+                    startAdornment: (
+                      <InputAdornment position="start">₹</InputAdornment>
+                    ),
                   }}
                 />
               </Grid>
@@ -233,10 +288,17 @@ function StaffTab({ staffMembers, canManageStaff, onCreateStaff, onUpdateStaff, 
                   fullWidth
                   label="Commission Rate"
                   type="number"
-                  value={staffForm.commission_rate || ''}
-                  onChange={(e) => setStaffForm({...staffForm, commission_rate: e.target.value})}
+                  value={staffForm.commission_rate || ""}
+                  onChange={(e) =>
+                    setStaffForm({
+                      ...staffForm,
+                      commission_rate: e.target.value,
+                    })
+                  }
                   InputProps={{
-                    endAdornment: <InputAdornment position="end">%</InputAdornment>,
+                    endAdornment: (
+                      <InputAdornment position="end">%</InputAdornment>
+                    ),
                   }}
                 />
               </Grid>
@@ -248,74 +310,98 @@ function StaffTab({ staffMembers, canManageStaff, onCreateStaff, onUpdateStaff, 
       <Grid container spacing={3}>
         {staffMembers.map((staff) => (
           <Grid size={{ xs: 12, md: 6, lg: 4 }} key={staff.id}>
-            <Card 
-              sx={{ 
-                height: '100%',
-                transition: 'all 0.3s ease',
-                '&:hover': {
-                  transform: 'translateY(-4px)',
-                  boxShadow: theme.shadows[8]
+            <Card
+              sx={{
+                height: "100%",
+                transition: "all 0.3s ease",
+                "&:hover": {
+                  transform: "translateY(-4px)",
+                  boxShadow: theme.shadows[8],
                 },
-                opacity: staff.is_active_employee ? 1 : 0.6
+                opacity: staff.is_active_employee ? 1 : 0.6,
               }}
             >
               <CardContent sx={{ p: 3 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    mb: 2,
+                  }}
+                >
                   <Avatar
-                    sx={{ 
-                      width: 56, 
+                    sx={{
+                      width: 56,
                       height: 56,
-                      backgroundColor: theme.palette.primary.main
+                      backgroundColor: theme.palette.primary.main,
                     }}
                     src={staff.avatar}
                   >
                     <Typography variant="h6" fontWeight="bold">
-                      {staff.first_name?.[0]}{staff.last_name?.[0]}
+                      {staff.first_name?.[0]}
+                      {staff.last_name?.[0]}
                     </Typography>
                   </Avatar>
-                  <Box sx={{ display: 'flex', gap: 0.5 }}>
-                    <IconButton 
-                      size="small" 
-                      onClick={() => handleEdit(staff)}
-                      disabled={editingStaff?.id === staff.id}
-                    >
-                      <Edit fontSize="small" />
-                    </IconButton>
-                    <IconButton 
-                      size="small" 
-                      onClick={() => onDeleteStaff(staff.id)}
-                      color="error"
-                    >
-                      <Delete fontSize="small" />
-                    </IconButton>
+                  <Box sx={{ display: "flex", gap: 0.5 }}>
+                    {staff.is_active_employee && (
+                      <>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleEdit(staff)}
+                          disabled={editingStaff?.id === staff.id}
+                        >
+                          <Edit fontSize="small" />
+                        </IconButton>
+
+                        <IconButton
+                          size="small"
+                          onClick={() => onDeleteStaff(staff.id)}
+                          color="error"
+                        >
+                          <Delete fontSize="small" />
+                        </IconButton>
+                      </>
+                    )}
+                    {!staff.is_active_employee && (
+                      <IconButton
+                        size="small"
+                        onClick={() => onActivateStaff(staff.id)}
+                        sx={{
+                          color: "success.main",
+                        }}
+                      >
+                        <PowerSettingsNew fontSize="small" />
+                      </IconButton>
+                    )}
                   </Box>
                 </Box>
 
                 <Typography variant="h6" fontWeight="bold" gutterBottom>
                   {staff.full_name}
                 </Typography>
-                
+
                 <Stack spacing={1} sx={{ mb: 2 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                     <Email fontSize="small" color="action" />
                     <Typography variant="body2" color="text.secondary">
                       {staff.email}
                     </Typography>
                   </Box>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                     <Phone fontSize="small" color="action" />
                     <Typography variant="body2" color="text.secondary">
                       {staff.phone}
                     </Typography>
                   </Box>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                     <Work fontSize="small" color="action" />
                     <Typography variant="body2" color="text.secondary">
                       Since {new Date(staff.hire_date).toLocaleDateString()}
                     </Typography>
                   </Box>
                   {staff.salary && (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                       <AttachMoney fontSize="small" color="action" />
                       <Typography variant="body2" color="text.secondary">
                         ₹{staff.salary.toLocaleString()}/month
@@ -324,18 +410,24 @@ function StaffTab({ staffMembers, canManageStaff, onCreateStaff, onUpdateStaff, 
                   )}
                 </Stack>
 
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
                   <Chip
                     label={staff.role.toUpperCase()}
                     color={getRoleColor(staff.role)}
                     size="small"
-                    sx={{ fontWeight: 'bold' }}
+                    sx={{ fontWeight: "bold" }}
                   />
                   <Chip
-                    label={staff.is_active_employee ? 'Active' : 'Inactive'}
-                    color={staff.is_active_employee ? 'success' : 'default'}
+                    label={staff.is_active_employee ? "Active" : "Inactive"}
+                    color={staff.is_active_employee ? "success" : "default"}
                     size="small"
-                    variant={staff.is_active_employee ? 'filled' : 'outlined'}
+                    variant={staff.is_active_employee ? "filled" : "outlined"}
                   />
                 </Box>
               </CardContent>

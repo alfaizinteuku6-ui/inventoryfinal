@@ -9,6 +9,10 @@ const fetcher = (url, params) => {
       return products.getAll(params).then(res => res.data);
     case 'product':
       return products.getById(args[0]).then(res => res.data);
+    case 'all-staff':
+      return accounts.getAllStaff(params).then(res => res.data);
+    case 'staff':
+      return accounts.getStaffById(args[0]).then(res => res.data);
     case 'products-low-stock':
       return products.getLowStock().then(res => res.data);
     case 'stock-movements':
@@ -61,6 +65,14 @@ export const useProducts = (params = {}) => {
 
 export const useProduct = (id) => {
   return useSWR(id ? `product|${id}` : null, fetcher);
+};
+
+export const useGetAllStaff = (params = {}) => {
+  return useSWR(['all-staff', params], ([url, params]) => fetcher(url, params));
+};
+
+export const useGetStaffById = (id) => {
+  return useSWR(id ? `staff|${id}` : null, fetcher);
 };
 
 export const useStockMovements = (params = {}) => {

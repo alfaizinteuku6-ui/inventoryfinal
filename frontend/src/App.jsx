@@ -1,7 +1,7 @@
 // frontend/src/App.jsx
 import React, { Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider, createTheme, CssBaseline, Box, CircularProgress } from '@mui/material';
+import { ThemeProvider, createTheme, CssBaseline, Box, CircularProgress, Typography, LinearProgress } from '@mui/material';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 
@@ -19,9 +19,6 @@ const ProductForm = React.lazy(() => import('./pages/ProductForm'));
 const Sales = React.lazy(() => import('./pages/Sales'));
 const CreateSale = React.lazy(() => import('./pages/CreateSale'));
 const Customers = React.lazy(() => import('./pages/Customers'));
-const Vendors = React.lazy(() => import('./pages/Vendors'));
-const Reports = React.lazy(() => import('./pages/Reports'));
-const Settings = React.lazy(() => import('./pages/Settings'));
 const Login = React.lazy(() => import('./pages/Login'));
 const Profile = React.lazy(() => import('./pages/Profile'));
 
@@ -32,7 +29,8 @@ const LoadingFallback = () => (
       display: 'flex', 
       justifyContent: 'center', 
       alignItems: 'center', 
-      height: '100vh' 
+      height: '100vh', 
+      width: '100vw'
     }}
   >
     <CircularProgress />
@@ -41,20 +39,35 @@ const LoadingFallback = () => (
 
 // Auth Loading component
 const AuthLoadingFallback = () => (
-  <Box 
-    sx={{ 
-      display: 'flex', 
-      flexDirection: 'column',
-      justifyContent: 'center', 
-      alignItems: 'center', 
-      height: '100vh',
-      bgcolor: 'background.default'
+  <Box
+    sx={{
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "center",
+      alignItems: "center",
+      height: "100vh",
+      width: "100vw",
+      bgcolor: "background.default",
+      px: 4,
     }}
   >
-    <CircularProgress size={40} />
-    <Box sx={{ mt: 2, color: 'text.secondary' }}>
+    <Typography
+      variant="h6"
+      sx={{ mb: 2, fontWeight: "bold", color: "primary.main" }}
+    >
       Initializing POS System...
-    </Box>
+    </Typography>
+    <LinearProgress
+      sx={{
+        width: "100%",
+        maxWidth: 400,
+        height: 8,
+        borderRadius: 5,
+        [`& .MuiLinearProgress-bar`]: {
+          borderRadius: 5,
+        },
+      }}
+    />
   </Box>
 );
 
@@ -279,9 +292,6 @@ const routes = [
   { path: '/sales', element: Sales },
   { path: '/sales/new', element: CreateSale },
   { path: '/customers', element: Customers },
-  { path: '/vendors', element: Vendors },
-  { path: '/reports', element: Reports },
-  { path: '/settings', element: Settings },
   { path: '/profile', element: Profile },
 ];
 

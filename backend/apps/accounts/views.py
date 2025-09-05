@@ -87,7 +87,7 @@ class StaffViewSet(viewsets.ModelViewSet):
             return User.objects.none()
         
         # Return all users in the same vendor except current user
-        return User.objects.filter(vendor=user.vendor).exclude(id=user.id)
+        return User.objects.filter(vendor=user.vendor).exclude(id=user.id).filter(is_active=True)
     
     def list(self, request):
         """List staff members"""
@@ -184,7 +184,7 @@ class StaffViewSet(viewsets.ModelViewSet):
         try:
             staff_member = self.get_queryset().get(id=pk)
             # Deactivate instead of delete to preserve data integrity
-            staff_member.is_active = False
+            staff_member.is_active_employee = False
             staff_member.save()
             return Response({'message': 'Staff member deactivated successfully'})
         except User.DoesNotExist:
@@ -204,7 +204,7 @@ class StaffViewSet(viewsets.ModelViewSet):
         
         try:
             staff_member = self.get_queryset().get(id=pk)
-            staff_member.is_active = True
+            staff_member.is_active_employee = True
             staff_member.save()
             return Response({'message': 'Staff member reactivated successfully'})
         except User.DoesNotExist:

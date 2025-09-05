@@ -355,7 +355,12 @@ const Layout = () => {
             Store Manager
           </Typography>
         </Box>
-        <MenuItem onClick={()=> {navigate("/profile"); handleMenuClose();}}>
+        <MenuItem
+          onClick={() => {
+            navigate("/profile");
+            handleMenuClose();
+          }}
+        >
           <ListItemIcon>
             <AccountCircle fontSize="small" />
           </ListItemIcon>
@@ -414,7 +419,7 @@ const Layout = () => {
         component="main"
         sx={{
           flexGrow: 1,
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
+          width: `calc(100vw - ${drawerWidth + 15}px)`,
           minHeight: "100vh",
           backgroundColor: "#fafafa",
         }}

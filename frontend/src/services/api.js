@@ -77,6 +77,13 @@ export const auth = {
 export const accounts ={
   getMe : () => api.get('/accounts/users/me/'),
   updateMe : (data) => api.patch('/accounts/users/me/', data),
+  changePassword : (data) => api.post('/accounts/users/change_password/', data),
+  getAllStaff: (params) => api.get('/accounts/staff/' , { params } ),
+  getStaffById: (id) => api.get(`/accounts/staff/${id}/`),
+  createStaff: (data) => api.post('/accounts/staff/', data),
+  updateStaff: (id, data) => api.patch(`/accounts/staff/${id}/`, data),
+  deleteStaff: (id) => api.delete(`/accounts/staff/${id}/`),
+  reactivateStaff: (id) => api.post(`/accounts/staff/${id}/reactivate/`),
 } 
 
 export const products = {
