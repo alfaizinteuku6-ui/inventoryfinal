@@ -21,15 +21,12 @@ import {
   useTheme,
   alpha,
   Tooltip,
-  Collapse,
 } from "@mui/material";
 import {
   Menu as MenuIcon,
   Dashboard as DashboardIcon,
   Inventory as InventoryIcon,
   People as PeopleIcon,
-  Business as BusinessIcon,
-  Assessment as ReportsIcon,
   Settings as SettingsIcon,
   AccountCircle,
   Logout,
@@ -61,18 +58,6 @@ const menuItems = [
     path: "/customers",
     color: "#5e35b1",
   },
-  {
-    text: "Vendors",
-    icon: <BusinessIcon />,
-    path: "/vendors",
-    color: "#00796b",
-  },
-  {
-    text: "Reports",
-    icon: <ReportsIcon />,
-    path: "/reports",
-    color: "#c2185b",
-  },
 ];
 
 const Layout = () => {
@@ -81,8 +66,6 @@ const Layout = () => {
   const [notificationAnchor, setNotificationAnchor] = useState(null);
 
   const { user, logout } = useAuth();
-  console.log(user);
-  
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -200,10 +183,10 @@ const Layout = () => {
       <Divider />
       <Box sx={{ p: 2 }}>
         <ListItemButton
-          onClick={() => navigate("/settings")}
+          onClick={() => navigate("/profile")}
           sx={{
             borderRadius: 2,
-            backgroundColor: isActiveRoute("/settings")
+            backgroundColor: isActiveRoute("/profile")
               ? alpha(theme.palette.primary.main, 0.12)
               : "transparent",
           }}

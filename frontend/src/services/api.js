@@ -76,7 +76,7 @@ export const auth = {
 
 export const accounts ={
   getMe : () => api.get('/accounts/users/me/'),
-  updateMe : (data) => api.put('/accounts/users/me/', data),
+  updateMe : (data) => api.patch('/accounts/users/me/', data),
 } 
 
 export const products = {
@@ -122,7 +122,7 @@ export const customers = {
 export const vendors = {
   getAll: (params) => api.get('/vendors/', { params }),
   create: (data) => api.post('/vendors/', data),
-  update: (id, data) => api.put(`/vendors/${id}/`, data),
+  update: (id, data) => api.patch(`/vendors/${id}/`, data),
   delete: (id) => api.delete(`/vendors/${id}/`),
 };
 

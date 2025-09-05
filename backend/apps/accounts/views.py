@@ -1,40 +1,214 @@
-from rest_framework import viewsets, filters, status
-from rest_framework.permissions import IsAdminUser, IsAuthenticated
+# backend/apps/accounts/views.py
+from rest_framework import viewsets, status
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from django_filters.rest_framework import DjangoFilterBackend
-from .models import User
-from .serializers import UserSerializer
+from django.contrib.auth import get_user_model
+from django.contrib.auth.hashers import check_password
+from apps.vendors.models import Vendor
+from .serializers import UserSerializer, StaffSerializer, PasswordChangeSerializer
 
-class UserViewSet(viewsets.ModelViewSet):
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
-    permission_classes = [IsAdminUser]
-    
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['role', 'is_active']
-    search_fields = ['email', 'username', 'first_name', 'last_name']
-    ordering_fields = ['email', 'date_joined']
-    
-    def get_permissions(self):
-        """Different permissions for different actions"""
-        if self.action == 'me':
-            permission_classes = [IsAuthenticated]
-        else:
-            permission_classes = [IsAdminUser]
-        return [permission() for permission in permission_classes]
-    
-    @action(detail=False, methods=['get'])
+User = get_user_model()
+
+class UserProfileViewSet(viewsets.ViewSet):
+    """ViewSet for user profile management"""
+    permission_classes = [IsAuthenticated]
+
+    @action(detail=False, methods=['get', 'patch', 'put'])
     def me(self, request):
-        """Get current user's profile"""
-        serializer = self.get_serializer(request.user)
+        """Get or update logged-in user's profile"""
+        user = request.user
+
+        if request.method in ['PATCH', 'PUT']:
+            serializer = UserSerializer(user, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Default: GET
+        serializer = UserSerializer(user)
         return Response(serializer.data)
     
-    @action(detail=False, methods=['put', 'patch'])
-    def update_me(self, request):
-        """Update current user's profile"""
-        serializer = self.get_serializer(request.user, data=request.data, partial=True)
+    def list(self, request):
+        """Get user profile"""
+        serializer = UserSerializer(request.user)
+        return Response(serializer.data)
+    
+    def partial_update(self, request, pk=None):
+        """Update user profile"""
+        if pk != str(request.user.id):
+            return Response(
+                {'error': 'You can only update your own profile'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        serializer = UserSerializer(request.user, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=False, methods=['post'])
+    def change_password(self, request):
+        """Change user password"""
+        serializer = PasswordChangeSerializer(data=request.data)
+        
+        if serializer.is_valid():
+            user = request.user
+            current_password = serializer.validated_data['current_password']
+            new_password = serializer.validated_data['new_password']
+            
+            # Check current password
+            if not check_password(current_password, user.password):
+                return Response(
+                    {'error': 'Current password is incorrect'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Set new password
+            user.set_password(new_password)
+            user.save()
+            
+            return Response({'message': 'Password changed successfully'})
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class StaffViewSet(viewsets.ModelViewSet):
+    """ViewSet for staff management"""
+    permission_classes = [IsAuthenticated]
+    serializer_class = StaffSerializer
+    
+    def get_queryset(self):
+        """Return staff members for the current user's vendor"""
+        user = self.request.user
+        
+        if not hasattr(user, 'vendor') or not user.vendor:
+            return User.objects.none()
+        
+        # Return all users in the same vendor except current user
+        return User.objects.filter(vendor=user.vendor).exclude(id=user.id)
+    
+    def list(self, request):
+        """List staff members"""
+        if request.user.role not in ['admin', 'manager']:
+            return Response(
+                {'error': 'Permission denied. Only admins and managers can view staff.'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+    
+    def create(self, request):
+        """Create new staff member"""
+        if request.user.role not in ['admin', 'manager']:
+            return Response(
+                {'error': 'Permission denied. Only admins and managers can add staff.'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        data = request.data.copy()
+        
+        # Create user with default password
+        try:
+            staff_user = User.objects.create_user(
+                username=data['username'],
+                email=data['email'],
+                password='temppassword123',  # They should change this on first login
+                first_name=data.get('first_name', ''),
+                last_name=data.get('last_name', ''),
+                phone=data.get('phone', ''),
+                role=data.get('role', 'staff'),
+                vendor=request.user.vendor,
+                address=data.get('address', '')
+            )
+            
+            serializer = self.get_serializer(staff_user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            return Response(
+                {'error': str(e)}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+    
+    def retrieve(self, request, pk=None):
+        """Get specific staff member details"""
+        if request.user.role not in ['admin', 'manager']:
+            return Response(
+                {'error': 'Permission denied'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        try:
+            staff_member = self.get_queryset().get(id=pk)
+            serializer = self.get_serializer(staff_member)
+            return Response(serializer.data)
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'Staff member not found'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+    
+    def partial_update(self, request, pk=None):
+        """Update staff member details"""
+        if request.user.role not in ['admin', 'manager']:
+            return Response(
+                {'error': 'Permission denied'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        try:
+            staff_member = self.get_queryset().get(id=pk)
+            serializer = self.get_serializer(staff_member, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'Staff member not found'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+    
+    def destroy(self, request, pk=None):
+        """Deactivate staff member"""
+        if request.user.role not in ['admin', 'manager']:
+            return Response(
+                {'error': 'Permission denied'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        try:
+            staff_member = self.get_queryset().get(id=pk)
+            # Deactivate instead of delete to preserve data integrity
+            staff_member.is_active = False
+            staff_member.save()
+            return Response({'message': 'Staff member deactivated successfully'})
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'Staff member not found'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+    
+    @action(detail=True, methods=['post'])
+    def reactivate(self, request, pk=None):
+        """Reactivate a staff member"""
+        if request.user.role not in ['admin', 'manager']:
+            return Response(
+                {'error': 'Permission denied'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        try:
+            staff_member = self.get_queryset().get(id=pk)
+            staff_member.is_active = True
+            staff_member.save()
+            return Response({'message': 'Staff member reactivated successfully'})
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'Staff member not found'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )

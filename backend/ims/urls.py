@@ -36,7 +36,7 @@ router.register('products', ProductViewSet)
 router.register('stock-movements', StockMovementViewSet)
 router.register('sales', SaleViewSet)
 router.register('customers', CustomerViewSet)
-router.register('vendors', VendorViewSet)
+router.register(r'vendors', VendorViewSet, basename='vendor')
 
 urlpatterns = [
     path('admin/', admin.site.urls),

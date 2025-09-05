@@ -3,16 +3,19 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from django.utils import timezone
-from django.db.models import Sum, Count, F
+from django.db.models import Sum, Count, F, Q, Avg
 from django.db.models.functions import TruncDay
 from .models import Sale, SaleItem
 from .serializers import SaleSerializer, CreateSaleSerializer
-from datetime import timedelta
+from datetime import timedelta, datetime
 from calendar import monthrange
-from decimal import Decimal 
+from decimal import Decimal
+import logging
+
+logger = logging.getLogger(__name__)
 
 class SaleViewSet(viewsets.ModelViewSet):
-    queryset = Sale.objects.select_related('customer', 'salesperson').prefetch_related('items')
+    queryset = Sale.objects.select_related('customer', 'salesperson').prefetch_related('items__product')
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]
     filterset_fields = {
         'customer': ['exact'],
@@ -67,10 +70,22 @@ class SaleViewSet(viewsets.ModelViewSet):
             'summary': summary
         })
 
+    def parse_date(self, date_str):
+        """Parse date string to date object"""
+        if not date_str:
+            return None
+        try:
+            return datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            logger.warning(f"Invalid date format: {date_str}")
+            return None
+
     def calculate_percentage_change(self, current, previous):
         """Calculate percentage change between current and previous values"""
-        if previous == 0:
-            return 100.0 if current > 0 else 0.0
+        if previous == 0 or previous is None:
+            return 100.0 if current and current > 0 else 0.0
+        if current is None:
+            current = 0
         return round(((current - previous) / previous) * 100, 2)
 
     def get_period_stats(self, queryset):
@@ -84,17 +99,25 @@ class SaleViewSet(viewsets.ModelViewSet):
         total = stats['total_amount'] or 0
         count = stats['count'] or 0
         items_count = stats['total_items'] or 0
+        avg_sale = (total / count) if count else 0
 
         return {
-            'total_revenue': total,
+            'total_revenue': float(total),
             'sales_count': count,
             'items_sold': items_count,
-            'average_sale': round(total / count, 2) if count else 0,
+            'average_sale': float(avg_sale),
             'average_items_per_sale': round(items_count / count, 2) if count else 0
         }
 
+    def get_comparison_period_dates(self, start_date, end_date):
+        """Calculate comparison period dates based on the selected period length"""
+        period_length = (end_date - start_date).days + 1
+        comparison_end = start_date - timedelta(days=1)
+        comparison_start = comparison_end - timedelta(days=period_length - 1)
+        return comparison_start, comparison_end
+
     def get_previous_month_dates(self, current_date):
-        """Calculate previous month start and end dates without dateutil"""
+        """Calculate previous month start and end dates"""
         start_of_current_month = current_date.replace(day=1)
 
         if start_of_current_month.month == 1:
@@ -108,40 +131,61 @@ class SaleViewSet(viewsets.ModelViewSet):
         _, last_day = monthrange(prev_year, prev_month)
         end_of_prev_month = start_of_prev_month.replace(day=last_day)
 
-        return start_of_prev_month, end_of_prev_month, start_of_current_month
+        return start_of_prev_month, end_of_prev_month
 
     @action(detail=False, methods=['get'])
     def dashboard(self, request):
-        """Get enhanced sales dashboard data with period comparisons"""
+        """Get enhanced sales dashboard data with date filtering and period comparisons"""
+        # Get date parameters from request
+        start_date_str = request.query_params.get('start_date')
+        end_date_str = request.query_params.get('end_date')
+        
+        # Parse dates or use defaults
+        if start_date_str and end_date_str:
+            start_date = self.parse_date(start_date_str)
+            end_date = self.parse_date(end_date_str)
+        else:
+            # Default to last 30 days if no dates provided
+            end_date = timezone.now().date()
+            start_date = end_date - timedelta(days=30)
+        
+        if not start_date or not end_date:
+            return Response(
+                {'error': 'Invalid date format. Use YYYY-MM-DD'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Get today's date for today's metrics
         today = timezone.now().date()
         yesterday = today - timedelta(days=1)
 
-        start_of_month = today.replace(day=1)
-        start_of_prev_month, end_of_prev_month, start_of_current_month = self.get_previous_month_dates(today)
+        # Base queryset with optimized joins
+        base_queryset = self.get_queryset().select_related('customer').prefetch_related('items__product')
 
-        # Today's stats
-        today_sales = self.get_queryset().filter(sale_date__date=today)
+        # Today's stats (always show current day stats)
+        today_sales = base_queryset.filter(sale_date__date=today)
         today_stats = self.get_period_stats(today_sales)
 
-        # Yesterday's stats
-        yesterday_sales = self.get_queryset().filter(sale_date__date=yesterday)
+        # Yesterday's stats for comparison
+        yesterday_sales = base_queryset.filter(sale_date__date=yesterday)
         yesterday_stats = self.get_period_stats(yesterday_sales)
 
-        # Current month stats (use datetime range for accuracy)
-        month_sales = self.get_queryset().filter(
-            sale_date__gte=start_of_month,
-            sale_date__lt=today + timedelta(days=1)  # include today
+        # Selected period stats
+        period_sales = base_queryset.filter(
+            sale_date__date__gte=start_date,
+            sale_date__date__lte=end_date
         )
-        month_stats = self.get_period_stats(month_sales)
+        period_stats = self.get_period_stats(period_sales)
 
-        # Previous month stats (safe range)
-        prev_month_sales = self.get_queryset().filter(
-            sale_date__gte=start_of_prev_month,
-            sale_date__lt=start_of_current_month
+        # Comparison period stats (same length as selected period, immediately before)
+        comparison_start, comparison_end = self.get_comparison_period_dates(start_date, end_date)
+        comparison_sales = base_queryset.filter(
+            sale_date__date__gte=comparison_start,
+            sale_date__date__lte=comparison_end
         )
-        prev_month_stats = self.get_period_stats(prev_month_sales)
+        comparison_stats = self.get_period_stats(comparison_sales)
 
-        # Today vs Yesterday
+        # Calculate changes
         today_comparisons = {
             'revenue_change': self.calculate_percentage_change(today_stats['total_revenue'], yesterday_stats['total_revenue']),
             'sales_count_change': self.calculate_percentage_change(today_stats['sales_count'], yesterday_stats['sales_count']),
@@ -149,47 +193,70 @@ class SaleViewSet(viewsets.ModelViewSet):
             'avg_sale_change': self.calculate_percentage_change(today_stats['average_sale'], yesterday_stats['average_sale'])
         }
 
-        # Current Month vs Previous Month
-        month_comparisons = {
-            'revenue_change': self.calculate_percentage_change(month_stats['total_revenue'], prev_month_stats['total_revenue']),
-            'sales_count_change': self.calculate_percentage_change(month_stats['sales_count'], prev_month_stats['sales_count']),
-            'items_sold_change': self.calculate_percentage_change(month_stats['items_sold'], prev_month_stats['items_sold']),
-            'avg_sale_change': self.calculate_percentage_change(month_stats['average_sale'], prev_month_stats['average_sale'])
+        period_comparisons = {
+            'revenue_change': self.calculate_percentage_change(period_stats['total_revenue'], comparison_stats['total_revenue']),
+            'sales_count_change': self.calculate_percentage_change(period_stats['sales_count'], comparison_stats['sales_count']),
+            'items_sold_change': self.calculate_percentage_change(period_stats['items_sold'], comparison_stats['items_sold']),
+            'avg_sale_change': self.calculate_percentage_change(period_stats['average_sale'], comparison_stats['average_sale'])
         }
 
-        # Payment breakdown
-        payment_breakdown = month_sales.values('payment_method').annotate(
+        # Payment breakdown for selected period
+        payment_breakdown = list(period_sales.values('payment_method').annotate(
             count=Count('id'),
             total=Sum('total_amount')
-        )
+        ).order_by('-total'))
 
-        # Top customers
-        top_customers = month_sales.values('customer__name').annotate(
+        # Top customers for selected period
+        top_customers = list(period_sales.values('customer__name').annotate(
             total_purchases=Sum('total_amount'),
             order_count=Count('id'),
             items_purchased=Sum('items__quantity')
-        ).order_by('-total_purchases')[:5]
+        ).filter(customer__name__isnull=False).order_by('-total_purchases')[:5])
 
-        # Daily sales trend (using TruncDay)
-        daily_sales = month_sales.annotate(
+        # Daily sales trend for selected period
+        daily_sales = list(period_sales.annotate(
             day=TruncDay('sale_date')
         ).values('day').annotate(
             daily_revenue=Sum('total_amount'),
             daily_count=Count('id'),
             daily_items=Sum('items__quantity')
-        ).order_by('day')
+        ).order_by('day'))
 
-        # Best selling items
-        top_items = SaleItem.objects.filter(
-            sale__sale_date__gte=start_of_month
-        ).values(
-            'product__name'
-        ).annotate(
-            total_quantity=Sum('quantity'),
-            total_revenue=Sum(F('quantity') * F('unit_price'))
-        ).order_by('-total_quantity')[:5]
+        # Convert daily_revenue to float for JSON serialization
+        for day_data in daily_sales:
+            if day_data['daily_revenue']:
+                day_data['daily_revenue'] = float(day_data['daily_revenue'])
+
+        # Best selling items for selected period
+        top_items = list(
+            SaleItem.objects.filter(
+                sale__sale_date__date__gte=start_date,
+                sale__sale_date__date__lte=end_date
+            ).select_related('product').values(
+                'product__name'
+            ).annotate(
+                total_quantity=Sum('quantity'),
+                total_revenue=Sum(F('quantity') * F('unit_price'))
+            ).order_by('-total_quantity')[:5]
+        )
+
+        # Convert Decimal to float for JSON serialization
+        for item in top_items:
+            if item['total_revenue']:
+                item['total_revenue'] = float(item['total_revenue'])
 
         return Response({
+            'period': {
+                'start_date': start_date,
+                'end_date': end_date,
+                **period_stats,
+                'vs_previous_period': {
+                    'previous_start': comparison_start,
+                    'previous_end': comparison_end,
+                    **comparison_stats,
+                    'changes': period_comparisons
+                }
+            },
             'today': {
                 'date': today,
                 **today_stats,
@@ -200,14 +267,14 @@ class SaleViewSet(viewsets.ModelViewSet):
                 }
             },
             'month': {
-                'start_date': start_of_month,
-                'end_date': today,
-                **month_stats,
+                'start_date': start_date,
+                'end_date': end_date,
+                **period_stats,
                 'vs_previous_month': {
-                    'previous_start': start_of_prev_month,
-                    'previous_end': end_of_prev_month,
-                    **prev_month_stats,
-                    'changes': month_comparisons
+                    'previous_start': comparison_start,
+                    'previous_end': comparison_end,
+                    **comparison_stats,
+                    'changes': period_comparisons
                 }
             },
             'analytics': {
@@ -218,14 +285,31 @@ class SaleViewSet(viewsets.ModelViewSet):
             }
         })
 
-
     @action(detail=False, methods=['get'])
     def sales_report(self, request):
-        """Get detailed sales report"""
-        start_date = request.query_params.get('start_date')
-        end_date = request.query_params.get('end_date')
+        """Get detailed sales report with date filtering"""
+        start_date_str = request.query_params.get('start_date')
+        end_date_str = request.query_params.get('end_date')
 
-        queryset = self.get_queryset()
+        # Parse dates
+        start_date = self.parse_date(start_date_str) if start_date_str else None
+        end_date = self.parse_date(end_date_str) if end_date_str else None
+
+        if start_date_str and not start_date:
+            return Response(
+                {'error': 'Invalid start_date format. Use YYYY-MM-DD'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if end_date_str and not end_date:
+            return Response(
+                {'error': 'Invalid end_date format. Use YYYY-MM-DD'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Build queryset with date filtering
+        queryset = self.get_queryset().select_related('customer').prefetch_related('items__product')
+        
         if start_date:
             queryset = queryset.filter(sale_date__date__gte=start_date)
         if end_date:
@@ -241,37 +325,60 @@ class SaleViewSet(viewsets.ModelViewSet):
 
         for row in raw_sales_by_date:
             count = row['orders_count'] or 0
-            total = row['total_sales'] or 0
-            row['avg_order_value'] = (total / count) if count else 0
+            total = float(row['total_sales']) if row['total_sales'] else 0
+            row['total_sales'] = total
+            row['avg_order_value'] = round(total / count, 2) if count else 0
             sales_by_date.append(row)
 
         # Payment methods breakdown
-        payment_methods = queryset.values('payment_method').annotate(
+        payment_methods = list(queryset.values('payment_method').annotate(
             count=Count('id'),
             total=Sum('total_amount')
-        )
+        ).order_by('-total'))
+
+        # Convert Decimal to float
+        for pm in payment_methods:
+            if pm['total']:
+                pm['total'] = float(pm['total'])
 
         # Top selling products
-        top_products = SaleItem.objects.filter(sale__in=queryset).values(
+        sale_items_queryset = SaleItem.objects.filter(sale__in=queryset).select_related('product')
+        top_products = list(sale_items_queryset.values(
             'product__name'
         ).annotate(
             quantity_sold=Sum('quantity'),
             total_amount=Sum('line_total')
-        ).order_by('-quantity_sold')[:10]
+        ).order_by('-quantity_sold')[:10])
 
+        # Convert Decimal to float
+        for product in top_products:
+            if product['total_amount']:
+                product['total_amount'] = float(product['total_amount'])
+
+        # Summary statistics
         summary = queryset.aggregate(
             total_sales=Sum('total_amount'),
             total_items=Sum('items__quantity'),
             count=Count('id')
         )
-        summary['average_order_value'] = (
-            summary['total_sales'] / summary['count']
-            if summary['count'] else 0
-        )
+        
+        # Convert and calculate
+        total_sales = float(summary['total_sales']) if summary['total_sales'] else 0
+        count = summary['count'] or 0
+        
+        summary_response = {
+            'total_sales': total_sales,
+            'total_items': summary['total_items'] or 0,
+            'count': count,
+            'average_order_value': round(total_sales / count, 2) if count else 0
+        }
 
         return Response({
-            'period': {'start': start_date, 'end': end_date},
-            'summary': summary,
+            'period': {
+                'start': start_date.isoformat() if start_date else None,
+                'end': end_date.isoformat() if end_date else None
+            },
+            'summary': summary_response,
             'sales_by_date': sales_by_date,
             'payment_methods': payment_methods,
             'top_products': top_products
