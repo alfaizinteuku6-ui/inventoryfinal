@@ -1,4 +1,4 @@
-import React, { use, useState } from "react";
+import React, { useState } from "react";
 import {
   Box,
   Button,
@@ -19,6 +19,10 @@ import {
   Tooltip,
   useTheme,
   useMediaQuery,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
 } from "@mui/material";
 import {
   Add,
@@ -34,6 +38,10 @@ import {
   GridView,
   ViewList,
   Receipt,
+  Edit,
+  MoreVert,
+  Delete,
+  Visibility,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { useSales } from "../hooks/useSWR";
@@ -45,10 +53,49 @@ import { sales as SalesApi } from "../services/api";
 const Sales = () => {
   const theme = useTheme();
   const [searchTerm, setSearchTerm] = useState("");
-  const [viewMode, setViewMode] = useState("grid"); // 'grid' or 'list'
+  const [viewMode, setViewMode] = useState("grid");
+  const [menuAnchor, setMenuAnchor] = useState(null);
+  const [selectedSale, setSelectedSale] = useState(null);
   const { data: sales, isLoading: loading, mutate } = useSales();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const navigate = useNavigate();
+
+  const handleMenuClick = (event, sale) => {
+    event.stopPropagation();
+    setMenuAnchor(event.currentTarget);
+    setSelectedSale(sale);
+  };
+
+  const handleMenuClose = () => {
+    setMenuAnchor(null);
+    setSelectedSale(null);
+  };
+
+  const handleEditSale = () => {
+    navigate(`/sales/${selectedSale.id}/edit`);
+    handleMenuClose();
+  };
+
+  const handleViewSale = () => {
+    navigate(`/sales/${selectedSale.id}`);
+    handleMenuClose();
+  };
+
+  const handleDeleteSale = async () => {
+    if (
+      window.confirm(
+        "Are you sure you want to delete this sale? This action cannot be undone."
+      )
+    ) {
+      try {
+        await SalesApi.delete(selectedSale.id);
+        mutate();
+        handleMenuClose();
+      } catch (error) {
+        alert(error.response?.data?.error || "Failed to delete sale");
+      }
+    }
+  };
 
   const handleAddPayment = async (sale) => {
     const amount = prompt("Enter payment amount:");
@@ -157,7 +204,7 @@ const Sales = () => {
         />
         <CardContent sx={{ p: 3 }}>
           <Stack spacing={2.5}>
-            {/* Header with Invoice Number and Status */}
+            {/* Header with Invoice Number, Status, and Actions */}
             <Stack
               direction="row"
               justifyContent="space-between"
@@ -198,19 +245,32 @@ const Sales = () => {
                   </Typography>
                 </Box>
               </Stack>
-              <Chip
-                label={`${getStatusIcon(sale.payment_status)} ${
-                  sale.payment_status.charAt(0).toUpperCase() +
-                  sale.payment_status.slice(1)
-                }`}
-                size="small"
-                color={getStatusColor(sale.payment_status)}
-                sx={{
-                  fontWeight: 600,
-                  borderRadius: 2,
-                  "& .MuiChip-label": { px: 1.5 },
-                }}
-              />
+
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <Chip
+                  label={`${getStatusIcon(sale.payment_status)} ${
+                    sale.payment_status.charAt(0).toUpperCase() +
+                    sale.payment_status.slice(1)
+                  }`}
+                  size="small"
+                  color={getStatusColor(sale.payment_status)}
+                  sx={{
+                    fontWeight: 600,
+                    borderRadius: 2,
+                    "& .MuiChip-label": { px: 1.5 },
+                  }}
+                />
+                <IconButton
+                  size="small"
+                  onClick={(e) => handleMenuClick(e, sale)}
+                  sx={{
+                    bgcolor: "rgba(0,0,0,0.04)",
+                    "&:hover": { bgcolor: "rgba(0,0,0,0.08)" },
+                  }}
+                >
+                  <MoreVert fontSize="small" />
+                </IconButton>
+              </Stack>
             </Stack>
 
             {/* Customer Name */}
@@ -256,13 +316,15 @@ const Sales = () => {
                 <Typography variant="caption" color="text.secondary">
                   {sale.items_count} item{sale.items_count !== 1 ? "s" : ""}
                 </Typography>
-                <Typography variant="body2" color="error" fontWeight="600">
-                  Balance Due: ₹
-                  {parseFloat(sale.balance_due).toLocaleString("en-IN", {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
-                </Typography>
+                {sale.balance_due > 0 && (
+                  <Typography variant="body2" color="error" fontWeight="600">
+                    Balance Due: ₹
+                    {parseFloat(sale.balance_due).toLocaleString("en-IN", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </Typography>
+                )}
               </Box>
               <Chip
                 label={sale.payment_method}
@@ -277,7 +339,7 @@ const Sales = () => {
               />
             </Stack>
 
-            {/* Action Button */}
+            {/* Action Buttons */}
             <Box
               className="card-actions"
               sx={{
@@ -287,44 +349,38 @@ const Sales = () => {
                 pt: 1,
               }}
             >
-              <Button
-                variant="contained"
-                startIcon={<DownloadIcon />}
-                onClick={() => handleDownloadPDF(sale)}
-                fullWidth
-                sx={{
-                  borderRadius: 3,
-                  textTransform: "none",
-                  py: 1.2,
-                  fontWeight: 600,
-                  background:
-                    "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)",
-                  boxShadow: "0 4px 12px rgba(25, 118, 210, 0.3)",
-                  "&:hover": {
-                    background:
-                      "linear-gradient(135deg, #1565c0 0%, #0d47a1 100%)",
-                    boxShadow: "0 6px 16px rgba(25, 118, 210, 0.4)",
-                  },
-                }}
-              >
-                Download Invoice
-              </Button>
-              <Button
-                variant="outlined"
-                disabled={sale.balance_due <= 0}
-                startIcon={<Payment />}
-                onClick={() => handleAddPayment(sale)}
-                fullWidth
-                sx={{
-                  mt: 1,
-                  borderRadius: 3,
-                  textTransform: "none",
-                  py: 1.2,
-                  fontWeight: 600,
-                }}
-              >
-                Record Payment
-              </Button>
+              <Stack direction="row" spacing={1}>
+                <Button
+                  variant="contained"
+                  startIcon={<DownloadIcon />}
+                  onClick={() => handleDownloadPDF(sale)}
+                  size="small"
+                  sx={{
+                    flex: 1,
+                    borderRadius: 2,
+                    textTransform: "none",
+                    fontWeight: 600,
+                  }}
+                >
+                  Download
+                </Button>
+                {sale.balance_due > 0 && (
+                  <Button
+                    variant="outlined"
+                    startIcon={<Payment />}
+                    onClick={() => handleAddPayment(sale)}
+                    size="small"
+                    sx={{
+                      flex: 1,
+                      borderRadius: 2,
+                      textTransform: "none",
+                      fontWeight: 600,
+                    }}
+                  >
+                    Pay
+                  </Button>
+                )}
+              </Stack>
             </Box>
           </Stack>
         </CardContent>
@@ -342,7 +398,6 @@ const Sales = () => {
       }}
     >
       {/* Header Section */}
-
       <HeaderCard
         icon={<Receipt fontSize="large" />}
         title="Sales Dashboard"
@@ -379,7 +434,9 @@ const Sales = () => {
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <StatsCard
             title="Total Revenue"
-            value={`₹${sales?.summary?.total_revenue.toLocaleString("en-IN")}`}
+            value={`₹${
+              sales?.summary?.total_revenue?.toLocaleString("en-IN") || 0
+            }`}
             icon={<Analytics />}
             color="success"
           />
@@ -387,7 +444,9 @@ const Sales = () => {
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <StatsCard
             title="Paid Amount"
-            value={`₹${sales?.summary?.paid_amount.toLocaleString("en-IN")}`}
+            value={`₹${
+              sales?.summary?.paid_amount?.toLocaleString("en-IN") || 0
+            }`}
             icon={<Payment />}
             color="warning"
           />
@@ -395,9 +454,9 @@ const Sales = () => {
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <StatsCard
             title="Pending Payments"
-            value={`₹${sales?.summary?.pending_payments.toLocaleString(
-              "en-IN"
-            )}`}
+            value={`₹${
+              sales?.summary?.pending_payments?.toLocaleString("en-IN") || 0
+            }`}
             icon={<ReceiptLong />}
             color="error"
           />
@@ -540,6 +599,42 @@ const Sales = () => {
           </Button>
         </Paper>
       )}
+
+      {/* Context Menu */}
+      <Menu
+        anchorEl={menuAnchor}
+        open={Boolean(menuAnchor)}
+        onClose={handleMenuClose}
+        transformOrigin={{ horizontal: "right", vertical: "top" }}
+        anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            minWidth: 180,
+            boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+          },
+        }}
+      >
+        <MenuItem onClick={handleViewSale}>
+          <ListItemIcon>
+            <Visibility fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>View Details</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={handleEditSale}>
+          <ListItemIcon>
+            <Edit fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Edit Sale</ListItemText>
+        </MenuItem>
+        <Divider />
+        <MenuItem onClick={handleDeleteSale} sx={{ color: "error.main" }}>
+          <ListItemIcon>
+            <Delete fontSize="small" sx={{ color: "error.main" }} />
+          </ListItemIcon>
+          <ListItemText>Delete Sale</ListItemText>
+        </MenuItem>
+      </Menu>
     </Box>
   );
 };

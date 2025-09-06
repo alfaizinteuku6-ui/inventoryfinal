@@ -40,7 +40,7 @@ class Sale(TimestampedModel):
     
     notes = models.TextField(blank=True)
     salesperson = models.ForeignKey('accounts.User', on_delete=models.SET_NULL, null=True)
-
+    
     class Meta:
         ordering = ['-created_at']
         indexes = [

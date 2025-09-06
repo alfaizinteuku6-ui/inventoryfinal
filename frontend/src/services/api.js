@@ -112,6 +112,12 @@ export const sales = {
   getAll: (params) => api.get('/sales/', { params }),
   getById: (id) => api.get(`/sales/${id}/`),
   create: (data) => api.post('/sales/', data),
+
+  // New methods for update/edit functionality
+  update: (id, data) => api.put(`/sales/${id}/`, data),
+  partialUpdate: (id, data) => api.patch(`/sales/${id}/`, data),
+  delete: (id) => api.delete(`/sales/${id}/`),
+
   getTodaySales: () => api.get('/sales/today_sales/'),
   getSalesReport: (params) => api.get('/sales/sales_report/', { params }),
   getDashboardData: (params) => api.get('/sales/dashboard/', { params }),

@@ -28,6 +28,15 @@ class SaleViewSet(viewsets.ModelViewSet):
     ordering_fields = ['sale_date', 'total_amount', 'created_at']
     ordering = ['-created_at']
 
+    def get_queryset(self):
+        return Sale.objects.filter(is_active=True).select_related('customer', 'salesperson').prefetch_related('items__product')
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance.is_active = False
+        instance.save(update_fields=["is_active"])
+        return Response({"detail": "Sale soft-deleted successfully."}, status=status.HTTP_200_OK)
+
     def get_serializer_class(self):
         if self.action == 'create':
             return CreateSaleSerializer

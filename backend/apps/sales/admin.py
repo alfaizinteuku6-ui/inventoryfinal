@@ -16,7 +16,7 @@ class SaleItemInline(admin.TabularInline):
 @admin.register(Sale)
 class SaleAdmin(admin.ModelAdmin):
     list_display = (
-        "sale_number", "customer", "sale_date", "due_date",
+        "sale_number", "customer", "sale_date", "due_date", "is_active",
         "subtotal", "discount_amount", "tax_amount", "total_amount",
         "paid_amount", "balance_due", "payment_status", "payment_method",
         "salesperson"

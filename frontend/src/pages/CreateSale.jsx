@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Box,
   Button,
@@ -33,8 +33,8 @@ import {
   Cancel,
   Store,
 } from "@mui/icons-material";
-import { useNavigate } from "react-router-dom";
-import { useProducts, useCustomers } from "../hooks/useSWR";
+import { useNavigate, useParams } from "react-router-dom";
+import { useProducts, useCustomers, useSale } from "../hooks/useSWR";
 import { sales } from "../services/api";
 import SaleItemRow from "../components/Sale/SaleItemRow ";
 import CustomerDialog from "../components/CustomerDailog";
@@ -42,6 +42,7 @@ import CustomerDialog from "../components/CustomerDailog";
 const CreateSale = () => {
   const theme = useTheme();
   const navigate = useNavigate();
+  const { id: saleId } = useParams();
   const { data: products } = useProducts();
   const { data: customers, mutate } = useCustomers();
   const [activeStep, setActiveStep] = useState(0);
@@ -61,13 +62,22 @@ const CreateSale = () => {
         product_sku: "",
         quantity: 1,
         unit_price: "",
-        discount_percent: "",
-        tax_rate: "",
+        discount_percent: 0,
+        tax_rate: 0,
         line_total: "",
       },
     ],
   };
   const [saleData, setSaleData] = useState(initialData);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const { data: saleDateById, isLoading, isError } = useSale(saleId);
+
+ useEffect(() => {
+    if (saleId && saleDateById) {
+      setIsEditMode(true);
+      setSaleData({...saleDateById, customer: saleDateById.customer_details?.id || ""});
+    }
+  },[saleId, saleDateById]);
 
   const updateItem = (index, field, value) => {
     const newItems = [...saleData.items];
@@ -98,8 +108,8 @@ const CreateSale = () => {
           product_sku: "",
           quantity: 1,
           unit_price: "",
-          discount_percent: "",
-          tax_rate: "",
+          discount_percent: 0,
+          tax_rate: 0,
           line_total: "",
         },
       ],
@@ -165,7 +175,11 @@ const CreateSale = () => {
           line_total: parseFloat(item.line_total),
         })),
       };
-      await sales.create(formattedData);
+      if(isEditMode){
+        await sales.update(saleId, formattedData);
+      }else{
+        await sales.create(formattedData);
+      }
       resetSaleForm();
       navigate("/sales");
     } catch (error) {
@@ -207,7 +221,7 @@ const CreateSale = () => {
                 mb: 1,
               }}
             >
-              Create New Sale
+             { isEditMode ? "Edit" : "Create New"} Sale
             </Typography>
             <Typography variant="h6" color="text.secondary">
               Build your sales transaction with our modern interface
@@ -285,58 +299,64 @@ const CreateSale = () => {
                   <Grid container spacing={3}>
                     <Grid size={{ xs: 12, md: 6 }}>
                       <Box display="flex" gap={1}>
-                      <TextField
-                        select
-                        label="Select Customer"
-                        fullWidth
-                        value={saleData.customer}
-                        onChange={(e) =>
-                          setSaleData({ ...saleData, customer: e.target.value })
-                        }
-                        required
-                        variant="outlined"
-                        sx={{
-                          minWidth: 240, // 🔹 ensures initial minimum width
-                          "& .MuiOutlinedInput-root": {
-                            borderRadius: 2,
-                            "&:hover .MuiOutlinedInput-notchedOutline": {
-                              borderColor: (theme) =>
-                                theme.palette.primary.main,
-                            },
-                          },
-                        }}
-                      >
-                        {customers?.results?.map((customer) => (
-                          <MenuItem key={customer.id} value={customer.id}>
-                            <Box
-                              sx={{ display: "flex", flexDirection: "column" }}
-                            >
-                              <Typography variant="body2" fontWeight={500}>
-                                {customer.name}
-                              </Typography>
-                              <Typography
-                                variant="caption"
-                                color="text.secondary"
-                              >
-                                {customer.email}
-                              </Typography>
-                            </Box>
-                          </MenuItem>
-                        ))}
-                      </TextField>
-                      <Tooltip title="Add New Customer">
-                        <Button
+                        <TextField
+                          select
+                          label="Select Customer"
+                          fullWidth
+                          value={saleData.customer}
+                          onChange={(e) =>
+                            setSaleData({
+                              ...saleData,
+                              customer: e.target.value,
+                            })
+                          }
+                          required
                           variant="outlined"
-                          onClick={() => setCustomerDialogOpen(true)}
                           sx={{
-                            minWidth: 56,
-                            height: 56,
-                            borderRadius: 2,
+                            minWidth: 240, // 🔹 ensures initial minimum width
+                            "& .MuiOutlinedInput-root": {
+                              borderRadius: 2,
+                              "&:hover .MuiOutlinedInput-notchedOutline": {
+                                borderColor: (theme) =>
+                                  theme.palette.primary.main,
+                              },
+                            },
                           }}
                         >
-                          <Add />
-                        </Button>
-                      </Tooltip>
+                          {customers?.results?.map((customer) => (
+                            <MenuItem key={customer.id} value={customer.id}>
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  flexDirection: "column",
+                                }}
+                              >
+                                <Typography variant="body2" fontWeight={500}>
+                                  {customer.name}
+                                </Typography>
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
+                                  {customer.email}
+                                </Typography>
+                              </Box>
+                            </MenuItem>
+                          ))}
+                        </TextField>
+                        <Tooltip title="Add New Customer">
+                          <Button
+                            variant="outlined"
+                            onClick={() => setCustomerDialogOpen(true)}
+                            sx={{
+                              minWidth: 56,
+                              height: 56,
+                              borderRadius: 2,
+                            }}
+                          >
+                            <Add />
+                          </Button>
+                        </Tooltip>
                       </Box>
                     </Grid>
                   </Grid>
@@ -607,7 +627,7 @@ const CreateSale = () => {
                       },
                     }}
                   >
-                    {loading ? "Creating Sale..." : "Create Sale"}
+                    {loading ? isEditMode ? "Updating Sale..." : "Creating Sale..." : isEditMode ? "Update Sale" : "Create Sale"}
                   </Button>
                 </Box>
               </form>

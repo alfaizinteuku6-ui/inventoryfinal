@@ -18,6 +18,7 @@ const Products = React.lazy(() => import('./pages/Products'));
 const ProductForm = React.lazy(() => import('./pages/ProductForm'));
 const Sales = React.lazy(() => import('./pages/Sales'));
 const CreateSale = React.lazy(() => import('./pages/CreateSale'));
+const SaleDetails = React.lazy(() => import('./pages/SaleDetails'));
 const Customers = React.lazy(() => import('./pages/Customers'));
 const Login = React.lazy(() => import('./pages/Login'));
 const Profile = React.lazy(() => import('./pages/Profile'));
@@ -291,8 +292,10 @@ const routes = [
   { path: '/products/:id/edit', element: ProductForm },
   { path: '/sales', element: Sales },
   { path: '/sales/new', element: CreateSale },
+  { path: '/sales/:id/edit', element: CreateSale },
   { path: '/customers', element: Customers },
   { path: '/profile', element: Profile },
+  { path: '/sales/:id', element: SaleDetails },
 ];
 
 function App() {

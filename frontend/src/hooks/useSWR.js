@@ -21,6 +21,8 @@ const fetcher = (url, params) => {
       return categories.getAll().then(res => res.data);
     case 'sales':
       return sales.getAll(params).then(res => res.data);
+    case 'saleById':
+      return sales.getById(args[0]).then(res => res.data);
     case 'sales-today':
       return sales.getTodaySales().then(res => res.data);
     case 'sales-dashboard':
@@ -65,6 +67,10 @@ export const useProducts = (params = {}) => {
 
 export const useProduct = (id) => {
   return useSWR(id ? `product|${id}` : null, fetcher);
+};
+
+export const useSale = (id) => {
+  return useSWR(id ? `saleById|${id}` : null, fetcher);
 };
 
 export const useGetAllStaff = (params = {}) => {
