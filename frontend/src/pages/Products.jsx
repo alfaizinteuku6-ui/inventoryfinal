@@ -78,17 +78,6 @@ const Products = () => {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [sortBy, setSortBy] = useState("name");
-  const [deleteDialog, setDeleteDialog] = useState({
-    open: false,
-    product: null,
-  });
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: "",
-    severity: "success",
-  });
-  const [anchorEl, setAnchorEl] = useState(null);
-  const [selectedProduct, setSelectedProduct] = useState(null);
 
   // Filtered and searched products
   const filteredProducts = useMemo(() => {
@@ -158,51 +147,6 @@ const Products = () => {
     ).toFixed(1);
   };
 
-  // Handle delete with confirmation
-  const handleDeleteConfirm = (product) => {
-    setDeleteDialog({ open: true, product });
-  };
-
-  const handleDelete = async () => {
-    const { product } = deleteDialog;
-    try {
-      setSnackbar({
-        open: true,
-        message: `Product "${product.name}" deleted successfully`,
-        severity: "success",
-      });
-    } catch (error) {
-      setSnackbar({
-        open: true,
-        message: "Failed to delete product. Please try again.",
-        severity: "error",
-      });
-    } finally {
-      setDeleteDialog({ open: false, product: null });
-    }
-  };
-
-  // Menu handlers
-  const handleMenuOpen = (event, product) => {
-    setAnchorEl(event.currentTarget);
-    setSelectedProduct(product);
-  };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-    setSelectedProduct(null);
-  };
-
-  // Copy SKU to clipboard
-  const handleCopySKU = (sku) => {
-    navigator.clipboard.writeText(sku);
-    setSnackbar({
-      open: true,
-      message: "SKU copied to clipboard",
-      severity: "success",
-    });
-  };
-
   // Speed dial actions
   const speedDialActions = [
     {
@@ -257,266 +201,134 @@ const Products = () => {
   const ProductCard = ({ product, index }) => {
     const stockStatus = getStockStatus(product);
     const profitMargin = getProfitMargin(product);
-
+  
     return (
       <Fade in timeout={300 + index * 100}>
         <Card
           sx={{
-            borderRadius: 4,
-            boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
-            border: "1px solid rgba(0,0,0,0.06)",
+            borderRadius: 3,
             transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-            background: "linear-gradient(135deg, #fff 0%, #f8f9ff 100%)",
             overflow: "hidden",
-            position: "relative",
-            height: "100%",
-            display: "flex",
-            flexDirection: "column",
-            "&:hover": {
-              boxShadow: "0 12px 40px rgba(0,0,0,0.15)",
-              transform: "translateY(-8px) scale(1.02)",
-              "& .product-actions": {
-                opacity: 1,
-                transform: "translateY(0)",
-              },
-              "& .product-image": {
-                transform: "scale(1.1)",
-              },
-            },
+            height: "auto",
           }}
         >
-          {/* Stock Status Badge */}
-          {stockStatus.severity !== "low" && (
-            <Chip
-              label={stockStatus.label}
-              color={stockStatus.color}
-              size="small"
-              icon={stockStatus.icon}
-              sx={{
-                position: "absolute",
-                top: 12,
-                right: 12,
-                zIndex: 2,
-                fontWeight: 600,
-                backdropFilter: "blur(10px)",
-                backgroundColor: `${
-                  stockStatus.color === "error"
-                    ? "rgba(211, 47, 47, 0.9)"
-                    : "rgba(237, 108, 2, 0.9)"
-                }`,
-                color: "white",
-                border: "1px solid rgba(255,255,255,0.2)",
-              }}
-            />
-          )}
-
-          {/* Profit Margin Badge */}
-          <Chip
-            label={`${profitMargin}% margin`}
-            size="small"
-            sx={{
-              position: "absolute",
-              top: 12,
-              left: 12,
-              zIndex: 2,
-              fontWeight: 600,
-              backgroundColor:
-                profitMargin > 20
-                  ? "rgba(46, 125, 50, 0.9)"
-                  : "rgba(251, 140, 0, 0.9)",
-              color: "white",
-              backdropFilter: "blur(10px)",
-              border: "1px solid rgba(255,255,255,0.2)",
-            }}
-          />
-
-          {/* Product Image */}
-          <Box sx={{ position: "relative", overflow: "hidden", height: 220 }}>
+          {/* Compact Header with Image and Key Info */}
+          <Box sx={{ position: "relative", height: 140 }}>
+            {/* Product Image */}
             {product.image ? (
               <CardMedia
                 component="img"
-                height="220"
+                height="140"
                 image={product.image}
                 alt={product.name}
-                className="product-image"
                 sx={{
                   objectFit: "cover",
-                  transition: "transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)",
-                  height: "100%",
-                  width: "100%",
+                  transition: "transform 0.3s ease",
                 }}
               />
             ) : (
               <Box
-                height="220px"
+                height="140px"
                 display="flex"
                 alignItems="center"
                 justifyContent="center"
-                sx={{
-                  background:
-                    "linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)",
-                }}
               >
-                <Inventory2 sx={{ fontSize: 80, color: "rgba(0,0,0,0.3)" }} />
+                <Inventory2 sx={{ fontSize: 48, color: "rgba(0,0,0,0.3)" }} />
               </Box>
             )}
-
-            {/* Quick Action Overlay */}
-            <Box
-              className="product-actions"
-              sx={{
-                position: "absolute",
-                bottom: 0,
-                left: 0,
-                right: 0,
-                background: "linear-gradient(transparent, rgba(0,0,0,0.8))",
-                p: 2,
-                opacity: 0,
-                transform: "translateY(20px)",
-                transition: "all 0.3s ease",
-                display: "flex",
-                gap: 1,
-                justifyContent: "center",
-              }}
-            >
-              <Tooltip title="View Details">
-                <IconButton
-                  onClick={() => navigate(`/products/${product.id}`)}
+  
+            {/* Status Badges */}
+            <Box sx={{ position: "absolute", top: 8, right: 8, display: "flex", gap: 0.5 }}>
+              {stockStatus.severity !== "low" && (
+                <Chip
+                  label={stockStatus.label}
+                  color={stockStatus.color}
                   size="small"
                   sx={{
-                    bgcolor: "rgba(255,255,255,0.9)",
-                    "&:hover": { bgcolor: "white", transform: "scale(1.1)" },
+                    fontSize: "0.7rem",
+                    fontWeight: 600,
+                    height: 22,
+                    "& .MuiChip-label": { px: 1 },
                   }}
-                >
-                  <Visibility fontSize="small" color="primary" />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Edit Product">
-                <IconButton
-                  onClick={() => navigate(`/products/${product.id}/edit`)}
-                  size="small"
-                  sx={{
-                    bgcolor: "rgba(255,255,255,0.9)",
-                    "&:hover": { bgcolor: "white", transform: "scale(1.1)" },
-                  }}
-                >
-                  <Edit fontSize="small" color="primary" />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Copy SKU">
-                <IconButton
-                  size="small"
-                  onClick={() => handleCopySKU(product.sku)}
-                  sx={{
-                    bgcolor: "rgba(255,255,255,0.9)",
-                    "&:hover": { bgcolor: "white", transform: "scale(1.1)" },
-                  }}
-                >
-                  <ContentCopy fontSize="small" color="primary" />
-                </IconButton>
-              </Tooltip>
+                />
+              )}
+            </Box>
+  
+            {/* Profit Badge */}
+            <Box sx={{ position: "absolute", top: 8, left: 8 }}>
+              <Chip
+                label={`${profitMargin}%`}
+                size="small"
+                sx={{
+                  fontSize: "0.7rem",
+                  fontWeight: 600,
+                  height: 22,
+                  backgroundColor: profitMargin > 20 ? "success.main" : "warning.main",
+                  color: "white",
+                  "& .MuiChip-label": { px: 1 },
+                }}
+              />
             </Box>
           </Box>
-
-          <CardContent
-            sx={{ flexGrow: 1, display: "flex", flexDirection: "column", p: 3 }}
-          >
-            <Stack spacing={2} sx={{ flexGrow: 1 }}>
+  
+          <CardContent sx={{ p: 2.5 }}>
+            <Stack spacing={1.5}>
               {/* Product Name */}
-              <Tooltip title={product.name} placement="top">
-                <Typography
-                  variant="h6"
-                  fontWeight="700"
-                  sx={{
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    display: "-webkit-box",
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: "vertical",
-                    minHeight: "3.2em",
-                    lineHeight: 1.6,
-                    color: "primary.main",
-                  }}
-                >
-                  {product.name}
-                </Typography>
-              </Tooltip>
-
-              {/* SKU and Category */}
-              <Stack
-                direction="row"
-                spacing={1}
-                alignItems="center"
-                flexWrap="wrap"
+              <Typography
+                variant="subtitle1"
+                fontWeight="700"
+                sx={{
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  color: "text.primary",
+                  fontSize: "1rem",
+                }}
+                title={product.name}
               >
+                {product.name}
+              </Typography>
+  
+              {/* SKU and Category in compact row */}
+              <Stack direction="row" spacing={1} alignItems="center">
                 <Chip
                   label={product.sku}
                   size="small"
                   variant="outlined"
                   sx={{
-                    fontSize: "0.75rem",
-                    fontWeight: 600,
-                    color: "text.secondary",
-                    borderColor: "rgba(0,0,0,0.12)",
+                    fontSize: "0.7rem",
+                    fontWeight: 500,
+                    height: 20,
+                    "& .MuiChip-label": { px: 1 },
                   }}
                 />
-                <Chip
-                  label={product.category_name || "Uncategorized"}
-                  size="small"
-                  sx={{
-                    fontSize: "0.75rem",
-                    fontWeight: 600,
-                    backgroundColor: "primary.50",
-                    color: "primary.main",
-                    border: "1px solid",
-                    borderColor: "primary.200",
-                  }}
-                />
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.75rem" }}>
+                  {product.category_name || "No Category"}
+                </Typography>
               </Stack>
-
-              {/* Price Section */}
-              <Box>
-                <Stack direction="row" alignItems="baseline" spacing={1}>
+  
+              {/* Price and Stock in row */}
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Box>
                   <Typography
-                    variant="h5"
+                    variant="h6"
                     color="primary.main"
                     fontWeight="800"
-                    sx={{ fontSize: "1.5rem" }}
+                    sx={{ fontSize: "1.25rem" }}
                   >
                     ₹{parseFloat(product.selling_price).toLocaleString("en-IN")}
                   </Typography>
                   <Typography
-                    variant="body2"
+                    variant="caption"
                     color="text.secondary"
-                    sx={{ textDecoration: "line-through", fontSize: "0.9rem" }}
+                    sx={{ fontSize: "0.7rem" }}
                   >
-                    ₹{parseFloat(product.cost_price).toLocaleString("en-IN")}
+                    Cost: ₹{parseFloat(product.cost_price).toLocaleString("en-IN")}
                   </Typography>
-                </Stack>
-                <Typography variant="caption" color="text.secondary">
-                  Cost: ₹
-                  {parseFloat(product.cost_price).toLocaleString("en-IN")}
-                </Typography>
-              </Box>
-
-              <Divider sx={{ my: 1 }} />
-
-              {/* Stock Information */}
-              <Stack
-                direction="row"
-                alignItems="center"
-                justifyContent="space-between"
-              >
-                <Box>
+                </Box>
+                <Box sx={{ textAlign: "right" }}>
                   <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ fontSize: "0.8rem" }}
-                  >
-                    Stock Quantity
-                  </Typography>
-                  <Typography
-                    variant="h6"
+                    variant="subtitle2"
                     fontWeight="700"
                     color={
                       product.stock_quantity === 0
@@ -525,57 +337,69 @@ const Products = () => {
                         ? "warning.main"
                         : "success.main"
                     }
+                    sx={{ fontSize: "0.9rem" }}
                   >
                     {product.stock_quantity} units
                   </Typography>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ fontSize: "0.7rem" }}
+                  >
+                    Value: ₹{(product.selling_price * product.stock_quantity).toLocaleString("en-IN")}
+                  </Typography>
                 </Box>
-
-                {stockStatus.severity === "low" && (
-                  <Chip
-                    label={stockStatus.label}
-                    color={stockStatus.color}
-                    size="small"
-                    icon={stockStatus.icon}
-                    sx={{ fontSize: "0.7rem", fontWeight: 600 }}
-                  />
-                )}
               </Stack>
-
-              {/* Stock Value */}
-              <Typography variant="body2" color="text.secondary">
-                Stock Value:{" "}
-                <strong>
-                  ₹
-                  {(
-                    product.selling_price * product.stock_quantity
-                  ).toLocaleString("en-IN")}
-                </strong>
-              </Typography>
+  
+              {/* Action Buttons */}
+              <Stack direction="row" spacing={1} sx={{ pt: 0.5 }}>
+                <Button
+                  variant="outlined"
+                  startIcon={<Visibility />}
+                  onClick={() => navigate(`/products/${product.id}`)}
+                  size="small"
+                  sx={{
+                    flex: 1,
+                    borderRadius: 2,
+                    textTransform: "none",
+                    fontWeight: 600,
+                    fontSize: "0.8rem",
+                    py: 0.5,
+                  }}
+                >
+                  View
+                </Button>
+                <Button
+                  variant="contained"
+                  startIcon={<Edit />}
+                  onClick={() => navigate(`/products/${product.id}/edit`)}
+                  size="small"
+                  sx={{
+                    flex: 1,
+                    borderRadius: 2,
+                    textTransform: "none",
+                    fontWeight: 600,
+                    fontSize: "0.8rem",
+                    py: 0.5,
+                  }}
+                >
+                  Edit
+                </Button>
+                <Tooltip title="More Actions">
+                  <IconButton
+                    onClick={(e) => handleMenuOpen(e, product)}
+                    size="small"
+                    sx={{
+                      border: "1px solid rgba(0,0,0,0.12)",
+                      borderRadius: 2,
+                    }}
+                  >
+                    <MoreVert fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </Stack>
             </Stack>
           </CardContent>
-
-          <CardActions sx={{ p: 3, pt: 0 }}>
-            <ButtonGroup variant="outlined" fullWidth size="small">
-              <Button
-                onClick={() => navigate(`/products/${product.id}`)}
-                startIcon={<Visibility />}
-              >
-                View
-              </Button>
-              <Button
-                onClick={() => navigate(`/products/${product.id}/edit`)}
-                startIcon={<Edit />}
-              >
-                Edit
-              </Button>
-              <IconButton
-                onClick={(e) => handleMenuOpen(e, product)}
-                size="small"
-              >
-                <MoreVert />
-              </IconButton>
-            </ButtonGroup>
-          </CardActions>
         </Card>
       </Fade>
     );
@@ -586,7 +410,6 @@ const Products = () => {
       sx={{
         width: "100%",
         minHeight: "100vh",
-        bgcolor: "#f8fafc",
         p: { xs: 2, sm: 3 },
       }}
     >
@@ -855,167 +678,6 @@ const Products = () => {
           />
         ))}
       </SpeedDial>
-
-      {/* Context Menu */}
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={handleMenuClose}
-        transformOrigin={{ horizontal: "right", vertical: "top" }}
-        anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
-        PaperProps={{
-          sx: {
-            borderRadius: 2,
-            boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
-            border: "1px solid rgba(0,0,0,0.06)",
-            minWidth: 200,
-          },
-        }}
-      >
-        <MenuItem
-          onClick={() => {
-            console.log("View product:", selectedProduct?.id);
-            handleMenuClose();
-          }}
-        >
-          <ListItemIcon>
-            <Visibility fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>View Details</ListItemText>
-        </MenuItem>
-
-        <MenuItem
-          onClick={() => {
-            navigate(`/products/${selectedProduct?.id}`);
-            handleMenuClose();
-          }}
-        >
-          <ListItemIcon>
-            <Edit fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Edit Product</ListItemText>
-        </MenuItem>
-
-        <MenuItem
-          onClick={() => {
-            handleCopySKU(selectedProduct?.sku);
-            handleMenuClose();
-          }}
-        >
-          <ListItemIcon>
-            <ContentCopy fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Copy SKU</ListItemText>
-        </MenuItem>
-
-        <Divider />
-
-        <MenuItem
-          onClick={() => {
-            console.log("Duplicate product:", selectedProduct?.id);
-            handleMenuClose();
-          }}
-        >
-          <ListItemIcon>
-            <Add fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Duplicate Product</ListItemText>
-        </MenuItem>
-
-        <MenuItem
-          onClick={() => {
-            handleDeleteConfirm(selectedProduct);
-            handleMenuClose();
-          }}
-          sx={{ color: "error.main" }}
-        >
-          <ListItemIcon>
-            <Delete fontSize="small" color="error" />
-          </ListItemIcon>
-          <ListItemText>Delete Product</ListItemText>
-        </MenuItem>
-      </Menu>
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog
-        open={deleteDialog.open}
-        onClose={() => setDeleteDialog({ open: false, product: null })}
-        maxWidth="sm"
-        fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: 3,
-            boxShadow: "0 16px 48px rgba(0,0,0,0.12)",
-          },
-        }}
-      >
-        <DialogTitle sx={{ pb: 2 }}>
-          <Stack direction="row" alignItems="center" spacing={2}>
-            <Avatar sx={{ bgcolor: "error.50", color: "error.main" }}>
-              <Delete />
-            </Avatar>
-            <Box>
-              <Typography variant="h6" fontWeight="600">
-                Delete Product
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                This action cannot be undone
-              </Typography>
-            </Box>
-          </Stack>
-        </DialogTitle>
-        <DialogContent>
-          <Alert severity="warning" sx={{ mb: 2 }}>
-            You are about to permanently delete this product from your
-            inventory.
-          </Alert>
-          <DialogContentText>
-            Are you sure you want to delete "{deleteDialog.product?.name}"? This
-            will remove the product and all its associated data.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions sx={{ p: 3, pt: 1 }}>
-          <Button
-            onClick={() => setDeleteDialog({ open: false, product: null })}
-            sx={{ borderRadius: 2, textTransform: "none", px: 3 }}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleDelete}
-            color="error"
-            variant="contained"
-            sx={{
-              borderRadius: 2,
-              textTransform: "none",
-              px: 3,
-              fontWeight: 600,
-            }}
-          >
-            Delete Product
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Snackbar for notifications */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={4000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-      >
-        <Alert
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
-          severity={snackbar.severity}
-          sx={{
-            width: "100%",
-            borderRadius: 2,
-            fontWeight: 600,
-          }}
-        >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
     </Box>
   );
 };

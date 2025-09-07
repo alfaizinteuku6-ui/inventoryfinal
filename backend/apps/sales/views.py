@@ -15,7 +15,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class SaleViewSet(viewsets.ModelViewSet):
-    queryset = Sale.objects.select_related('customer', 'salesperson').prefetch_related('items__product')
+    queryset = Sale.objects.filter(is_active=True).select_related('customer', 'salesperson').prefetch_related('items__product')
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]
     filterset_fields = {
         'customer': ['exact'],
@@ -91,8 +91,8 @@ class SaleViewSet(viewsets.ModelViewSet):
 
     def calculate_percentage_change(self, current, previous):
         """Calculate percentage change between current and previous values"""
-        if previous == 0 or previous is None:
-            return 100.0 if current and current > 0 else 0.0
+        if previous in (None, 0):
+            return None if not current else 100.0
         if current is None:
             current = 0
         return round(((current - previous) / previous) * 100, 2)
@@ -239,6 +239,7 @@ class SaleViewSet(viewsets.ModelViewSet):
         # Best selling items for selected period
         top_items = list(
             SaleItem.objects.filter(
+                sale__is_active=True,
                 sale__sale_date__date__gte=start_date,
                 sale__sale_date__date__lte=end_date
             ).select_related('product').values(
@@ -351,7 +352,7 @@ class SaleViewSet(viewsets.ModelViewSet):
                 pm['total'] = float(pm['total'])
 
         # Top selling products
-        sale_items_queryset = SaleItem.objects.filter(sale__in=queryset).select_related('product')
+        sale_items_queryset = SaleItem.objects.filter(sale__is_active=True, sale__in=queryset).select_related('product')
         top_products = list(sale_items_queryset.values(
             'product__name'
         ).annotate(

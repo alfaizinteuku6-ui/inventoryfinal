@@ -149,11 +149,11 @@ const ProductForm = () => {
       : 0;
 
   return (
-    <Box sx={{ maxWidth: 1200, mx: "auto", p: 3, backgroundColor: "#f8fafc" }}>
+    <Box sx={{ maxWidth: 1200, mx: "auto", p: 3 }}>
       {/* Header Section */}
       <HeaderCard
         icon={<InventoryIcon fontSize="large" />}
-        title={id ? "Update Existing Product": "Add New Product"}
+        title={id ? "Update Existing Product" : "Add New Product"}
         subtitle="Create and manage your inventory items"
       />
 
@@ -613,9 +613,7 @@ const ProductForm = () => {
               elevation={0}
               sx={{
                 p: 3,
-                backgroundColor: "#f8fafc",
                 borderRadius: 2,
-                border: "1px solid #e2e8f0",
               }}
             >
               <Box display="flex" justifyContent="flex-end" gap={2}>
@@ -648,7 +646,7 @@ const ProductForm = () => {
                     },
                   }}
                 >
-                  {id ? "Update" : 'Create'} Product
+                  {id ? "Update" : "Create"} Product
                 </Button>
               </Box>
             </Paper>

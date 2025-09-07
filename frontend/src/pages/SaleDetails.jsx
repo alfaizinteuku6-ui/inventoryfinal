@@ -237,7 +237,7 @@ const SaleDetails = () => {
                         Customer Name
                       </Typography>
                       <Typography variant="body1" fontWeight={600}>
-                        {sale?.customer_name || "N/A"}
+                        {sale?.customer_details?.name || "N/A"}
                       </Typography>
                     </Grid>
                     <Grid item xs={12} sm={6}>

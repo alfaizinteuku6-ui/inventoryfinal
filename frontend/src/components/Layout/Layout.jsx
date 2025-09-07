@@ -36,6 +36,7 @@ import {
   Receipt as ReceiptIcon,
 } from "@mui/icons-material";
 import { useAuth } from "../../hooks/useAuth";
+import { ThemeToggleButton } from "../ThemeToggleButton";
 const drawerWidth = 280;
 
 const menuItems = [
@@ -208,9 +209,8 @@ const Layout = () => {
         sx={{
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           ml: { sm: `${drawerWidth}px` },
-          backgroundColor: "white",
           color: theme.palette.text.primary,
-          borderBottom: `1px solid ${theme.palette.divider}`,
+          background: theme.palette.background.paper,
           backdropFilter: "blur(8px)",
         }}
       >
@@ -242,6 +242,10 @@ const Layout = () => {
 
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             {/* Quick Actions */}
+            <Tooltip title="Toggle Theme">
+              <ThemeToggleButton />
+            </Tooltip>
+
             <Tooltip title="Quick Sale">
               <IconButton
                 onClick={() => navigate("/pos")}
@@ -421,7 +425,7 @@ const Layout = () => {
           flexGrow: 1,
           width: `calc(100vw - ${drawerWidth + 15}px)`,
           minHeight: "100vh",
-          backgroundColor: "#fafafa",
+          backgroundColor: theme.palette.background.default,
         }}
       >
         <Toolbar />
