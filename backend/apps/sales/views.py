@@ -15,7 +15,10 @@ import logging
 logger = logging.getLogger(__name__)
 
 class SaleViewSet(viewsets.ModelViewSet):
-    queryset = Sale.objects.filter(is_active=True).select_related('customer', 'salesperson').prefetch_related('items__product')
+    queryset = Sale.objects.filter(
+        is_active=True, 
+        payment_status__in=['pending', 'partial', 'paid', 'refunded']
+    ).select_related('customer', 'salesperson').prefetch_related('items__product')
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]
     filterset_fields = {
         'customer': ['exact'],
@@ -46,11 +49,14 @@ class SaleViewSet(viewsets.ModelViewSet):
         serializer.save(salesperson=self.request.user)
 
     def list(self, request, *args, **kwargs):
-        """Override list to include summary statistics"""
+        """Override list to include summary statistics and exclude cancelled sales from calculations"""
         queryset = self.filter_queryset(self.get_queryset())
 
-        # Get summary statistics for the filtered queryset
-        summary_stats = queryset.aggregate(
+        # For summary stats, always exclude cancelled sales regardless of include_cancelled parameter
+        summary_queryset = queryset.exclude(payment_status='cancelled') if hasattr(queryset.model, 'payment_status') else queryset
+
+        # Get summary statistics for the filtered queryset (excluding cancelled)
+        summary_stats = summary_queryset.aggregate(
             total_sales_count=Count('id'),
             total_revenue=Sum('total_amount'),
             total_paid_amount=Sum('paid_amount'),
@@ -97,8 +103,38 @@ class SaleViewSet(viewsets.ModelViewSet):
             current = 0
         return round(((current - previous) / previous) * 100, 2)
 
+    def get_queryset(self):
+        """Override to exclude cancelled sales by default, include them only for specific actions"""
+        base_queryset = Sale.objects.filter(is_active=True).select_related('customer', 'salesperson').prefetch_related('items__product')
+        
+        # Include cancelled sales only for list view when explicitly requested
+        if self.action == 'list' and self.request.query_params.get('include_cancelled') == 'true':
+            return base_queryset
+        
+        # For dashboard and reports, exclude cancelled sales
+        return base_queryset.exclude(payment_status='cancelled')
+
+    def destroy(self, request, *args, **kwargs):
+        """Soft delete and restore stock"""
+        instance = self.get_object()
+        
+        # If sale is not cancelled, cancel it first (which restores stock)
+        if instance.payment_status != 'cancelled':
+            success, message = instance.cancel_sale()
+            if not success:
+                return Response({"error": message}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Then soft delete
+        instance.is_active = False
+        instance.save(update_fields=["is_active"])
+        
+        return Response({"detail": "Sale cancelled and soft-deleted successfully."}, status=status.HTTP_200_OK)
+
     def get_period_stats(self, queryset):
-        """Get comprehensive stats for a queryset including items count"""
+        """Get comprehensive stats for a queryset excluding cancelled sales"""
+        # Ensure cancelled sales are excluded
+        queryset = queryset.exclude(payment_status='cancelled')
+        
         stats = queryset.aggregate(
             total_amount=Sum('total_amount'),
             count=Count('id'),
@@ -125,26 +161,9 @@ class SaleViewSet(viewsets.ModelViewSet):
         comparison_start = comparison_end - timedelta(days=period_length - 1)
         return comparison_start, comparison_end
 
-    def get_previous_month_dates(self, current_date):
-        """Calculate previous month start and end dates"""
-        start_of_current_month = current_date.replace(day=1)
-
-        if start_of_current_month.month == 1:
-            prev_year = start_of_current_month.year - 1
-            prev_month = 12
-        else:
-            prev_year = start_of_current_month.year
-            prev_month = start_of_current_month.month - 1
-
-        start_of_prev_month = start_of_current_month.replace(year=prev_year, month=prev_month)
-        _, last_day = monthrange(prev_year, prev_month)
-        end_of_prev_month = start_of_prev_month.replace(day=last_day)
-
-        return start_of_prev_month, end_of_prev_month
-
     @action(detail=False, methods=['get'])
     def dashboard(self, request):
-        """Get enhanced sales dashboard data with date filtering and period comparisons"""
+        """Get enhanced sales dashboard data excluding cancelled sales"""
         # Get date parameters from request
         start_date_str = request.query_params.get('start_date')
         end_date_str = request.query_params.get('end_date')
@@ -168,8 +187,12 @@ class SaleViewSet(viewsets.ModelViewSet):
         today = timezone.now().date()
         yesterday = today - timedelta(days=1)
 
-        # Base queryset with optimized joins
-        base_queryset = self.get_queryset().select_related('customer').prefetch_related('items__product')
+        # Base queryset with optimized joins - EXCLUDE cancelled and inactive sales
+        base_queryset = Sale.objects.filter(
+            is_active=True
+        ).exclude(
+            payment_status='cancelled'
+        ).select_related('customer').prefetch_related('items__product')
 
         # Today's stats (always show current day stats)
         today_sales = base_queryset.filter(sale_date__date=today)
@@ -236,12 +259,14 @@ class SaleViewSet(viewsets.ModelViewSet):
             if day_data['daily_revenue']:
                 day_data['daily_revenue'] = float(day_data['daily_revenue'])
 
-        # Best selling items for selected period
+        # Best selling items for selected period - exclude cancelled sales
         top_items = list(
             SaleItem.objects.filter(
                 sale__is_active=True,
                 sale__sale_date__date__gte=start_date,
                 sale__sale_date__date__lte=end_date
+            ).exclude(
+                sale__payment_status='cancelled'
             ).select_related('product').values(
                 'product__name'
             ).annotate(
@@ -297,7 +322,7 @@ class SaleViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def sales_report(self, request):
-        """Get detailed sales report with date filtering"""
+        """Get detailed sales report excluding cancelled sales"""
         start_date_str = request.query_params.get('start_date')
         end_date_str = request.query_params.get('end_date')
 
@@ -317,8 +342,12 @@ class SaleViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Build queryset with date filtering
-        queryset = self.get_queryset().select_related('customer').prefetch_related('items__product')
+        # Build queryset with date filtering - EXCLUDE cancelled and inactive sales
+        queryset = Sale.objects.filter(
+            is_active=True
+        ).exclude(
+            payment_status='cancelled'
+        ).select_related('customer').prefetch_related('items__product')
         
         if start_date:
             queryset = queryset.filter(sale_date__date__gte=start_date)
@@ -351,8 +380,14 @@ class SaleViewSet(viewsets.ModelViewSet):
             if pm['total']:
                 pm['total'] = float(pm['total'])
 
-        # Top selling products
-        sale_items_queryset = SaleItem.objects.filter(sale__is_active=True, sale__in=queryset).select_related('product')
+        # Top selling products - exclude cancelled sales
+        sale_items_queryset = SaleItem.objects.filter(
+            sale__is_active=True, 
+            sale__in=queryset
+        ).exclude(
+            sale__payment_status='cancelled'
+        ).select_related('product')
+        
         top_products = list(sale_items_queryset.values(
             'product__name'
         ).annotate(
@@ -417,3 +452,18 @@ class SaleViewSet(viewsets.ModelViewSet):
         sale.save()
 
         return Response(self.get_serializer(sale).data)
+    
+    @action(detail=True, methods=['post'])
+    def cancel_sale(self, request, pk=None):
+        """Cancel a sale and restore stock"""
+        sale = self.get_object()
+        
+        success, message = sale.cancel_sale()
+        
+        if not success:
+            return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
+        
+        return Response({
+            'message': message,
+            'sale': self.get_serializer(sale).data
+        })

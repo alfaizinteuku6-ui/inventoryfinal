@@ -44,7 +44,7 @@ import {
 import { useNavigate, useParams } from "react-router-dom";
 import { sales } from "../services/api";
 import generateInvoicePDF from "../utils/invoice";
-import { useSale } from "../hooks/useSWR";
+import { useSale, useVendors } from "../hooks/useSWR";
 
 const SaleDetails = () => {
   const theme = useTheme();
@@ -52,6 +52,7 @@ const SaleDetails = () => {
   const { id } = useParams();
   const {data: sale, isLoading: loading, error } = useSale(id);
   const [menuAnchor, setMenuAnchor] = useState(null);
+  const {data: companyInfo, isLoading: vendorLoading} = useVendors();
 
   const handleMenuClick = (event) => {
     setMenuAnchor(event.currentTarget);
@@ -92,16 +93,6 @@ const SaleDetails = () => {
     }
   };
 
-  const companyInfo = {
-    name: "Your Company Name",
-    tagline: "Professional Services & Solutions",
-    gstin: "29ABCDE1234F2Z5",
-    address: "123 Business Street\nBusiness District, City 560001\nKarnataka, India",
-    email: "contact@yourcompany.com",
-    phone: "+91 12345 67890",
-    website: "www.yourcompany.com",
-  };
-
   const handleDownloadPDF = () => {
     generateInvoicePDF(sale, companyInfo);
   };
@@ -125,7 +116,7 @@ const SaleDetails = () => {
     }
   };
 
-  if (loading) {
+  if (loading || vendorLoading) {
     return (
       <Container maxWidth="xl" sx={{ py: 4 }}>
         <Skeleton variant="text" width={200} height={40} sx={{ mb: 2 }} />

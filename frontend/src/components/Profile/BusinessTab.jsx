@@ -163,9 +163,32 @@ function BusinessTab({ vendorDetails, onUpdate, canManageVendor, loading }) {
           <Grid size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
+              label="Business Tagline"
+              value={vendorForm.tagline || ''}
+              onChange={(e) => setVendorForm({...vendorForm, tagline: e.target.value})}
+              disabled={!isEditing}
+              variant={isEditing ? "outlined" : "filled"}
+              sx={{ '& .MuiFilledInput-root': { backgroundColor: alpha(theme.palette.primary.main, 0.05) } }}
+            />
+          </Grid>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <TextField
+              fullWidth
+              label="Website URL"
+              type="url"
+              value={vendorForm.website || ''}
+              onChange={(e) => setVendorForm({...vendorForm, website: e.target.value})}
+              disabled={!isEditing}
+              variant={isEditing ? "outlined" : "filled"}
+              sx={{ '& .MuiFilledInput-root': { backgroundColor: alpha(theme.palette.primary.main, 0.05) } }}
+            />
+          </Grid>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <TextField
+              fullWidth
               label="GST Number"
-              value={vendorForm.tax_number || ''}
-              onChange={(e) => setVendorForm({...vendorForm, tax_number: e.target.value})}
+              value={vendorForm.gstin || ''}
+              onChange={(e) => setVendorForm({...vendorForm, gstin: e.target.value})}
               disabled={!isEditing}
               variant={isEditing ? "outlined" : "filled"}
               sx={{ '& .MuiFilledInput-root': { backgroundColor: alpha(theme.palette.primary.main, 0.05) } }}

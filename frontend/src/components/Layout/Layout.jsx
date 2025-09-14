@@ -37,6 +37,7 @@ import {
 } from "@mui/icons-material";
 import { useAuth } from "../../hooks/useAuth";
 import { ThemeToggleButton } from "../ThemeToggleButton";
+import { useVendors } from "../../hooks/useSWR";
 const drawerWidth = 280;
 
 const menuItems = [
@@ -65,7 +66,7 @@ const Layout = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const [notificationAnchor, setNotificationAnchor] = useState(null);
-
+  const {data: vendorData, isLoading } = useVendors();
   const { user, logout } = useAuth();
 
   const navigate = useNavigate();
@@ -114,11 +115,11 @@ const Layout = () => {
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
           <StoreIcon sx={{ fontSize: 32 }} />
           <Typography variant="h5" fontWeight="bold">
-            VendorPOS
+            {vendorData?.name}
           </Typography>
         </Box>
         <Typography variant="body2" sx={{ opacity: 0.8 }}>
-          Smart Point of Sale System
+          {vendorData?.tagline}
         </Typography>
       </Box>
 
@@ -192,7 +193,7 @@ const Layout = () => {
               : "transparent",
           }}
         >
-          <ListItemIcon sx={{ color: "#666" }}>
+          <ListItemIcon>
             <SettingsIcon />
           </ListItemIcon>
           <ListItemText primary="Settings" />

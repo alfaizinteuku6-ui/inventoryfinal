@@ -1,4 +1,4 @@
-import React, { useState, useEffect, use } from "react";
+import React, { useState } from "react";
 import {
   Box,
   Container,
@@ -6,8 +6,6 @@ import {
   Tabs,
   Tab,
   Typography,
-  Alert,
-  Snackbar,
   useTheme,
   alpha,
 } from "@mui/material";
@@ -19,6 +17,7 @@ import StaffTab from "../components/Profile/StaffTab";
 import SecurityTab from "../components/Profile/SecurityTab";
 import { useVendors, useAuthUser, useGetAllStaff } from "../hooks/useSWR";
 import { accounts, vendors } from "../services/api";
+import CustomSnackbar from "../components/CusromSnackbar";
 
 // Main Profile Component
 function Profile() {
@@ -264,22 +263,12 @@ function Profile() {
         </TabPanel>
       </Paper>
 
-      <Snackbar
+      <CustomSnackbar
         open={snackbar.open}
-        autoHideDuration={4000}
+        severity={snackbar.severity}
+        message={snackbar.message}
         onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-      >
-        <Alert
-          severity={snackbar.severity}
-          sx={{
-            borderRadius: 2,
-            boxShadow: theme.shadows[8],
-          }}
-        >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
+      />
     </Container>
   );
 }

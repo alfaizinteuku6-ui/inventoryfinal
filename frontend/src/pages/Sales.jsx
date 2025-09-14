@@ -55,13 +55,15 @@ import {
   Delete,
   Visibility,
   Close,
+  Cancel,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
-import { useSales } from "../hooks/useSWR";
+import { useSales, useVendors } from "../hooks/useSWR";
 import generateInvoicePDF from "../utils/invoice";
 import HeaderCard from "../components/HeaderCard";
 import StatsCard from "../components/StatsCard";
 import { sales as SalesApi } from "../services/api";
+import CustomSnackbar from "../components/CusromSnackbar";
 
 const Transition = React.forwardRef(function Transition(props, ref) {
   return <Slide direction="up" ref={ref} {...props} />;
@@ -75,17 +77,39 @@ const Sales = () => {
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [paymentOption, setPaymentOption] = useState("full");
   const [customAmount, setCustomAmount] = useState("");
-  const { data: sales, isLoading: loading, mutate } = useSales();
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    severity: 'success',
+    message: '',
+  });
+  const {
+    data: sales,
+    isLoading: loading,
+    mutate,
+  } = useSales({ include_cancelled: true });
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const { data: companyInfo, isLoading } = useVendors();
   const navigate = useNavigate();
 
-
-  const handleEditSale = () => {
-    navigate(`/sales/${selectedSale.id}/edit`);
+  const showSnackbar = (message, severity = "success") => {
+    setSnackbar({ open: true, message, severity });
   };
 
-  const handleViewSale = () => {
-    navigate(`/sales/${selectedSale.id}`);
+
+  const handleCancelSale = async (id) => {
+    if (
+      window.confirm(
+        "Are you sure you want to cancel this sale? This action cannot be undone."
+      )
+    ) {
+      try {
+        await SalesApi.cancelSale(id);
+        showSnackbar("Sale Canceled successfully!");
+        mutate();
+      } catch (error) {
+        showSnackbar(error.response?.data?.error || "Failed to Cancel sale", "error");
+      }
+    }
   };
 
   const handleDeleteSale = async () => {
@@ -97,8 +121,9 @@ const Sales = () => {
       try {
         await SalesApi.delete(selectedSale.id);
         mutate();
+        showSnackbar("Sale deleted successfully!");
       } catch (error) {
-        alert(error.response?.data?.error || "Failed to delete sale");
+        alert(error.response?.data?.error || "Failed to delete sale", "error");
       }
     }
   };
@@ -117,23 +142,23 @@ const Sales = () => {
     } else {
       amount = parseFloat(customAmount);
       if (!amount || amount <= 0) {
-        alert("Please enter a valid payment amount");
+        showSnackbar("Please enter a valid payment amount");
         return;
       }
       if (amount > selectedSale.balance_due) {
-        alert("Payment amount cannot exceed the balance due");
+        showSnackbar("Payment amount cannot exceed the balance due", "error");
         return;
       }
     }
 
     try {
       await SalesApi.addPayment(selectedSale.id, { amount: amount });
-      alert("Payment recorded successfully!");
+      showSnackbar("Payment recorded successfully!");
       mutate();
       setPaymentModalOpen(false);
       setSelectedSale(null);
     } catch (error) {
-      alert(error.response?.data?.error || "Failed to add payment");
+      showSnackbar(error.response?.data?.error || "Failed to add payment", "error");
     }
   };
 
@@ -185,17 +210,6 @@ const Sales = () => {
     }
   };
 
-  const companyInfo = {
-    name: "Your Company Name",
-    tagline: "Professional Services & Solutions",
-    gstin: "29ABCDE1234F2Z5",
-    address:
-      "123 Business Street\nBusiness District, City 560001\nKarnataka, India",
-    email: "contact@yourcompany.com",
-    phone: "+91 12345 67890",
-    website: "www.yourcompany.com",
-  };
-
   const handleDownloadPDF = async (sale) => {
     generateInvoicePDF(sale, companyInfo);
   };
@@ -209,182 +223,165 @@ const Sales = () => {
         sale.sale_number.toLowerCase().includes(searchTerm.toLowerCase())
     ) || [];
 
-  
-const SaleCard = ({ sale, index }) => (
-  <Fade in timeout={300 + index * 100}>
-    <Card
-      sx={{
-        borderRadius: 4,
-        transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-        overflow: "hidden"
-      }}
-    >
-      <Box
+  const SaleCard = ({ sale, index }) => (
+    <Fade in timeout={300 + index * 100}>
+      <Card
         sx={{
-          height: 6,
-          background: `linear-gradient(90deg, ${getPaymentMethodColor(
-            sale.payment_method
-          )} 0%, ${getPaymentMethodColor(sale.payment_method)}80 100%)`,
+          borderRadius: 4,
+          transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+          overflow: "hidden",
         }}
-      />
-      <CardContent sx={{ p: 3 }}>
-        <Stack spacing={2.5}>
-          {/* Header with Invoice Number and Status */}
-          <Stack
-            direction="row"
-            justifyContent="space-between"
-            alignItems="flex-start"
-          >
-            <Stack direction="row" alignItems="center" spacing={1.5}>
-              <Avatar
+      >
+        <Box
+          sx={{
+            height: 6,
+            background: `linear-gradient(90deg, ${getPaymentMethodColor(
+              sale.payment_method
+            )} 0%, ${getPaymentMethodColor(sale.payment_method)}80 100%)`,
+          }}
+        />
+        <CardContent sx={{ p: 3 }}>
+          <Stack spacing={2.5}>
+            {/* Header with Invoice Number and Status */}
+            <Stack
+              direction="row"
+              justifyContent="space-between"
+              alignItems="flex-start"
+            >
+              <Stack direction="row" alignItems="center" spacing={1.5}>
+                <Avatar
+                  sx={{
+                    width: 36,
+                    height: 36,
+                    bgcolor: "primary.main",
+                    fontSize: "0.875rem",
+                  }}
+                >
+                  <ReceiptLong fontSize="small" />
+                </Avatar>
+                <Box>
+                  <Typography
+                    variant="subtitle1"
+                    fontWeight="700"
+                    color="primary"
+                  >
+                    {sale.sale_number}
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
+                  >
+                    <CalendarToday sx={{ fontSize: 12 }} />
+                    {new Date(sale.sale_date).toLocaleDateString("en-IN", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </Typography>
+                </Box>
+              </Stack>
+
+              <Chip
+                label={`${getStatusIcon(sale.payment_status)} ${
+                  sale.payment_status.charAt(0).toUpperCase() +
+                  sale.payment_status.slice(1)
+                }`}
+                size="small"
+                color={getStatusColor(sale.payment_status)}
                 sx={{
-                  width: 36,
-                  height: 36,
-                  bgcolor: "primary.main",
-                  fontSize: "0.875rem",
+                  fontWeight: 600,
+                  borderRadius: 2,
+                  "& .MuiChip-label": { px: 1.5 },
                 }}
-              >
-                <ReceiptLong fontSize="small" />
-              </Avatar>
-              <Box>
-                <Typography
-                  variant="subtitle1"
-                  fontWeight="700"
-                  color="primary"
-                >
-                  {sale.sale_number}
-                </Typography>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
-                >
-                  <CalendarToday sx={{ fontSize: 12 }} />
-                  {new Date(sale.sale_date).toLocaleDateString("en-IN", {
-                    day: "2-digit",
-                    month: "short",
-                    year: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </Typography>
-              </Box>
+              />
             </Stack>
 
-            <Chip
-              label={`${getStatusIcon(sale.payment_status)} ${
-                sale.payment_status.charAt(0).toUpperCase() +
-                sale.payment_status.slice(1)
-              }`}
-              size="small"
-              color={getStatusColor(sale.payment_status)}
-              sx={{
-                fontWeight: 600,
-                borderRadius: 2,
-                "& .MuiChip-label": { px: 1.5 },
-              }}
-            />
-          </Stack>
-
-          {/* Customer Name */}
-          <Box>
-            <Typography
-              variant="h6"
-              fontWeight="600"
-              sx={{ mb: 0.5, lineHeight: 1.3 }}
-            >
-              {sale.customer_name}
-            </Typography>
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
-            >
-              <Person sx={{ fontSize: 14 }} />
-              by {sale.salesperson_name}
-            </Typography>
-          </Box>
-
-          <Divider sx={{ my: 1 }} />
-
-          {/* Amount and Details */}
-          <Stack
-            direction="row"
-            justifyContent="space-between"
-            alignItems="center"
-          >
+            {/* Customer Name */}
             <Box>
               <Typography
-                variant="h5"
-                fontWeight="700"
-                color="primary.main"
-                sx={{ mb: 0.5 }}
+                variant="h6"
+                fontWeight="600"
+                sx={{ mb: 0.5, lineHeight: 1.3 }}
               >
-                ₹
-                {parseFloat(sale.total_amount).toLocaleString("en-IN", {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
+                {sale.customer_name}
               </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {sale.items_count} item{sale.items_count !== 1 ? "s" : ""}
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
+              >
+                <Person sx={{ fontSize: 14 }} />
+                by {sale.salesperson_name}
               </Typography>
-              {sale.balance_due > 0 && (
-                <Typography variant="body2" color="error" fontWeight="600">
-                  Balance Due: ₹
-                  {parseFloat(sale.balance_due).toLocaleString("en-IN", {
+            </Box>
+
+            <Divider sx={{ my: 1 }} />
+
+            {/* Amount and Details */}
+            <Stack
+              direction="row"
+              justifyContent="space-between"
+              alignItems="center"
+            >
+              <Box>
+                <Typography
+                  variant="h5"
+                  fontWeight="700"
+                  color="primary.main"
+                  sx={{ mb: 0.5 }}
+                >
+                  ₹
+                  {parseFloat(sale.total_amount).toLocaleString("en-IN", {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
                   })}
                 </Typography>
-              )}
-            </Box>
-            <Chip
-              label={sale.payment_method}
-              size="small"
-              variant="outlined"
-              sx={{
-                borderColor: getPaymentMethodColor(sale.payment_method),
-                color: getPaymentMethodColor(sale.payment_method),
-                fontWeight: 600,
-                borderRadius: 2,
-              }}
-            />
-          </Stack>
-
-          {/* Main Action Buttons */}
-          <Box
-            className="card-actions"
-            sx={{
-              opacity: 0.7,
-              transform: "translateY(4px)",
-              transition: "all 0.2s ease",
-              pt: 1,
-            }}
-          >
-            <Stack spacing={1.5}>
-              {/* Primary Actions Row */}
-              <Stack direction="row" spacing={1}>
-                <Button
-                  variant="contained"
-                  startIcon={<DownloadIcon />}
-                  onClick={() => handleDownloadPDF(sale)}
-                  size="small"
-                  sx={{
-                    flex: 1,
-                    borderRadius: 2,
-                    textTransform: "none",
-                    fontWeight: 600,
-                  }}
-                >
-                  Download
-                </Button>
+                <Typography variant="caption" color="text.secondary">
+                  {sale.items_count} item{sale.items_count !== 1 ? "s" : ""}
+                </Typography>
                 {sale.balance_due > 0 && (
+                  <Typography variant="body2" color="error" fontWeight="600">
+                    Balance Due: ₹
+                    {parseFloat(sale.balance_due).toLocaleString("en-IN", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </Typography>
+                )}
+              </Box>
+              <Chip
+                label={sale.payment_method}
+                size="small"
+                variant="outlined"
+                sx={{
+                  borderColor: getPaymentMethodColor(sale.payment_method),
+                  color: getPaymentMethodColor(sale.payment_method),
+                  fontWeight: 600,
+                  borderRadius: 2,
+                }}
+              />
+            </Stack>
+
+            {/* Main Action Buttons */}
+            <Box
+              className="card-actions"
+              sx={{
+                opacity: 0.7,
+                transform: "translateY(4px)",
+                transition: "all 0.2s ease",
+                pt: 1,
+              }}
+            >
+              <Stack spacing={1.5}>
+                {/* Primary Actions Row */}
+                <Stack direction="row" spacing={1}>
                   <Button
                     variant="contained"
-                    color="success"
-                    startIcon={<Payment />}
-                    onClick={() => handleAddPayment(sale)}
+                    startIcon={<DownloadIcon />}
+                    onClick={() => handleDownloadPDF(sale)}
                     size="small"
                     sx={{
                       flex: 1,
@@ -393,93 +390,99 @@ const SaleCard = ({ sale, index }) => (
                       fontWeight: 600,
                     }}
                   >
-                    Pay Now
+                    Download
                   </Button>
-                )}
-              </Stack>
+                  {sale.balance_due > 0 && (
+                    <Button
+                      variant="contained"
+                      color="success"
+                      startIcon={<Payment />}
+                      onClick={() => handleAddPayment(sale)}
+                      size="small"
+                      sx={{
+                        flex: 1,
+                        borderRadius: 2,
+                        textTransform: "none",
+                        fontWeight: 600,
+                      }}
+                    >
+                      Pay Now
+                    </Button>
+                  )}
+                </Stack>
 
-              {/* Secondary Actions Row */}
-              <Stack direction="row" spacing={1}>
-                <Button
-                  variant="outlined"
-                  startIcon={<Visibility />}
-                  onClick={() => navigate(`/sales/${sale.id}`)}
-                  size="small"
-                  sx={{
-                    flex: 1,
-                    borderRadius: 2,
-                    textTransform: "none",
-                    fontWeight: 600,
-                    borderColor: "rgba(0,0,0,0.12)",
-                    color: "text.secondary",
-                    "&:hover": {
-                      borderColor: "primary.main",
-                      color: "primary.main",
-                      bgcolor: "rgba(25, 118, 210, 0.04)",
-                    },
-                  }}
-                >
-                  View
-                </Button>
-                <Button
-                  variant="outlined"
-                  startIcon={<Edit />}
-                  onClick={() => navigate(`/sales/${sale.id}/edit`)}
-                  size="small"
-                  sx={{
-                    flex: 1,
-                    borderRadius: 2,
-                    textTransform: "none",
-                    fontWeight: 600,
-                    borderColor: "rgba(0,0,0,0.12)",
-                    color: "text.secondary",
-                    "&:hover": {
-                      borderColor: "warning.main",
-                      color: "warning.main",
-                      bgcolor: "rgba(255, 152, 0, 0.04)",
-                    },
-                  }}
-                >
-                  Edit
-                </Button>
-                <Tooltip title="Delete Sale">
-                  <IconButton
-                    onClick={async () => {
-                      if (
-                        window.confirm(
-                          "Are you sure you want to delete this sale? This action cannot be undone."
-                        )
-                      ) {
-                        try {
-                          await SalesApi.delete(sale.id);
-                          mutate();
-                        } catch (error) {
-                          alert(error.response?.data?.error || "Failed to delete sale");
-                        }
-                      }
-                    }}
+                {/* Secondary Actions Row */}
+                <Stack direction="row" spacing={1}>
+                  <Button
+                    variant="outlined"
+                    startIcon={<Visibility />}
+                    onClick={() => navigate(`/sales/${sale.id}`)}
                     size="small"
                     sx={{
+                      flex: 1,
                       borderRadius: 2,
-                      border: "1px solid rgba(0,0,0,0.12)",
-                      color: "error.main",
+                      textTransform: "none",
+                      fontWeight: 600,
+                      borderColor: "rgba(0,0,0,0.12)",
+                      color: "text.secondary",
                       "&:hover": {
-                        bgcolor: "rgba(211, 47, 47, 0.04)",
-                        borderColor: "error.main",
+                        borderColor: "primary.main",
+                        color: "primary.main",
+                        bgcolor: "rgba(25, 118, 210, 0.04)",
                       },
                     }}
                   >
-                    <Delete fontSize="small" />
-                  </IconButton>
-                </Tooltip>
+                    View
+                  </Button>
+                  {(sale.payment_status !== "paid") && (
+                    <Button
+                      variant="outlined"
+                      startIcon={<Cancel />}
+                      onClick={() => handleCancelSale(sale?.id)}
+                      size="small"
+                      sx={{
+                        flex: 1,
+                        borderRadius: 2,
+                        textTransform: "none",
+                        fontWeight: 600,
+                        borderColor: "rgba(0,0,0,0.12)",
+                        color: "text.secondary",
+                        "&:hover": {
+                          borderColor: "warning.main",
+                          color: "warning.main",
+                          bgcolor: "rgba(255, 152, 0, 0.04)",
+                        },
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  )}
+
+                  <Tooltip title="Delete Sale">
+                    <IconButton
+                      onClick={handleDeleteSale}
+                      size="small"
+                      sx={{
+                        borderRadius: 2,
+                        border: "1px solid rgba(0,0,0,0.12)",
+                        color: "error.main",
+                        "&:hover": {
+                          bgcolor: "rgba(211, 47, 47, 0.04)",
+                          borderColor: "error.main",
+                        },
+                      }}
+                    >
+                      <Delete fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </Stack>
               </Stack>
-            </Stack>
-          </Box>
-        </Stack>
-      </CardContent>
-    </Card>
-  </Fade>
-);
+            </Box>
+          </Stack>
+        </CardContent>
+      </Card>
+    </Fade>
+  );
 
   return (
     <Box
@@ -489,6 +492,12 @@ const SaleCard = ({ sale, index }) => (
         p: { xs: 2, sm: 3 },
       }}
     >
+      <CustomSnackbar
+        open={snackbar.open}
+        severity={snackbar.severity}
+        message={snackbar.message}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+      />
       {/* Header Section */}
       <HeaderCard
         icon={<Receipt fontSize="large" />}
@@ -561,7 +570,7 @@ const SaleCard = ({ sale, index }) => (
         sx={{
           p: 3,
           mb: 4,
-          borderRadius: 3
+          borderRadius: 3,
         }}
       >
         <Stack
@@ -760,21 +769,25 @@ const SaleCard = ({ sale, index }) => (
                 Outstanding Balance
               </Typography>
               <Typography variant="h4" fontWeight="700" color="primary.main">
-                ₹{parseFloat(selectedSale?.balance_due || 0).toLocaleString("en-IN", {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
+                ₹
+                {parseFloat(selectedSale?.balance_due || 0).toLocaleString(
+                  "en-IN",
+                  {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  }
+                )}
               </Typography>
             </Paper>
 
             {/* Payment Options */}
             <FormControl component="fieldset">
-              <FormLabel 
-                component="legend" 
-                sx={{ 
-                  fontWeight: 600, 
+              <FormLabel
+                component="legend"
+                sx={{
+                  fontWeight: 600,
                   color: "text.primary",
-                  mb: 2 
+                  mb: 2,
                 }}
               >
                 Choose Payment Amount
@@ -792,7 +805,10 @@ const SaleCard = ({ sale, index }) => (
                         Pay Full Amount
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        ₹{parseFloat(selectedSale?.balance_due || 0).toLocaleString("en-IN", {
+                        ₹
+                        {parseFloat(
+                          selectedSale?.balance_due || 0
+                        ).toLocaleString("en-IN", {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}
@@ -848,7 +864,9 @@ const SaleCard = ({ sale, index }) => (
                     id="custom-amount"
                     value={customAmount}
                     onChange={(e) => setCustomAmount(e.target.value)}
-                    startAdornment={<InputAdornment position="start">₹</InputAdornment>}
+                    startAdornment={
+                      <InputAdornment position="start">₹</InputAdornment>
+                    }
                     label="Custom Amount"
                     type="number"
                     inputProps={{
@@ -868,10 +886,14 @@ const SaleCard = ({ sale, index }) => (
                     color="text.secondary"
                     sx={{ mt: 1, ml: 1 }}
                   >
-                    Maximum: ₹{parseFloat(selectedSale?.balance_due || 0).toLocaleString("en-IN", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
+                    Maximum: ₹
+                    {parseFloat(selectedSale?.balance_due || 0).toLocaleString(
+                      "en-IN",
+                      {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      }
+                    )}
                   </Typography>
                 </FormControl>
               </Fade>

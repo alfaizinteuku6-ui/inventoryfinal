@@ -4,6 +4,7 @@ from apps.core.models import TimestampedModel
 
 class Vendor(TimestampedModel):
     name = models.CharField(max_length=200)
+    tagline = models.CharField(max_length=300, blank=True)
     business_type = models.CharField(max_length=100, blank=True, choices=[
         ('retail', 'Retail Store'),
         ('restaurant', 'Restaurant'),
@@ -21,7 +22,7 @@ class Vendor(TimestampedModel):
     country = models.CharField(max_length=100, default='India')
     
     # Business details
-    tax_number = models.CharField(max_length=50, blank=True)  # GST number
+    gstin = models.CharField(max_length=50, blank=True)  # GST number
     pan_number = models.CharField(max_length=20, blank=True)
     payment_terms = models.CharField(max_length=100, default='Net 30')
     credit_limit = models.DecimalField(max_digits=12, decimal_places=2, default=0)
@@ -30,6 +31,7 @@ class Vendor(TimestampedModel):
     currency = models.CharField(max_length=10, default='INR')
     tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=18.0, help_text="Default tax rate %")
     logo = models.ImageField(upload_to='vendor_logos/', blank=True, null=True)
+    website = models.URLField(blank=True)
     
     class Meta:
         ordering = ['name']

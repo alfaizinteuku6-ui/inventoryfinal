@@ -73,6 +73,7 @@ class StockMovement(TimestampedModel):
         ('in', 'Stock In'),
         ('out', 'Stock Out'),
         ('adjustment', 'Adjustment'),
+        ('sale_cancellation', 'Sale Cancellation'),
         ('sale', 'Sale'),
         ('return', 'Return'),
     ]

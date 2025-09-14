@@ -117,6 +117,7 @@ export const sales = {
   update: (id, data) => api.put(`/sales/${id}/`, data),
   partialUpdate: (id, data) => api.patch(`/sales/${id}/`, data),
   delete: (id) => api.delete(`/sales/${id}/`),
+  cancelSale: (id) => api.post(`/sales/${id}/cancel_sale/`),
 
   getTodaySales: () => api.get('/sales/today_sales/'),
   getSalesReport: (params) => api.get('/sales/sales_report/', { params }),

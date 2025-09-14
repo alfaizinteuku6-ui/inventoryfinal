@@ -118,6 +118,37 @@ class Sale(TimestampedModel):
             new_number = 1
         
         return f"{prefix}{new_number:04d}"
+    
+    def cancel_sale(self):
+        """Cancel the sale and restore stock"""
+        if self.payment_status == 'cancelled':
+            return False, "Sale is already cancelled"
+        
+        # Only allow cancellation if not fully paid or refunded
+        if self.payment_status in ['paid', 'refunded']:
+            return False, "Cannot cancel a paid or refunded sale"
+        
+        # Restore stock for all items
+        for item in self.items.all():
+            product = item.product
+            product.stock_quantity += item.quantity
+            product.save()
+            
+            # Create reverse stock movement
+            from apps.inventory.models import StockMovement
+            StockMovement.objects.create(
+                product=product,
+                movement_type='sale_cancellation',
+                quantity=item.quantity,
+                reference=f"Cancel-{self.sale_number}",
+                user=None  # System action
+            )
+        
+        # Update sale status
+        self.payment_status = 'cancelled'
+        self.save()
+        
+        return True, "Sale cancelled successfully"
 
     @property
     def balance_due(self):
