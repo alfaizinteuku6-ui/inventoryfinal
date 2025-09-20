@@ -196,7 +196,7 @@ const Customers = () => {
               Total Spent
             </Typography>
             <Typography variant="h6" fontWeight="bold">
-              ₹{customer.total_spent?.toFixed(2)}
+              ₹{customer.total_spent}
             </Typography>
           </Grid>
         </Grid>
@@ -391,7 +391,7 @@ const Customers = () => {
                     {!isMobile && (
                       <TableCell>
                         <Typography variant="subtitle2" fontWeight="bold">
-                          {customer?.total_orders}
+                          {customer?.orders_count}
                         </Typography>
                       </TableCell>
                     )}
@@ -402,17 +402,12 @@ const Customers = () => {
                           fontWeight="bold"
                           color="success.main"
                         >
-                          ₹{customer?.total_spent?.toFixed(2)}
+                          ₹{customer?.total_spent}
                         </Typography>
                       </TableCell>
                     )}
                     <TableCell align="center">
                       <Box display="flex" justifyContent="center" gap={1}>
-                        <Tooltip title="View Details">
-                          <IconButton size="small" color="primary">
-                            <ViewIcon />
-                          </IconButton>
-                        </Tooltip>
                         <Tooltip title="Edit">
                           <IconButton
                             size="small"
@@ -498,10 +493,6 @@ const Customers = () => {
         open={Boolean(anchorEl)}
         onClose={() => setAnchorEl(null)}
       >
-        <MenuItem onClick={() => setAnchorEl(null)}>
-          <ViewIcon fontSize="small" sx={{ mr: 1 }} />
-          View Details
-        </MenuItem>
         <MenuItem onClick={() => setAnchorEl(null)}>
           <EditIcon fontSize="small" sx={{ mr: 1 }} />
           Edit

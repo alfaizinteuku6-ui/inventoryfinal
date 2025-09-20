@@ -17,9 +17,6 @@ import {
   useTheme,
   alpha,
   Container,
-  Stepper,
-  Step,
-  StepLabel,
   Backdrop,
   CircularProgress,
   Tooltip,
@@ -45,10 +42,8 @@ const CreateSale = () => {
   const { id: saleId } = useParams();
   const { data: products } = useProducts();
   const { data: customers, mutate } = useCustomers();
-  const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const steps = ["Customer Info", "Items & Pricing", "Payment & Summary"];
   const [customerDialogOpen, setCustomerDialogOpen] = useState(false);
   const initialData = {
     customer: "",
@@ -123,7 +118,6 @@ const CreateSale = () => {
 
   const resetSaleForm = () => {
     setSaleData(initialData);
-    setActiveStep(0);
     setError(null);
     setLoading(false);
   };
@@ -227,34 +221,6 @@ const CreateSale = () => {
               Build your sales transaction with our modern interface
             </Typography>
           </Box>
-
-          {/* Stepper */}
-          <Paper
-            elevation={0}
-            sx={{
-              p: 3,
-              mb: 4,
-              borderRadius: 3,
-              border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-            }}
-          >
-            <Stepper activeStep={activeStep} alternativeLabel>
-              {steps.map((label, index) => (
-                <Step key={label}>
-                  <StepLabel
-                    sx={{
-                      "& .MuiStepLabel-label": {
-                        fontWeight: 600,
-                        fontSize: "0.9rem",
-                      },
-                    }}
-                  >
-                    {label}
-                  </StepLabel>
-                </Step>
-              ))}
-            </Stepper>
-          </Paper>
 
           {error && (
             <Fade in>

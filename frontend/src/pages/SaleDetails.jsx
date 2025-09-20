@@ -23,10 +23,6 @@ import {
   TableHead,
   TableRow,
   IconButton,
-  Menu,
-  MenuItem,
-  ListItemIcon,
-  ListItemText,
 } from "@mui/material";
 import {
   ArrowBack,
@@ -36,7 +32,6 @@ import {
   Payment,
   MoreVert,
   Person,
-  CalendarToday,
   Receipt,
   Store,
   AttachMoney,
@@ -50,25 +45,19 @@ const SaleDetails = () => {
   const theme = useTheme();
   const navigate = useNavigate();
   const { id } = useParams();
-  const {data: sale, isLoading: loading, error } = useSale(id);
-  const [menuAnchor, setMenuAnchor] = useState(null);
-  const {data: companyInfo, isLoading: vendorLoading} = useVendors();
-
-  const handleMenuClick = (event) => {
-    setMenuAnchor(event.currentTarget);
-  };
-
-  const handleMenuClose = () => {
-    setMenuAnchor(null);
-  };
+  const { data: sale, isLoading: loading, error } = useSale(id);
+  const { data: companyInfo, isLoading: vendorLoading } = useVendors();
 
   const handleEdit = () => {
     navigate(`/sales/${id}/edit`);
-    handleMenuClose();
   };
 
   const handleDelete = async () => {
-    if (window.confirm("Are you sure you want to delete this sale? This action cannot be undone.")) {
+    if (
+      window.confirm(
+        "Are you sure you want to delete this sale? This action cannot be undone."
+      )
+    ) {
       try {
         await sales.delete(id);
         navigate("/sales");
@@ -76,7 +65,6 @@ const SaleDetails = () => {
         alert(error.response?.data?.error || "Failed to delete sale");
       }
     }
-    handleMenuClose();
   };
 
   const handleAddPayment = async () => {
@@ -86,7 +74,7 @@ const SaleDetails = () => {
       await sales.addPayment(id, { amount });
       // Refresh sale data
       const response = await sales.get(id);
-      
+
       alert("Payment recorded successfully!");
     } catch (error) {
       alert(error.response?.data?.error || "Failed to add payment");
@@ -99,20 +87,29 @@ const SaleDetails = () => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case "paid": return "success";
-      case "pending": return "warning";
-      case "overdue": return "error";
-      default: return "default";
+      case "paid":
+        return "success";
+      case "pending":
+        return "warning";
+      case "overdue":
+        return "error";
+      default:
+        return "default";
     }
   };
 
   const getPaymentMethodColor = (method) => {
     switch (method?.toLowerCase()) {
-      case "upi": return "#00C853";
-      case "cash": return "#FF6F00";
-      case "credit card": return "#1976D2";
-      case "bank transfer": return "#7B1FA2";
-      default: return "#424242";
+      case "upi":
+        return "#00C853";
+      case "cash":
+        return "#FF6F00";
+      case "credit card":
+        return "#1976D2";
+      case "bank transfer":
+        return "#7B1FA2";
+      default:
+        return "#424242";
     }
   };
 
@@ -121,13 +118,21 @@ const SaleDetails = () => {
       <Container maxWidth="xl" sx={{ py: 4 }}>
         <Skeleton variant="text" width={200} height={40} sx={{ mb: 2 }} />
         <Skeleton variant="text" width="60%" height={60} sx={{ mb: 4 }} />
-        
+
         <Grid container spacing={3}>
-          <Grid item xs={12} md={8}>
-            <Skeleton variant="rectangular" height={400} sx={{ borderRadius: 3 }} />
+          <Grid size={{ xs: 12, md: 8 }}>
+            <Skeleton
+              variant="rectangular"
+              height={400}
+              sx={{ borderRadius: 3 }}
+            />
           </Grid>
-          <Grid item xs={12} md={4}>
-            <Skeleton variant="rectangular" height={400} sx={{ borderRadius: 3 }} />
+          <Grid size={{ xs: 12, md: 4 }}>
+            <Skeleton
+              variant="rectangular"
+              height={400}
+              sx={{ borderRadius: 3 }}
+            />
           </Grid>
         </Grid>
       </Container>
@@ -149,7 +154,7 @@ const SaleDetails = () => {
             Error Loading Sale
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            {typeof error === 'string' ? error : JSON.stringify(error)}
+            {typeof error === "string" ? error : JSON.stringify(error)}
           </Typography>
         </Paper>
       </Container>
@@ -169,14 +174,21 @@ const SaleDetails = () => {
             >
               Back to Sales
             </Button>
-            
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
               <Box>
                 <Typography variant="h4" fontWeight="bold" gutterBottom>
                   Sale #{sale?.sale_number}
                 </Typography>
                 <Typography variant="body1" color="text.secondary">
-                  Created on {new Date(sale?.sale_date).toLocaleDateString("en-IN", {
+                  Created on{" "}
+                  {new Date(sale?.sale_date).toLocaleDateString("en-IN", {
                     weekday: "long",
                     year: "numeric",
                     month: "long",
@@ -186,29 +198,23 @@ const SaleDetails = () => {
                   })}
                 </Typography>
               </Box>
-              
+
               <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
                 <Chip
-                  label={sale?.payment_status?.charAt(0).toUpperCase() + sale?.payment_status?.slice(1)}
+                  label={
+                    sale?.payment_status?.charAt(0).toUpperCase() +
+                    sale?.payment_status?.slice(1)
+                  }
                   color={getStatusColor(sale?.payment_status)}
                   sx={{ fontWeight: 600 }}
                 />
-                <IconButton
-                  onClick={handleMenuClick}
-                  sx={{
-                    bgcolor: "rgba(0,0,0,0.04)",
-                    "&:hover": { bgcolor: "rgba(0,0,0,0.08)" },
-                  }}
-                >
-                  <MoreVert />
-                </IconButton>
               </Box>
             </Box>
           </Box>
 
           <Grid container spacing={4}>
             {/* Main Content */}
-            <Grid item xs={12} md={8}>
+            <Grid size={{ xs: 12, md: 8 }}>
               {/* Customer Information */}
               <Card sx={{ mb: 3, borderRadius: 3 }}>
                 <CardContent sx={{ p: 3 }}>
@@ -221,18 +227,26 @@ const SaleDetails = () => {
                     </Typography>
                   </Box>
                   <Divider sx={{ mb: 3 }} />
-                  
+
                   <Grid container spacing={3}>
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                    <Grid size={{ xs: 12, md: 6 }}>
+                      <Typography
+                        variant="subtitle2"
+                        color="text.secondary"
+                        gutterBottom
+                      >
                         Customer Name
                       </Typography>
                       <Typography variant="body1" fontWeight={600}>
                         {sale?.customer_details?.name || "N/A"}
                       </Typography>
                     </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                    <Grid size={{ xs: 12, md: 6 }}>
+                      <Typography
+                        variant="subtitle2"
+                        color="text.secondary"
+                        gutterBottom
+                      >
                         Salesperson
                       </Typography>
                       <Typography variant="body1" fontWeight={600}>
@@ -247,7 +261,9 @@ const SaleDetails = () => {
               <Card sx={{ borderRadius: 3 }}>
                 <CardContent sx={{ p: 3 }}>
                   <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-                    <Avatar sx={{ bgcolor: theme.palette.secondary.main, mr: 2 }}>
+                    <Avatar
+                      sx={{ bgcolor: theme.palette.secondary.main, mr: 2 }}
+                    >
                       <Store />
                     </Avatar>
                     <Typography variant="h6" fontWeight="bold">
@@ -255,17 +271,29 @@ const SaleDetails = () => {
                     </Typography>
                   </Box>
                   <Divider sx={{ mb: 3 }} />
-                  
+
                   <TableContainer>
                     <Table>
                       <TableHead>
                         <TableRow>
-                          <TableCell sx={{ fontWeight: 600 }}>Product</TableCell>
-                          <TableCell align="center" sx={{ fontWeight: 600 }}>Qty</TableCell>
-                          <TableCell align="right" sx={{ fontWeight: 600 }}>Unit Price</TableCell>
-                          <TableCell align="right" sx={{ fontWeight: 600 }}>Discount</TableCell>
-                          <TableCell align="right" sx={{ fontWeight: 600 }}>Tax</TableCell>
-                          <TableCell align="right" sx={{ fontWeight: 600 }}>Total</TableCell>
+                          <TableCell sx={{ fontWeight: 600 }}>
+                            Product
+                          </TableCell>
+                          <TableCell align="center" sx={{ fontWeight: 600 }}>
+                            Qty
+                          </TableCell>
+                          <TableCell align="right" sx={{ fontWeight: 600 }}>
+                            Unit Price
+                          </TableCell>
+                          <TableCell align="right" sx={{ fontWeight: 600 }}>
+                            Discount
+                          </TableCell>
+                          <TableCell align="right" sx={{ fontWeight: 600 }}>
+                            Tax
+                          </TableCell>
+                          <TableCell align="right" sx={{ fontWeight: 600 }}>
+                            Total
+                          </TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
@@ -277,18 +305,25 @@ const SaleDetails = () => {
                                   {item.product_name}
                                 </Typography>
                                 {item.product_sku && (
-                                  <Typography variant="caption" color="text.secondary">
+                                  <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                  >
                                     SKU: {item.product_sku}
                                   </Typography>
                                 )}
                               </Box>
                             </TableCell>
-                            <TableCell align="center">{item.quantity}</TableCell>
+                            <TableCell align="center">
+                              {item.quantity}
+                            </TableCell>
                             <TableCell align="right">
                               ₹{parseFloat(item.unit_price).toFixed(2)}
                             </TableCell>
                             <TableCell align="right">
-                              {item.discount_percent ? `${item.discount_percent}%` : "-"}
+                              {item.discount_percent
+                                ? `${item.discount_percent}%`
+                                : "-"}
                             </TableCell>
                             <TableCell align="right">
                               {item.tax_rate ? `${item.tax_rate}%` : "-"}
@@ -321,7 +356,7 @@ const SaleDetails = () => {
             </Grid>
 
             {/* Sidebar */}
-            <Grid item xs={12} md={4}>
+            <Grid size={{ xs: 12, md: 4 }}>
               {/* Payment Summary */}
               <Card sx={{ mb: 3, borderRadius: 3 }}>
                 <CardContent sx={{ p: 3 }}>
@@ -334,42 +369,65 @@ const SaleDetails = () => {
                     </Typography>
                   </Box>
                   <Divider sx={{ mb: 3 }} />
-                  
+
                   <Stack spacing={2}>
-                    <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                    <Box
+                      sx={{ display: "flex", justifyContent: "space-between" }}
+                    >
                       <Typography variant="body2" color="text.secondary">
                         Total Amount
                       </Typography>
                       <Typography variant="body1" fontWeight={600}>
-                        ₹{parseFloat(sale?.total_amount || 0).toLocaleString("en-IN")}
+                        ₹
+                        {parseFloat(sale?.total_amount || 0).toLocaleString(
+                          "en-IN"
+                        )}
                       </Typography>
                     </Box>
-                    
-                    <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+
+                    <Box
+                      sx={{ display: "flex", justifyContent: "space-between" }}
+                    >
                       <Typography variant="body2" color="text.secondary">
                         Paid Amount
                       </Typography>
-                      <Typography variant="body1" fontWeight={600} color="success.main">
-                        ₹{parseFloat(sale?.paid_amount || 0).toLocaleString("en-IN")}
+                      <Typography
+                        variant="body1"
+                        fontWeight={600}
+                        color="success.main"
+                      >
+                        ₹
+                        {parseFloat(sale?.paid_amount || 0).toLocaleString(
+                          "en-IN"
+                        )}
                       </Typography>
                     </Box>
-                    
-                    <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+
+                    <Box
+                      sx={{ display: "flex", justifyContent: "space-between" }}
+                    >
                       <Typography variant="body2" color="text.secondary">
                         Balance Due
                       </Typography>
-                      <Typography 
-                        variant="body1" 
+                      <Typography
+                        variant="body1"
                         fontWeight={600}
-                        color={sale?.balance_due > 0 ? "error.main" : "success.main"}
+                        color={
+                          sale?.balance_due > 0 ? "error.main" : "success.main"
+                        }
                       >
-                        ₹{parseFloat(sale?.balance_due || 0).toLocaleString("en-IN")}
+                        ₹
+                        {parseFloat(sale?.balance_due || 0).toLocaleString(
+                          "en-IN"
+                        )}
                       </Typography>
                     </Box>
-                    
+
                     <Divider />
-                    
-                    <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+
+                    <Box
+                      sx={{ display: "flex", justifyContent: "space-between" }}
+                    >
                       <Typography variant="body2" color="text.secondary">
                         Payment Method
                       </Typography>
@@ -377,7 +435,10 @@ const SaleDetails = () => {
                         label={sale?.payment_method || "N/A"}
                         size="small"
                         sx={{
-                          bgcolor: alpha(getPaymentMethodColor(sale?.payment_method), 0.1),
+                          bgcolor: alpha(
+                            getPaymentMethodColor(sale?.payment_method),
+                            0.1
+                          ),
                           color: getPaymentMethodColor(sale?.payment_method),
                           fontWeight: 600,
                         }}
@@ -394,7 +455,7 @@ const SaleDetails = () => {
                     Quick Actions
                   </Typography>
                   <Divider sx={{ mb: 3 }} />
-                  
+
                   <Stack spacing={2}>
                     <Button
                       variant="contained"
@@ -409,27 +470,46 @@ const SaleDetails = () => {
                     >
                       Download Invoice
                     </Button>
-                    
-                    {sale?.balance_due > 0 && (
-                      <Button
-                        variant="outlined"
-                        startIcon={<Payment />}
-                        onClick={handleAddPayment}
-                        fullWidth
-                        sx={{
-                          borderRadius: 2,
-                          textTransform: "none",
-                          fontWeight: 600,
-                        }}
-                      >
-                        Record Payment
-                      </Button>
-                    )}
-                    
+
+                    {sale?.balance_due > 0 &&
+                      sale?.payment_status !== "cancelled" && (
+                        <Button
+                          variant="contained"
+                          color="success"
+                          startIcon={<Payment />}
+                          onClick={handleAddPayment}
+                          fullWidth
+                          sx={{
+                            borderRadius: 2,
+                            textTransform: "none",
+                            fontWeight: 600,
+                          }}
+                        >
+                          Record Payment
+                        </Button>
+                      )}
+                    {sale?.payment_status !== "cancelled" &&
+                      sale?.payment_status !== "paid" && (
+                        <Button
+                          variant="contained"
+                          color="warning"
+                          startIcon={<Edit />}
+                          onClick={handleEdit}
+                          fullWidth
+                          sx={{
+                            borderRadius: 2,
+                            textTransform: "none",
+                            fontWeight: 600,
+                          }}
+                        >
+                          Edit Sale
+                        </Button>
+                      )}
                     <Button
-                      variant="outlined"
-                      startIcon={<Edit />}
-                      onClick={handleEdit}
+                      variant="contained"
+                      color="error"
+                      onClick={handleDelete}
+                      startIcon={<Delete />}
                       fullWidth
                       sx={{
                         borderRadius: 2,
@@ -437,7 +517,7 @@ const SaleDetails = () => {
                         fontWeight: 600,
                       }}
                     >
-                      Edit Sale
+                      Delete Sale
                     </Button>
                   </Stack>
                 </CardContent>
@@ -455,9 +535,11 @@ const SaleDetails = () => {
                     </Typography>
                   </Box>
                   <Divider sx={{ mb: 3 }} />
-                  
+
                   <Stack spacing={2}>
-                    <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                    <Box
+                      sx={{ display: "flex", justifyContent: "space-between" }}
+                    >
                       <Typography variant="body2" color="text.secondary">
                         Sale Date
                       </Typography>
@@ -465,31 +547,43 @@ const SaleDetails = () => {
                         {new Date(sale?.sale_date).toLocaleDateString("en-IN")}
                       </Typography>
                     </Box>
-                    
-                    <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+
+                    <Box
+                      sx={{ display: "flex", justifyContent: "space-between" }}
+                    >
                       <Typography variant="body2" color="text.secondary">
                         Due Date
                       </Typography>
                       <Typography variant="body2" fontWeight={600}>
-                        {sale?.due_date ? new Date(sale.due_date).toLocaleDateString("en-IN") : "N/A"}
+                        {sale?.due_date
+                          ? new Date(sale.due_date).toLocaleDateString("en-IN")
+                          : "N/A"}
                       </Typography>
                     </Box>
-                    
-                    <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+
+                    <Box
+                      sx={{ display: "flex", justifyContent: "space-between" }}
+                    >
                       <Typography variant="body2" color="text.secondary">
                         Items Count
                       </Typography>
                       <Typography variant="body2" fontWeight={600}>
-                        {sale?.items?.length || 0} item{sale?.items?.length !== 1 ? 's' : ''}
+                        {sale?.items?.length || 0} item
+                        {sale?.items?.length !== 1 ? "s" : ""}
                       </Typography>
                     </Box>
-                    
-                    <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+
+                    <Box
+                      sx={{ display: "flex", justifyContent: "space-between" }}
+                    >
                       <Typography variant="body2" color="text.secondary">
                         Total Quantity
                       </Typography>
                       <Typography variant="body2" fontWeight={600}>
-                        {sale?.items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0}
+                        {sale?.items?.reduce(
+                          (sum, item) => sum + (item.quantity || 0),
+                          0
+                        ) || 0}
                       </Typography>
                     </Box>
                   </Stack>
@@ -499,50 +593,6 @@ const SaleDetails = () => {
           </Grid>
         </Box>
       </Fade>
-
-      {/* Context Menu */}
-      <Menu
-        anchorEl={menuAnchor}
-        open={Boolean(menuAnchor)}
-        onClose={handleMenuClose}
-        transformOrigin={{ horizontal: "right", vertical: "top" }}
-        anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
-        PaperProps={{
-          sx: {
-            borderRadius: 2,
-            minWidth: 180,
-            boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
-          },
-        }}
-      >
-        <MenuItem onClick={handleEdit}>
-          <ListItemIcon>
-            <Edit fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Edit Sale</ListItemText>
-        </MenuItem>
-        <MenuItem onClick={handleDownloadPDF}>
-          <ListItemIcon>
-            <Download fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Download Invoice</ListItemText>
-        </MenuItem>
-        {sale?.balance_due > 0 && (
-          <MenuItem onClick={handleAddPayment}>
-            <ListItemIcon>
-              <Payment fontSize="small" />
-            </ListItemIcon>
-            <ListItemText>Record Payment</ListItemText>
-          </MenuItem>
-        )}
-        <Divider />
-        <MenuItem onClick={handleDelete} sx={{ color: "error.main" }}>
-          <ListItemIcon>
-            <Delete fontSize="small" sx={{ color: "error.main" }} />
-          </ListItemIcon>
-          <ListItemText>Delete Sale</ListItemText>
-        </MenuItem>
-      </Menu>
     </Container>
   );
 };

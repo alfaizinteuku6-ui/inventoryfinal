@@ -32,14 +32,22 @@ class SaleViewSet(viewsets.ModelViewSet):
     ordering = ['-created_at']
 
     def get_queryset(self):
-        return Sale.objects.filter(is_active=True).select_related('customer', 'salesperson').prefetch_related('items__product')
+        """
+        Override to exclude cancelled sales by default,
+        but always include cancelled for retrieve (by id).
+        """
+        base_queryset = Sale.objects.filter(is_active=True).select_related(
+            'customer', 'salesperson'
+        ).prefetch_related('items__product')
 
-    def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        instance.is_active = False
-        instance.save(update_fields=["is_active"])
-        return Response({"detail": "Sale soft-deleted successfully."}, status=status.HTTP_200_OK)
+        # For list view, include cancelled only if explicitly requested
+        if self.action == 'list':
+            include_cancelled = self.request.query_params.get('include_cancelled') == 'true'
+            return base_queryset if include_cancelled else base_queryset.exclude(payment_status='cancelled')
 
+        # For retrieve or any other detail view, always include cancelled sales
+        return base_queryset
+    
     def get_serializer_class(self):
         if self.action == 'create':
             return CreateSaleSerializer
@@ -103,31 +111,24 @@ class SaleViewSet(viewsets.ModelViewSet):
             current = 0
         return round(((current - previous) / previous) * 100, 2)
 
-    def get_queryset(self):
-        """Override to exclude cancelled sales by default, include them only for specific actions"""
-        base_queryset = Sale.objects.filter(is_active=True).select_related('customer', 'salesperson').prefetch_related('items__product')
-        
-        # Include cancelled sales only for list view when explicitly requested
-        if self.action == 'list' and self.request.query_params.get('include_cancelled') == 'true':
-            return base_queryset
-        
-        # For dashboard and reports, exclude cancelled sales
-        return base_queryset.exclude(payment_status='cancelled')
-
     def destroy(self, request, *args, **kwargs):
-        """Soft delete and restore stock"""
+        """Soft delete and restore stock (calls cancel_sale first if needed)"""
         instance = self.get_object()
-        
-        # If sale is not cancelled, cancel it first (which restores stock)
+
+        # If sale is not already cancelled, cancel it first
         if instance.payment_status != 'cancelled':
-            success, message = instance.cancel_sale()
+            # allow optional refund/credit flags here as well
+            refund_flag = str(request.query_params.get('refund', 'false')).lower() == 'true'
+            credit_flag = str(request.query_params.get('credit', 'false')).lower() == 'true'
+
+            success, message = instance.cancel_sale(refund=refund_flag, credit=credit_flag)
             if not success:
                 return Response({"error": message}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         # Then soft delete
         instance.is_active = False
         instance.save(update_fields=["is_active"])
-        
+
         return Response({"detail": "Sale cancelled and soft-deleted successfully."}, status=status.HTTP_200_OK)
 
     def get_period_stats(self, queryset):
@@ -455,14 +456,20 @@ class SaleViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def cancel_sale(self, request, pk=None):
-        """Cancel a sale and restore stock"""
+        """
+        Cancel a sale and restore stock.
+        For partially paid sales you must pass either ?refund=true or ?credit=true.
+        """
         sale = self.get_object()
-        
-        success, message = sale.cancel_sale()
-        
+
+        # check flags from query params
+        refund_flag = str(request.query_params.get('refund', 'false')).lower() == 'true'
+        credit_flag = str(request.query_params.get('credit', 'false')).lower() == 'true'
+        success, message = sale.cancel_sale(refund=refund_flag, credit=credit_flag)
+       
         if not success:
             return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         return Response({
             'message': message,
             'sale': self.get_serializer(sale).data

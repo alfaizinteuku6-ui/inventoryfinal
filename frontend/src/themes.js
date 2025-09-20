@@ -118,7 +118,6 @@ export const lightTheme = createTheme({
             borderWidth: 1.5,
             '&:hover': {
               borderWidth: 1.5,
-              backgroundColor: 'rgba(0,0,0,0.04)',
             },
           },
         },
@@ -307,13 +306,8 @@ export const lightTheme = createTheme({
             },
           },
           outlined: {
-            borderWidth: 1.5,
-            borderColor: 'rgba(148, 163, 184, 0.3)',
-            color: '#e2e8f0',
             '&:hover': {
               borderWidth: 1.5,
-              borderColor: 'rgba(148, 163, 184, 0.5)',
-              backgroundColor: 'rgba(148, 163, 184, 0.08)',
             },
           },
         },

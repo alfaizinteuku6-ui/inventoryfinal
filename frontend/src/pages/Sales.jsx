@@ -64,6 +64,7 @@ import HeaderCard from "../components/HeaderCard";
 import StatsCard from "../components/StatsCard";
 import { sales as SalesApi } from "../services/api";
 import CustomSnackbar from "../components/CusromSnackbar";
+import CancelSaleModal from "../components/Sale/CancelSaleModal";
 
 const Transition = React.forwardRef(function Transition(props, ref) {
   return <Slide direction="up" ref={ref} {...props} />;
@@ -79,8 +80,8 @@ const Sales = () => {
   const [customAmount, setCustomAmount] = useState("");
   const [snackbar, setSnackbar] = useState({
     open: false,
-    severity: 'success',
-    message: '',
+    severity: "success",
+    message: "",
   });
   const {
     data: sales,
@@ -95,20 +96,29 @@ const Sales = () => {
     setSnackbar({ open: true, message, severity });
   };
 
+  const [cancelOpen, setCancelOpen] = useState(false);
 
-  const handleCancelSale = async (id) => {
-    if (
-      window.confirm(
-        "Are you sure you want to cancel this sale? This action cannot be undone."
-      )
-    ) {
-      try {
-        await SalesApi.cancelSale(id);
-        showSnackbar("Sale Canceled successfully!");
-        mutate();
-      } catch (error) {
-        showSnackbar(error.response?.data?.error || "Failed to Cancel sale", "error");
-      }
+  const handleChoice = (choice) => {
+    console.log("User choice:", choice);
+
+    handleCancelSale(selectedSale.id, choice);
+    setCancelOpen(false);
+  };
+
+  const handleCancelSale = async (id, choice) => {
+    try {
+      let query = "";
+      if (choice === "refund") query = "?refund=true";
+      else if (choice === "credit") query = "?credit=true";
+      await SalesApi.cancelSale(id, query);
+      showSnackbar("Sale Canceled successfully!");
+      mutate();
+      setSelectedSale(null);
+    } catch (error) {
+      showSnackbar(
+        error.response?.data?.error || "Failed to Cancel sale",
+        "error"
+      );
     }
   };
 
@@ -158,7 +168,10 @@ const Sales = () => {
       setPaymentModalOpen(false);
       setSelectedSale(null);
     } catch (error) {
-      showSnackbar(error.response?.data?.error || "Failed to add payment", "error");
+      showSnackbar(
+        error.response?.data?.error || "Failed to add payment",
+        "error"
+      );
     }
   };
 
@@ -392,7 +405,7 @@ const Sales = () => {
                   >
                     Download
                   </Button>
-                  {sale.balance_due > 0 && (
+                  {sale.balance_due > 0 && sale.payment_status !== "cancelled" && (
                     <Button
                       variant="contained"
                       color="success"
@@ -415,43 +428,33 @@ const Sales = () => {
                 <Stack direction="row" spacing={1}>
                   <Button
                     variant="outlined"
+                    color="success"
                     startIcon={<Visibility />}
                     onClick={() => navigate(`/sales/${sale.id}`)}
                     size="small"
                     sx={{
                       flex: 1,
                       borderRadius: 2,
-                      textTransform: "none",
                       fontWeight: 600,
-                      borderColor: "rgba(0,0,0,0.12)",
-                      color: "text.secondary",
-                      "&:hover": {
-                        borderColor: "primary.main",
-                        color: "primary.main",
-                        bgcolor: "rgba(25, 118, 210, 0.04)",
-                      },
                     }}
                   >
                     View
                   </Button>
-                  {(sale.payment_status !== "paid") && (
+                  {sale.payment_status !== "paid" && sale.payment_status !== "cancelled" && (
                     <Button
                       variant="outlined"
+                      color="warning"
                       startIcon={<Cancel />}
-                      onClick={() => handleCancelSale(sale?.id)}
+                      onClick={() => {
+                        setSelectedSale(sale);
+                        setCancelOpen(true);
+                      }}
                       size="small"
                       sx={{
                         flex: 1,
                         borderRadius: 2,
                         textTransform: "none",
                         fontWeight: 600,
-                        borderColor: "rgba(0,0,0,0.12)",
-                        color: "text.secondary",
-                        "&:hover": {
-                          borderColor: "warning.main",
-                          color: "warning.main",
-                          bgcolor: "rgba(255, 152, 0, 0.04)",
-                        },
                       }}
                     >
                       Cancel
@@ -497,6 +500,13 @@ const Sales = () => {
         severity={snackbar.severity}
         message={snackbar.message}
         onClose={() => setSnackbar({ ...snackbar, open: false })}
+      />
+
+      <CancelSaleModal
+        open={cancelOpen}
+        onClose={() => setCancelOpen(false)}
+        onChoose={handleChoice}
+        isPartialPaid={selectedSale?.payment_status === "partial"} // or detect from sale.payment_status
       />
       {/* Header Section */}
       <HeaderCard

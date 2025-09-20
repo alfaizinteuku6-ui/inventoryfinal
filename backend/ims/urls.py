@@ -35,7 +35,7 @@ router.register('categories', CategoryViewSet)
 router.register('products', ProductViewSet)
 router.register('stock-movements', StockMovementViewSet)
 router.register('sales', SaleViewSet)
-router.register('customers', CustomerViewSet)
+router.register(r'customers', CustomerViewSet, basename='customer')
 router.register(r'vendors', VendorViewSet, basename='vendor')
 
 urlpatterns = [

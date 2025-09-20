@@ -106,6 +106,7 @@ const Login = () => {
     <Box
       sx={{
         minHeight: '100vh',
+        width: '100vw',
         background: isMobile 
           ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
           : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
