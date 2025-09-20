@@ -3,8 +3,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from django.utils import timezone
-from django.db.models import Sum, Count, F, Q, Avg
-from django.db.models.functions import TruncDay
+from django.db.models import Sum, Count, F, Q, Avg, Case, When, DecimalField, IntegerField, FloatField, Value
+from django.db.models.functions import TruncDay, TruncMonth, Coalesce, Cast
 from .models import Sale, SaleItem
 from .serializers import SaleSerializer, CreateSaleSerializer
 from datetime import timedelta, datetime
@@ -57,28 +57,24 @@ class SaleViewSet(viewsets.ModelViewSet):
         serializer.save(salesperson=self.request.user)
 
     def list(self, request, *args, **kwargs):
-        """Override list to include summary statistics and exclude cancelled sales from calculations"""
+        """Override list to include comprehensive summary statistics"""
         queryset = self.filter_queryset(self.get_queryset())
+        
+        # Get comprehensive summary stats
+        summary_stats = self.get_comprehensive_period_stats(queryset)
+        
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            response.data['summary'] = summary_stats
+            return response
 
-        # For summary stats, always exclude cancelled sales regardless of include_cancelled parameter
-        summary_queryset = queryset.exclude(payment_status='cancelled') if hasattr(queryset.model, 'payment_status') else queryset
-
-        # Get summary statistics for the filtered queryset (excluding cancelled)
-        summary_stats = summary_queryset.aggregate(
-            total_sales_count=Count('id'),
-            total_revenue=Sum('total_amount'),
-            total_paid_amount=Sum('paid_amount'),
-        )
-
-        total_revenue = summary_stats['total_revenue'] or 0
-        total_paid = summary_stats['total_paid_amount'] or 0
-
-        summary = {
-            'total_sales': summary_stats['total_sales_count'] or 0,
-            'total_revenue': total_revenue,
-            'paid_amount': total_paid,
-            'pending_payments': total_revenue - total_paid
-        }
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({
+            'results': serializer.data,
+            'summary': summary_stats
+        })
 
         page = self.paginate_queryset(queryset)
         if page is not None:
@@ -92,7 +88,7 @@ class SaleViewSet(viewsets.ModelViewSet):
             'results': serializer.data,
             'summary': summary
         })
-
+    
     def parse_date(self, date_str):
         """Parse date string to date object"""
         if not date_str:
@@ -130,30 +126,20 @@ class SaleViewSet(viewsets.ModelViewSet):
         instance.save(update_fields=["is_active"])
 
         return Response({"detail": "Sale cancelled and soft-deleted successfully."}, status=status.HTTP_200_OK)
-
-    def get_period_stats(self, queryset):
-        """Get comprehensive stats for a queryset excluding cancelled sales"""
-        # Ensure cancelled sales are excluded
-        queryset = queryset.exclude(payment_status='cancelled')
-        
-        stats = queryset.aggregate(
-            total_amount=Sum('total_amount'),
-            count=Count('id'),
-            total_items=Sum('items__quantity')
+    
+    def get_effective_revenue_queryset(self, queryset):
+        """
+        Calculate effective revenue considering refunds and cancellations.
+        Returns queryset with annotated effective_revenue field.
+        """
+        return queryset.annotate(
+            effective_revenue=Case(
+                When(payment_status='cancelled', then=0),
+                When(payment_status='refunded', then=0),
+                default=F('total_amount'),
+                output_field=DecimalField(max_digits=10, decimal_places=2)
+            )
         )
-
-        total = stats['total_amount'] or 0
-        count = stats['count'] or 0
-        items_count = stats['total_items'] or 0
-        avg_sale = (total / count) if count else 0
-
-        return {
-            'total_revenue': float(total),
-            'sales_count': count,
-            'items_sold': items_count,
-            'average_sale': float(avg_sale),
-            'average_items_per_sale': round(items_count / count, 2) if count else 0
-        }
 
     def get_comparison_period_dates(self, start_date, end_date):
         """Calculate comparison period dates based on the selected period length"""
@@ -161,22 +147,323 @@ class SaleViewSet(viewsets.ModelViewSet):
         comparison_end = start_date - timedelta(days=1)
         comparison_start = comparison_end - timedelta(days=period_length - 1)
         return comparison_start, comparison_end
+    
+    def get_comprehensive_revenue_queryset(self, queryset):
+        """
+        Calculate comprehensive revenue metrics considering all statuses, refunds, taxes, discounts.
+        Returns queryset with annotated fields for detailed analysis.
+        """
+        return queryset.annotate(
+            # Effective revenue after considering cancellations and refunds
+            effective_revenue=Case(
+                When(payment_status='cancelled', then=Value(0, output_field=DecimalField())),
+                When(payment_status='refunded', then=F('total_amount') - Coalesce(F('refunded_amount'), Value(0, output_field=DecimalField()))),
+                default=F('total_amount'),
+                output_field=DecimalField(max_digits=12, decimal_places=2)
+            ),
+            
+            # Net revenue after discounts and before tax
+            net_revenue=Case(
+                When(payment_status='cancelled', then=Value(0, output_field=DecimalField())),
+                When(payment_status='refunded', then=(F('total_amount') - Coalesce(F('discount_amount'), Value(0, output_field=DecimalField()))) - Coalesce(F('refunded_amount'), Value(0, output_field=DecimalField()))),
+                default=F('total_amount') - Coalesce(F('discount_amount'), Value(0, output_field=DecimalField())),
+                output_field=DecimalField(max_digits=12, decimal_places=2)
+            ),
+            
+            # Tax amount collected
+            tax_collected=Case(
+                When(payment_status='cancelled', then=Value(0, output_field=DecimalField())),
+                When(payment_status='refunded', then=Coalesce(F('tax_amount'), Value(0, output_field=DecimalField()))),
+                default=Coalesce(F('tax_amount'), Value(0, output_field=DecimalField())),
+                output_field=DecimalField(max_digits=12, decimal_places=2)
+            ),
+            
+            # Discount given
+            discount_given=Case(
+                When(payment_status='cancelled', then=Value(0, output_field=DecimalField())),
+                When(payment_status='refunded', then=Coalesce(F('discount_amount'), Value(0, output_field=DecimalField()))),
+                default=Coalesce(F('discount_amount'), Value(0, output_field=DecimalField())),
+                output_field=DecimalField(max_digits=12, decimal_places=2)
+            ),
+            
+            # Outstanding amount (for partially paid sales)
+            outstanding_amount=Case(
+                When(payment_status__in=['cancelled', 'refunded'], then=Value(0, output_field=DecimalField())),
+                When(payment_status='paid', then=Value(0, output_field=DecimalField())),
+                default=F('total_amount') - F('paid_amount'),
+                output_field=DecimalField(max_digits=12, decimal_places=2)
+            ),
+            
+            # Refund amount
+            total_refunded=Coalesce(F('refunded_amount'), Value(0, output_field=DecimalField())),
+            
+            # Collection efficiency
+            collection_rate=Case(
+                When(total_amount=0, then=Value(0, output_field=FloatField())),
+                default=Cast((F('paid_amount') * Value(100.0)) / F('total_amount'), FloatField()),
+                output_field=FloatField()
+            )
+        )
 
+    def get_simple_revenue_queryset(self, queryset):
+        """
+        Simplified revenue calculation for basic Sale model
+        Only uses fields that commonly exist: total_amount, paid_amount, payment_status
+        """
+        return queryset.annotate(
+            # Effective revenue after considering cancellations
+            effective_revenue=Case(
+                When(payment_status='cancelled', then=Value(0, output_field=DecimalField())),
+                When(payment_status='refunded', then=Value(0, output_field=DecimalField())),
+                default=F('total_amount'),
+                output_field=DecimalField(max_digits=12, decimal_places=2)
+            ),
+            
+            # Outstanding amount
+            outstanding_amount=Case(
+                When(payment_status__in=['cancelled', 'refunded'], then=Value(0, output_field=DecimalField())),
+                When(payment_status='paid', then=Value(0, output_field=DecimalField())),
+                default=F('total_amount') - F('paid_amount'),
+                output_field=DecimalField(max_digits=12, decimal_places=2)
+            ),
+            
+            # Collection rate
+            collection_rate=Case(
+                When(total_amount=0, then=Value(0, output_field=FloatField())),
+                default=Cast((F('paid_amount') * Value(100.0)) / F('total_amount'), FloatField()),
+                output_field=FloatField()
+            )
+        )
+
+    def get_comprehensive_period_stats(self, queryset):
+        """Get comprehensive stats for a queryset with detailed breakdown"""
+        # Use simple revenue calculation to avoid field issues
+        queryset = self.get_simple_revenue_queryset(queryset)
+        
+        # Filter only active sales
+        active_queryset = queryset.filter(is_active=True)
+        
+        # Overall statistics with explicit output fields
+        overall_stats = active_queryset.aggregate(
+            total_sales_count=Count('id'),
+            
+            # Revenue metrics
+            gross_revenue=Sum('total_amount'),
+            effective_revenue=Sum('effective_revenue'),
+            
+            # Payment metrics
+            total_paid=Sum('paid_amount'),
+            total_outstanding=Sum('outstanding_amount'),
+            
+            # Item metrics (handle potential None from related field)
+            total_items=Coalesce(Sum('items__quantity'), Value(0)),
+            
+            # Average metrics
+            avg_sale_value=Avg('total_amount'),
+        )
+        
+        # Calculate average items per sale separately to handle potential None
+        avg_items_per_sale = 0.0
+        if overall_stats['total_sales_count'] and overall_stats['total_sales_count'] > 0:
+            items_per_sale_queryset = active_queryset.exclude(items__isnull=True)
+            if items_per_sale_queryset.exists():
+                avg_items_data = items_per_sale_queryset.aggregate(
+                    avg_items=Avg('items__quantity')
+                )
+                avg_items_per_sale = float(avg_items_data['avg_items'] or 0)
+        
+        # Payment status breakdown
+        payment_status_stats = active_queryset.values('payment_status').annotate(
+            count=Count('id'),
+            revenue=Sum('effective_revenue'),
+            paid_amount=Sum('paid_amount'),
+            outstanding=Sum('outstanding_amount')
+        )
+        
+        # Convert to dictionary for easier access
+        status_breakdown = {}
+        for stat in payment_status_stats:
+            status = stat['payment_status']
+            status_breakdown[status] = {
+                'count': stat['count'],
+                'revenue': float(stat['revenue']) if stat['revenue'] else 0.0,
+                'paid_amount': float(stat['paid_amount']) if stat['paid_amount'] else 0.0,
+                'outstanding': float(stat['outstanding']) if stat['outstanding'] else 0.0
+            }
+        
+        # Ensure all status types are represented
+        for status_type in ['pending', 'partial', 'paid', 'refunded', 'cancelled']:
+            if status_type not in status_breakdown:
+                status_breakdown[status_type] = {
+                    'count': 0, 'revenue': 0.0, 'paid_amount': 0.0, 'outstanding': 0.0
+                }
+        
+        # Convert main stats to float and handle None values
+        def safe_float(value):
+            return float(value) if value is not None else 0.0
+        
+        gross_revenue = safe_float(overall_stats['gross_revenue'])
+        effective_revenue = safe_float(overall_stats['effective_revenue'])
+        total_paid = safe_float(overall_stats['total_paid'])
+        total_outstanding = safe_float(overall_stats['total_outstanding'])
+        
+        count = overall_stats['total_sales_count'] or 0
+        items_count = overall_stats['total_items'] or 0
+        avg_sale = safe_float(overall_stats['avg_sale_value'])
+        
+        # Calculate discount and tax if fields exist (basic calculation)
+        try:
+            # Try to get discount info if field exists
+            discount_stats = active_queryset.aggregate(
+                total_discount=Coalesce(Sum('discount_amount'), Value(0))
+            )
+            total_discount = safe_float(discount_stats['total_discount'])
+        except:
+            total_discount = 0.0
+        
+        try:
+            # Try to get tax info if field exists
+            tax_stats = active_queryset.aggregate(
+                total_tax=Coalesce(Sum('tax_amount'), Value(0))
+            )
+            total_tax = safe_float(tax_stats['total_tax'])
+        except:
+            total_tax = 0.0
+        
+        try:
+            # Try to get refund info if field exists
+            refund_stats = active_queryset.aggregate(
+                total_refunded=Coalesce(Sum('refunded_amount'), Value(0))
+            )
+            total_refunded = safe_float(refund_stats['total_refunded'])
+        except:
+            total_refunded = 0.0
+        
+        return {
+            # Basic metrics
+            'total_sales_count': count,
+            'total_items_sold': items_count,
+            'average_sale_value': round(avg_sale, 2),
+            'average_items_per_sale': round(avg_items_per_sale, 2),
+            
+            # Revenue breakdown
+            'revenue_metrics': {
+                'gross_revenue': gross_revenue,
+                'effective_revenue': effective_revenue,
+                'net_revenue': effective_revenue - total_discount,  # Simple calculation
+                'total_tax_collected': total_tax,
+                'total_discount_given': total_discount,
+                'total_refunded': total_refunded
+            },
+            
+            # Payment metrics
+            'payment_metrics': {
+                'total_paid': total_paid,
+                'total_outstanding': total_outstanding,
+                'collection_rate': round((total_paid / gross_revenue) * 100, 2) if gross_revenue else 0.0,
+                'payment_status_breakdown': status_breakdown
+            },
+            
+            # Performance indicators
+            'performance_indicators': {
+                'refund_rate': round((total_refunded / gross_revenue) * 100, 2) if gross_revenue else 0.0,
+                'discount_rate': round((total_discount / gross_revenue) * 100, 2) if gross_revenue else 0.0,
+                'tax_rate': round((total_tax / effective_revenue) * 100, 2) if effective_revenue else 0.0,
+                'pending_sales_count': status_breakdown['pending']['count'] + status_breakdown['partial']['count'],
+                'completion_rate': round((status_breakdown['paid']['count'] / count) * 100, 2) if count else 0.0
+            }
+        }
+
+    def get_time_range_analytics(self, queryset, period_name="period"):
+        """Get detailed time-range analytics with trends"""
+        queryset = self.get_simple_revenue_queryset(queryset)
+        active_queryset = queryset.filter(is_active=True)
+        
+        # Daily breakdown
+        daily_breakdown = list(active_queryset.annotate(
+            day=TruncDay('sale_date')
+        ).values('day').annotate(
+            sales_count=Count('id'),
+            gross_revenue=Sum('total_amount'),
+            effective_revenue=Sum('effective_revenue'),
+            paid_amount=Sum('paid_amount'),
+            outstanding=Sum('outstanding_amount'),
+            items_sold=Coalesce(Sum('items__quantity'), Value(0)),
+            
+            # Status counts
+            pending_count=Count('id', filter=Q(payment_status='pending')),
+            partial_count=Count('id', filter=Q(payment_status='partial')),
+            paid_count=Count('id', filter=Q(payment_status='paid')),
+            refunded_count=Count('id', filter=Q(payment_status='refunded')),
+            cancelled_count=Count('id', filter=Q(payment_status='cancelled'))
+        ).order_by('day'))
+        
+        # Convert decimals to floats for JSON serialization
+        for day_data in daily_breakdown:
+            for key, value in day_data.items():
+                if isinstance(value, Decimal):
+                    day_data[key] = float(value)
+                elif value is None:
+                    day_data[key] = 0.0 if any(x in key for x in ['revenue', 'amount', 'sold']) else 0
+        
+        # Payment method breakdown
+        payment_method_breakdown = list(active_queryset.exclude(
+            payment_status='cancelled'
+        ).values('payment_method').annotate(
+            count=Count('id'),
+            revenue=Sum('effective_revenue'),
+            paid_amount=Sum('paid_amount'),
+            outstanding=Sum('outstanding_amount'),
+            avg_transaction_value=Avg('total_amount')
+        ).order_by('-revenue'))
+        
+        # Convert decimals to floats
+        for pm_data in payment_method_breakdown:
+            for key, value in pm_data.items():
+                if isinstance(value, Decimal):
+                    pm_data[key] = float(value)
+                elif value is None and key != 'payment_method':
+                    pm_data[key] = 0.0
+        
+        return {
+            f'{period_name}_daily_breakdown': daily_breakdown,
+            f'{period_name}_payment_methods': payment_method_breakdown
+        }
+
+    def get_monthly_stats(self, reference_date=None):
+        """Get last 30 days stats from reference date (default: today)"""
+        if reference_date is None:
+            reference_date = timezone.now().date()
+        
+        start_date = reference_date - timedelta(days=29)  # 30 days including today
+        end_date = reference_date
+        
+        monthly_queryset = Sale.objects.filter(
+            is_active=True,
+            sale_date__date__gte=start_date,
+            sale_date__date__lte=end_date
+        ).select_related('customer', 'salesperson').prefetch_related('items__product')
+        
+        stats = self.get_comprehensive_period_stats(monthly_queryset)
+        analytics = self.get_time_range_analytics(monthly_queryset, "monthly")
+        
+        return {**stats, **analytics}, start_date, end_date
+    
     @action(detail=False, methods=['get'])
     def dashboard(self, request):
-        """Get enhanced sales dashboard data excluding cancelled sales"""
+        """Get enhanced sales dashboard data with comprehensive analytics"""
         # Get date parameters from request
         start_date_str = request.query_params.get('start_date')
         end_date_str = request.query_params.get('end_date')
         
-        # Parse dates or use defaults
+        # Parse dates or use defaults for selected period
         if start_date_str and end_date_str:
             start_date = self.parse_date(start_date_str)
             end_date = self.parse_date(end_date_str)
         else:
-            # Default to last 30 days if no dates provided
+            # Default to last 7 days if no dates provided
             end_date = timezone.now().date()
-            start_date = end_date - timedelta(days=30)
+            start_date = end_date - timedelta(days=6)  # 7 days including today
         
         if not start_date or not end_date:
             return Response(
@@ -184,31 +471,32 @@ class SaleViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Get today's date for today's metrics
-        today = timezone.now().date()
+        # Get current datetime info
+        now = timezone.now()
+        today = now.date()
         yesterday = today - timedelta(days=1)
 
-        # Base queryset with optimized joins - EXCLUDE cancelled and inactive sales
+        # Base queryset with optimized joins
         base_queryset = Sale.objects.filter(
             is_active=True
-        ).exclude(
-            payment_status='cancelled'
-        ).select_related('customer').prefetch_related('items__product')
+        ).select_related('customer', 'salesperson').prefetch_related('items__product')
 
-        # Today's stats (always show current day stats)
+        # Today's comprehensive stats
         today_sales = base_queryset.filter(sale_date__date=today)
-        today_stats = self.get_period_stats(today_sales)
+        today_stats = self.get_comprehensive_period_stats(today_sales)
+        today_analytics = self.get_time_range_analytics(today_sales, "today")
 
         # Yesterday's stats for comparison
         yesterday_sales = base_queryset.filter(sale_date__date=yesterday)
-        yesterday_stats = self.get_period_stats(yesterday_sales)
+        yesterday_stats = self.get_comprehensive_period_stats(yesterday_sales)
 
-        # Selected period stats
+        # Selected period comprehensive stats
         period_sales = base_queryset.filter(
             sale_date__date__gte=start_date,
             sale_date__date__lte=end_date
         )
-        period_stats = self.get_period_stats(period_sales)
+        period_stats = self.get_comprehensive_period_stats(period_sales)
+        period_analytics = self.get_time_range_analytics(period_sales, "period")
 
         # Comparison period stats (same length as selected period, immediately before)
         comparison_start, comparison_end = self.get_comparison_period_dates(start_date, end_date)
@@ -216,52 +504,65 @@ class SaleViewSet(viewsets.ModelViewSet):
             sale_date__date__gte=comparison_start,
             sale_date__date__lte=comparison_end
         )
-        comparison_stats = self.get_period_stats(comparison_sales)
+        comparison_stats = self.get_comprehensive_period_stats(comparison_sales)
 
-        # Calculate changes
-        today_comparisons = {
-            'revenue_change': self.calculate_percentage_change(today_stats['total_revenue'], yesterday_stats['total_revenue']),
-            'sales_count_change': self.calculate_percentage_change(today_stats['sales_count'], yesterday_stats['sales_count']),
-            'items_sold_change': self.calculate_percentage_change(today_stats['items_sold'], yesterday_stats['items_sold']),
-            'avg_sale_change': self.calculate_percentage_change(today_stats['average_sale'], yesterday_stats['average_sale'])
-        }
+        # Monthly stats (last 30 days from today)
+        monthly_data, monthly_start, monthly_end = self.get_monthly_stats()
+        
+        # Previous month stats for comparison (30 days before the monthly period)
+        prev_monthly_data, prev_monthly_start, prev_monthly_end = self.get_monthly_stats(
+            reference_date=monthly_start - timedelta(days=1)
+        )
 
-        period_comparisons = {
-            'revenue_change': self.calculate_percentage_change(period_stats['total_revenue'], comparison_stats['total_revenue']),
-            'sales_count_change': self.calculate_percentage_change(period_stats['sales_count'], comparison_stats['sales_count']),
-            'items_sold_change': self.calculate_percentage_change(period_stats['items_sold'], comparison_stats['items_sold']),
-            'avg_sale_change': self.calculate_percentage_change(period_stats['average_sale'], comparison_stats['average_sale'])
-        }
+        # Calculate percentage changes for key metrics
+        def calculate_changes(current, previous):
+            changes = {}
+            if previous:
+                changes['revenue_change'] = self.calculate_percentage_change(
+                    current['revenue_metrics']['effective_revenue'], 
+                    previous['revenue_metrics']['effective_revenue']
+                )
+                changes['sales_count_change'] = self.calculate_percentage_change(
+                    current['total_sales_count'], 
+                    previous['total_sales_count']
+                )
+                changes['collection_rate_change'] = self.calculate_percentage_change(
+                    current['payment_metrics']['collection_rate'], 
+                    previous['payment_metrics']['collection_rate']
+                )
+                changes['avg_sale_change'] = self.calculate_percentage_change(
+                    current['average_sale_value'], 
+                    previous['average_sale_value']
+                )
+            return changes
 
-        # Payment breakdown for selected period
-        payment_breakdown = list(period_sales.values('payment_method').annotate(
-            count=Count('id'),
-            total=Sum('total_amount')
-        ).order_by('-total'))
+        today_comparisons = calculate_changes(today_stats, yesterday_stats)
+        period_comparisons = calculate_changes(period_stats, comparison_stats)
+        monthly_comparisons = calculate_changes(monthly_data, prev_monthly_data)
 
-        # Top customers for selected period
-        top_customers = list(period_sales.values('customer__name').annotate(
-            total_purchases=Sum('total_amount'),
-            order_count=Count('id'),
-            items_purchased=Sum('items__quantity')
-        ).filter(customer__name__isnull=False).order_by('-total_purchases')[:5])
+        # Top performers analysis
+        top_customers = list(
+            self.get_comprehensive_revenue_queryset(period_sales).exclude(
+                payment_status='cancelled'
+            ).values('customer__name', 'customer__id').annotate(
+                total_purchases=Sum('effective_revenue'),
+                order_count=Count('id'),
+                items_purchased=Sum('items__quantity'),
+                avg_order_value=Avg('total_amount'),
+                outstanding_amount=Sum('outstanding_amount')
+            ).filter(
+                customer__name__isnull=False
+            ).order_by('-total_purchases')[:10]
+        )
 
-        # Daily sales trend for selected period
-        daily_sales = list(period_sales.annotate(
-            day=TruncDay('sale_date')
-        ).values('day').annotate(
-            daily_revenue=Sum('total_amount'),
-            daily_count=Count('id'),
-            daily_items=Sum('items__quantity')
-        ).order_by('day'))
+        # Convert decimals to floats
+        for customer in top_customers:
+            for key, value in customer.items():
+                if isinstance(value, Decimal):
+                    customer[key] = float(value)
 
-        # Convert daily_revenue to float for JSON serialization
-        for day_data in daily_sales:
-            if day_data['daily_revenue']:
-                day_data['daily_revenue'] = float(day_data['daily_revenue'])
-
-        # Best selling items for selected period - exclude cancelled sales
-        top_items = list(
+        # Best selling products analysis
+        top_products = list(
             SaleItem.objects.filter(
                 sale__is_active=True,
                 sale__sale_date__date__gte=start_date,
@@ -269,23 +570,34 @@ class SaleViewSet(viewsets.ModelViewSet):
             ).exclude(
                 sale__payment_status='cancelled'
             ).select_related('product').values(
-                'product__name'
+                'product__name', 'product__id'
             ).annotate(
                 total_quantity=Sum('quantity'),
-                total_revenue=Sum(F('quantity') * F('unit_price'))
-            ).order_by('-total_quantity')[:5]
+                total_revenue=Sum(F('quantity') * F('unit_price')),
+                avg_unit_price=Avg('unit_price'),
+                total_orders=Count('sale', distinct=True)
+            ).order_by('-total_quantity')[:10]
         )
 
-        # Convert Decimal to float for JSON serialization
-        for item in top_items:
-            if item['total_revenue']:
-                item['total_revenue'] = float(item['total_revenue'])
+        # Convert decimals to floats
+        for product in top_products:
+            for key, value in product.items():
+                if isinstance(value, Decimal):
+                    product[key] = float(value)
 
         return Response({
+            'metadata': {
+                'generated_at': now.isoformat(),
+                'timezone': str(now.tzinfo),
+                'period_days': (end_date - start_date).days + 1,
+                'data_freshness': 'real_time'
+            },
+            
             'period': {
                 'start_date': start_date,
                 'end_date': end_date,
                 **period_stats,
+                'analytics': period_analytics,
                 'vs_previous_period': {
                     'previous_start': comparison_start,
                     'previous_end': comparison_end,
@@ -293,39 +605,96 @@ class SaleViewSet(viewsets.ModelViewSet):
                     'changes': period_comparisons
                 }
             },
+            
             'today': {
                 'date': today,
                 **today_stats,
+                'analytics': today_analytics,
                 'vs_yesterday': {
                     'previous_date': yesterday,
                     **yesterday_stats,
                     'changes': today_comparisons
                 }
             },
-            'month': {
-                'start_date': start_date,
-                'end_date': end_date,
-                **period_stats,
+            
+            'monthly': {  # Last 30 days from today
+                'start_date': monthly_start,
+                'end_date': monthly_end,
+                **monthly_data,
                 'vs_previous_month': {
-                    'previous_start': comparison_start,
-                    'previous_end': comparison_end,
-                    **comparison_stats,
-                    'changes': period_comparisons
+                    'previous_start': prev_monthly_start,
+                    'previous_end': prev_monthly_end,
+                    **prev_monthly_data,
+                    'changes': monthly_comparisons
                 }
             },
-            'analytics': {
-                'payment_methods': payment_breakdown,
+            
+            'insights': {
                 'top_customers': top_customers,
-                'daily_trend': daily_sales,
-                'top_items': top_items
+                'top_products': top_products,
+                'alerts': self.generate_business_alerts(period_stats, comparison_stats, today_stats)
             }
         })
 
+    def generate_business_alerts(self, current_period, previous_period, today_stats):
+        """Generate business intelligence alerts"""
+        alerts = []
+        
+        # High refund rate alert
+        if current_period['performance_indicators']['refund_rate'] > 5:
+            alerts.append({
+                'type': 'warning',
+                'category': 'refunds',
+                'message': f"High refund rate: {current_period['performance_indicators']['refund_rate']:.1f}%",
+                'recommendation': 'Review product quality and customer satisfaction'
+            })
+        
+        # Low collection rate alert
+        if current_period['payment_metrics']['collection_rate'] < 85:
+            alerts.append({
+                'type': 'warning',
+                'category': 'collections',
+                'message': f"Low collection rate: {current_period['payment_metrics']['collection_rate']:.1f}%",
+                'recommendation': 'Follow up on outstanding payments'
+            })
+        
+        # High pending orders
+        pending_count = current_period['performance_indicators']['pending_sales_count']
+        if pending_count > 10:
+            alerts.append({
+                'type': 'info',
+                'category': 'operations',
+                'message': f"{pending_count} orders need attention",
+                'recommendation': 'Process pending and partial payments'
+            })
+        
+        # Revenue decline alert
+        if previous_period and current_period['revenue_metrics']['effective_revenue'] < previous_period['revenue_metrics']['effective_revenue'] * 0.9:
+            decline = ((previous_period['revenue_metrics']['effective_revenue'] - current_period['revenue_metrics']['effective_revenue']) / previous_period['revenue_metrics']['effective_revenue']) * 100
+            alerts.append({
+                'type': 'alert',
+                'category': 'revenue',
+                'message': f"Revenue declined by {decline:.1f}% compared to previous period",
+                'recommendation': 'Analyze sales trends and customer behavior'
+            })
+        
+        # Today's performance
+        if today_stats['total_sales_count'] == 0:
+            alerts.append({
+                'type': 'info',
+                'category': 'daily',
+                'message': 'No sales recorded today',
+                'recommendation': 'Check system status and promote daily offers'
+            })
+        
+        return alerts
+
     @action(detail=False, methods=['get'])
     def sales_report(self, request):
-        """Get detailed sales report excluding cancelled sales"""
+        """Get detailed sales report with comprehensive breakdown"""
         start_date_str = request.query_params.get('start_date')
         end_date_str = request.query_params.get('end_date')
+        include_analytics = request.query_params.get('include_analytics', 'true').lower() == 'true'
 
         # Parse dates
         start_date = self.parse_date(start_date_str) if start_date_str else None
@@ -343,93 +712,33 @@ class SaleViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Build queryset with date filtering - EXCLUDE cancelled and inactive sales
-        queryset = Sale.objects.filter(
+        # Build queryset with date filtering
+        base_queryset = Sale.objects.filter(
             is_active=True
-        ).exclude(
-            payment_status='cancelled'
-        ).select_related('customer').prefetch_related('items__product')
+        ).select_related('customer', 'salesperson').prefetch_related('items__product')
         
         if start_date:
-            queryset = queryset.filter(sale_date__date__gte=start_date)
+            base_queryset = base_queryset.filter(sale_date__date__gte=start_date)
         if end_date:
-            queryset = queryset.filter(sale_date__date__lte=end_date)
+            base_queryset = base_queryset.filter(sale_date__date__lte=end_date)
 
-        # Sales by date
-        sales_by_date = []
-        raw_sales_by_date = queryset.values('sale_date__date').annotate(
-            total_sales=Sum('total_amount'),
-            orders_count=Count('id'),
-            items_sold=Sum('items__quantity'),
-        ).order_by('sale_date__date')
-
-        for row in raw_sales_by_date:
-            count = row['orders_count'] or 0
-            total = float(row['total_sales']) if row['total_sales'] else 0
-            row['total_sales'] = total
-            row['avg_order_value'] = round(total / count, 2) if count else 0
-            sales_by_date.append(row)
-
-        # Payment methods breakdown
-        payment_methods = list(queryset.values('payment_method').annotate(
-            count=Count('id'),
-            total=Sum('total_amount')
-        ).order_by('-total'))
-
-        # Convert Decimal to float
-        for pm in payment_methods:
-            if pm['total']:
-                pm['total'] = float(pm['total'])
-
-        # Top selling products - exclude cancelled sales
-        sale_items_queryset = SaleItem.objects.filter(
-            sale__is_active=True, 
-            sale__in=queryset
-        ).exclude(
-            sale__payment_status='cancelled'
-        ).select_related('product')
+        # Get comprehensive stats
+        period_stats = self.get_comprehensive_period_stats(base_queryset)
         
-        top_products = list(sale_items_queryset.values(
-            'product__name'
-        ).annotate(
-            quantity_sold=Sum('quantity'),
-            total_amount=Sum('line_total')
-        ).order_by('-quantity_sold')[:10])
-
-        # Convert Decimal to float
-        for product in top_products:
-            if product['total_amount']:
-                product['total_amount'] = float(product['total_amount'])
-
-        # Summary statistics
-        summary = queryset.aggregate(
-            total_sales=Sum('total_amount'),
-            total_items=Sum('items__quantity'),
-            count=Count('id')
-        )
-        
-        # Convert and calculate
-        total_sales = float(summary['total_sales']) if summary['total_sales'] else 0
-        count = summary['count'] or 0
-        
-        summary_response = {
-            'total_sales': total_sales,
-            'total_items': summary['total_items'] or 0,
-            'count': count,
-            'average_order_value': round(total_sales / count, 2) if count else 0
-        }
-
-        return Response({
+        response_data = {
             'period': {
                 'start': start_date.isoformat() if start_date else None,
                 'end': end_date.isoformat() if end_date else None
             },
-            'summary': summary_response,
-            'sales_by_date': sales_by_date,
-            'payment_methods': payment_methods,
-            'top_products': top_products
-        })
-
+            'summary': period_stats
+        }
+        
+        if include_analytics:
+            analytics = self.get_time_range_analytics(base_queryset, "report")
+            response_data['detailed_analytics'] = analytics
+        
+        return Response(response_data)
+    
     @action(detail=True, methods=['post'])
     def add_payment(self, request, pk=None):
         """Add payment to sale"""

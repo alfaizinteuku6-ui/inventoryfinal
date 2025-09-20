@@ -122,14 +122,14 @@ const Sales = () => {
     }
   };
 
-  const handleDeleteSale = async () => {
+  const handleDeleteSale = async (id) => {
     if (
       window.confirm(
         "Are you sure you want to delete this sale? This action cannot be undone."
       )
     ) {
       try {
-        await SalesApi.delete(selectedSale.id);
+        await SalesApi.delete(id);
         mutate();
         showSnackbar("Sale deleted successfully!");
       } catch (error) {
@@ -405,23 +405,24 @@ const Sales = () => {
                   >
                     Download
                   </Button>
-                  {sale.balance_due > 0 && sale.payment_status !== "cancelled" && (
-                    <Button
-                      variant="contained"
-                      color="success"
-                      startIcon={<Payment />}
-                      onClick={() => handleAddPayment(sale)}
-                      size="small"
-                      sx={{
-                        flex: 1,
-                        borderRadius: 2,
-                        textTransform: "none",
-                        fontWeight: 600,
-                      }}
-                    >
-                      Pay Now
-                    </Button>
-                  )}
+                  {sale.balance_due > 0 &&
+                    sale.payment_status !== "cancelled" && (
+                      <Button
+                        variant="contained"
+                        color="success"
+                        startIcon={<Payment />}
+                        onClick={() => handleAddPayment(sale)}
+                        size="small"
+                        sx={{
+                          flex: 1,
+                          borderRadius: 2,
+                          textTransform: "none",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Pay Now
+                      </Button>
+                    )}
                 </Stack>
 
                 {/* Secondary Actions Row */}
@@ -440,30 +441,31 @@ const Sales = () => {
                   >
                     View
                   </Button>
-                  {sale.payment_status !== "paid" && sale.payment_status !== "cancelled" && (
-                    <Button
-                      variant="outlined"
-                      color="warning"
-                      startIcon={<Cancel />}
-                      onClick={() => {
-                        setSelectedSale(sale);
-                        setCancelOpen(true);
-                      }}
-                      size="small"
-                      sx={{
-                        flex: 1,
-                        borderRadius: 2,
-                        textTransform: "none",
-                        fontWeight: 600,
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                  )}
+                  {sale.payment_status !== "paid" &&
+                    sale.payment_status !== "cancelled" && (
+                      <Button
+                        variant="outlined"
+                        color="warning"
+                        startIcon={<Cancel />}
+                        onClick={() => {
+                          setSelectedSale(sale);
+                          setCancelOpen(true);
+                        }}
+                        size="small"
+                        sx={{
+                          flex: 1,
+                          borderRadius: 2,
+                          textTransform: "none",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    )}
 
                   <Tooltip title="Delete Sale">
                     <IconButton
-                      onClick={handleDeleteSale}
+                      onClick={() => handleDeleteSale(sale?.id)}
                       size="small"
                       sx={{
                         borderRadius: 2,

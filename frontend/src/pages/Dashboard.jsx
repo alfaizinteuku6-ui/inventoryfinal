@@ -20,6 +20,16 @@ import {
   Stack,
   CircularProgress,
   Avatar,
+  Alert,
+  Tab,
+  Tabs,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
 } from "@mui/material";
 import {
   TrendingUp,
@@ -34,6 +44,13 @@ import {
   ArrowUpward,
   ArrowDownward,
   Timeline,
+  Warning,
+  CheckCircle,
+  Cancel,
+  Pending,
+  Receipt,
+  TrendingDown,
+  Info,
 } from "@mui/icons-material";
 import {
   XAxis,
@@ -46,121 +63,389 @@ import {
   PieChart,
   Pie,
   Cell,
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
 } from "recharts";
 import { useSalesDashboard, useSalesReport } from "../hooks/useSWR";
 
+// Enhanced MetricCard Component
+const MetricCard = ({
+  title,
+  value,
+  change,
+  icon: Icon,
+  color = "primary",
+  subtitle,
+  trend,
+}) => {
+  const isPositive = change && change >= 0;
+
+  return (
+    <Card sx={{ height: "100%", position: "relative", overflow: "visible" }}>
+      <CardContent>
+        <Box
+          display="flex"
+          alignItems="flex-start"
+          justifyContent="space-between"
+        >
+          <Box flex={1}>
+            <Typography color="text.secondary" variant="body2" gutterBottom>
+              {title}
+            </Typography>
+            <Typography
+              variant="h4"
+              component="div"
+              fontWeight="bold"
+              color="text.primary"
+            >
+              {value}
+            </Typography>
+            {subtitle && (
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ mt: 0.5 }}
+              >
+                {subtitle}
+              </Typography>
+            )}
+            {change !== null && change !== undefined && (
+              <Box display="flex" alignItems="center" mt={1}>
+                {isPositive ? (
+                  <ArrowUpward
+                    sx={{ fontSize: 16, color: "success.main", mr: 0.5 }}
+                  />
+                ) : (
+                  <ArrowDownward
+                    sx={{ fontSize: 16, color: "error.main", mr: 0.5 }}
+                  />
+                )}
+                <Typography
+                  variant="body2"
+                  color={isPositive ? "success.main" : "error.main"}
+                  fontWeight="medium"
+                >
+                  {change === 100
+                    ? "New"
+                    : `${change >= 0 ? "+" : ""}${change.toFixed(1)}%`}
+                </Typography>
+              </Box>
+            )}
+          </Box>
+          <Avatar
+            sx={{
+              bgcolor: `${color}.main`,
+              width: 56,
+              height: 56,
+              boxShadow: (theme) => `0 8px 24px ${theme.palette[color].main}25`,
+            }}
+          >
+            <Icon />
+          </Avatar>
+        </Box>
+      </CardContent>
+    </Card>
+  );
+};
+
+// Payment Status Component
+const PaymentStatusCard = ({ paymentData }) => {
+  const getStatusIcon = (status) => {
+    const icons = {
+      paid: CheckCircle,
+      pending: Pending,
+      cancelled: Cancel,
+      partial: Info,
+      refunded: TrendingDown,
+    };
+    return icons[status] || Info;
+  };
+
+  const getStatusColor = (status) => {
+    const colors = {
+      paid: "success",
+      pending: "warning",
+      cancelled: "error",
+      partial: "info",
+      refunded: "secondary",
+    };
+    return colors[status] || "default";
+  };
+
+  return (
+    <Card>
+      <CardContent>
+        <Typography variant="h6" fontWeight="bold" gutterBottom>
+          Payment Status Breakdown
+        </Typography>
+        <Grid container spacing={2}>
+          {Object.entries(paymentData?.payment_status_breakdown || {}).map(
+            ([status, data]) => {
+              const StatusIcon = getStatusIcon(status);
+              return (
+                <Grid size={{ xs: 12, md: 4, sm: 6 }} key={status}>
+                  <Paper sx={{ p: 2, textAlign: "center", bgcolor: "grey.50" }}>
+                    <StatusIcon
+                      sx={{
+                        fontSize: 32,
+                        color: `${getStatusColor(status)}.main`,
+                        mb: 1,
+                      }}
+                    />
+                    <Typography variant="h6" fontWeight="bold">
+                      {data.count}
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mb: 1 }}
+                    >
+                      {status.charAt(0).toUpperCase() + status.slice(1)}
+                    </Typography>
+                    <Typography variant="body2" fontWeight="medium">
+                      ₹{data.paid_amount?.toLocaleString() || 0}
+                    </Typography>
+                  </Paper>
+                </Grid>
+              );
+            }
+          )}
+        </Grid>
+      </CardContent>
+    </Card>
+  );
+};
+
+// Daily Breakdown Table Component
+const DailyBreakdownTable = ({ dailyData }) => {
+  return (
+    <Card>
+      <CardContent>
+        <Typography variant="h6" fontWeight="bold" gutterBottom>
+          Daily Sales Breakdown
+        </Typography>
+        <TableContainer component={Paper} sx={{ maxHeight: 400 }}>
+          <Table stickyHeader>
+            <TableHead>
+              <TableRow>
+                <TableCell>Date</TableCell>
+                <TableCell align="right">Sales Count</TableCell>
+                <TableCell align="right">Gross Revenue</TableCell>
+                <TableCell align="right">Effective Revenue</TableCell>
+                <TableCell align="right">Items Sold</TableCell>
+                <TableCell align="right">Status</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {dailyData?.map((day, index) => (
+                <TableRow key={index} hover>
+                  <TableCell>
+                    {new Date(day.day).toLocaleDateString("en-IN", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </TableCell>
+                  <TableCell align="right">{day.sales_count}</TableCell>
+                  <TableCell align="right">
+                    ₹{day.gross_revenue?.toLocaleString()}
+                  </TableCell>
+                  <TableCell align="right">
+                    ₹{day.effective_revenue?.toLocaleString()}
+                  </TableCell>
+                  <TableCell align="right">{day.items_sold}</TableCell>
+                  <TableCell align="right">
+                    <Stack
+                      direction="row"
+                      spacing={0.5}
+                      justifyContent="flex-end"
+                    >
+                      {day.paid_count > 0 && (
+                        <Chip
+                          label={`${day.paid_count}P`}
+                          size="small"
+                          color="success"
+                        />
+                      )}
+                      {day.cancelled_count > 0 && (
+                        <Chip
+                          label={`${day.cancelled_count}C`}
+                          size="small"
+                          color="error"
+                        />
+                      )}
+                      {day.pending_count > 0 && (
+                        <Chip
+                          label={`${day.pending_count}Pe`}
+                          size="small"
+                          color="warning"
+                        />
+                      )}
+                    </Stack>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </CardContent>
+    </Card>
+  );
+};
+
+// Performance Indicators Component
+const PerformanceIndicators = ({ performanceData, alerts }) => {
+  const indicators = [
+    {
+      key: "completion_rate",
+      label: "Completion Rate",
+      suffix: "%",
+      target: 80,
+      color: "primary",
+    },
+    {
+      key: "collection_rate",
+      label: "Collection Rate",
+      suffix: "%",
+      target: 90,
+      color: "success",
+    },
+    {
+      key: "refund_rate",
+      label: "Refund Rate",
+      suffix: "%",
+      target: 5,
+      color: "error",
+      inverse: true,
+    },
+    {
+      key: "discount_rate",
+      label: "Discount Rate",
+      suffix: "%",
+      target: 10,
+      color: "warning",
+      inverse: true,
+    },
+  ];
+
+  return (
+    <Card>
+      <CardContent>
+        <Typography variant="h6" fontWeight="bold" gutterBottom>
+          Performance Indicators
+        </Typography>
+
+        {/* Alerts */}
+        {alerts && alerts.length > 0 && (
+          <Box sx={{ mb: 3 }}>
+            {alerts.map((alert, index) => (
+              <Alert
+                key={index}
+                severity={alert.type}
+                sx={{ mb: 1 }}
+                icon={<Warning />}
+              >
+                <Typography variant="body2" fontWeight="medium">
+                  {alert.message}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {alert.recommendation}
+                </Typography>
+              </Alert>
+            ))}
+          </Box>
+        )}
+
+        {/* Performance Metrics */}
+        <Grid container spacing={3}>
+          {indicators.map((indicator) => {
+            const value = performanceData?.[indicator.key] || 0;
+            const isGood = indicator.inverse
+              ? value <= indicator.target
+              : value >= indicator.target;
+
+            return (
+              <Grid size={{ xs: 12, sm: 6 }} key={indicator.key}>
+                <Box>
+                  <Box
+                    display="flex"
+                    justifyContent="space-between"
+                    alignItems="center"
+                    mb={1}
+                  >
+                    <Typography variant="body2" color="text.secondary">
+                      {indicator.label}
+                    </Typography>
+                    <Typography
+                      variant="body1"
+                      fontWeight="bold"
+                      color={isGood ? "success.main" : "warning.main"}
+                    >
+                      {value.toFixed(1)}
+                      {indicator.suffix}
+                    </Typography>
+                  </Box>
+                  <LinearProgress
+                    variant="determinate"
+                    value={Math.min(value, 100)}
+                    color={isGood ? "success" : "warning"}
+                    sx={{ height: 8, borderRadius: 4 }}
+                  />
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ mt: 0.5, display: "block" }}
+                  >
+                    Target: {indicator.target}
+                    {indicator.suffix}
+                  </Typography>
+                </Box>
+              </Grid>
+            );
+          })}
+        </Grid>
+      </CardContent>
+    </Card>
+  );
+};
+
+// Main Dashboard Component
 const Dashboard = () => {
   const [timeRange, setTimeRange] = useState("30");
+  const [activeTab, setActiveTab] = useState(0);
+
   const endDate = new Date().toISOString().split("T")[0];
   const startDate = new Date(Date.now() - timeRange * 24 * 60 * 60 * 1000)
     .toISOString()
     .split("T")[0];
-  const { data: dashboardData, isLoading: dashboardLoading, error: dashboardError, mutate: mutateDashboard } = useSalesDashboard({
+
+  const {
+    data: dashboardData,
+    isLoading: dashboardLoading,
+    error: dashboardError,
+    mutate: mutateDashboard,
+  } = useSalesDashboard({
     start_date: startDate,
     end_date: endDate,
   });
-  const {data: salesReport, isLoading: reportsLoading, error: reportsError, mutate: mutateReports} = useSalesReport({
+
+  const {
+    data: salesReport,
+    isLoading: reportsLoading,
+    error: reportsError,
+    mutate: mutateReports,
+  } = useSalesReport({
     start_date: startDate,
     end_date: endDate,
   });
+
   const loading = dashboardLoading || reportsLoading;
 
   const handleRefresh = () => {
     mutateDashboard();
     mutateReports();
-  }
-
-  const formatChangePercentage = (change) => {
-    if (!change && change !== 0) return null;
-    const sign = change >= 0 ? "+" : "";
-    return `${sign}${change.toFixed(1)}%`;
-  };
-
-  const MetricCard = ({
-    title,
-    value,
-    change,
-    icon: Icon,
-    color = "primary",
-    subtitle,
-  }) => {
-    const isPositive = change && change >= 0;
-
-    return (
-      <Card sx={{ height: "100%", position: "relative", overflow: "visible" }}>
-        <CardContent>
-          <Box
-            display="flex"
-            alignItems="flex-start"
-            justifyContent="space-between"
-          >
-            <Box flex={1}>
-              <Typography color="text.secondary" variant="body2" gutterBottom>
-                {title}
-              </Typography>
-              <Typography
-                variant="h4"
-                component="div"
-                fontWeight="bold"
-                color="text.primary"
-              >
-                {value}
-              </Typography>
-              {subtitle && (
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ mt: 0.5 }}
-                >
-                  {subtitle}
-                </Typography>
-              )}
-              {change !== null && change !== undefined && (
-                <Box display="flex" alignItems="center" mt={1}>
-                  {isPositive ? (
-                    <ArrowUpward
-                      sx={{ fontSize: 16, color: "success.main", mr: 0.5 }}
-                    />
-                  ) : (
-                    <ArrowDownward
-                      sx={{ fontSize: 16, color: "error.main", mr: 0.5 }}
-                    />
-                  )}
-                  <Typography
-                    variant="body2"
-                    color={isPositive ? "success.main" : "error.main"}
-                    fontWeight="medium"
-                  >
-                    {formatChangePercentage(change)}
-                  </Typography>
-                </Box>
-              )}
-            </Box>
-            <Avatar
-              sx={{
-                bgcolor: `${color}.main`,
-                width: 56,
-                height: 56,
-                boxShadow: (theme) =>
-                  `0 8px 24px ${theme.palette[color].main}25`,
-              }}
-            >
-              <Icon />
-            </Avatar>
-          </Box>
-        </CardContent>
-      </Card>
-    );
-  };
-
-  const getPaymentMethodIcon = (method) => {
-    const icons = {
-      card: CreditCard,
-      cash: AttachMoney,
-      upi: Smartphone,
-      bank_transfer: AccountBalance,
-    };
-    return icons[method] || CreditCard;
   };
 
   const CHART_COLORS = [
@@ -189,6 +474,9 @@ const Dashboard = () => {
       </Box>
     );
   }
+
+  const periodData = dashboardData?.period || dashboardData?.monthly;
+  const todayData = dashboardData?.today;
 
   return (
     <Box sx={{ flexGrow: 1, p: 3 }}>
@@ -235,270 +523,395 @@ const Dashboard = () => {
         </Stack>
       </Box>
 
-      {/* Key Metrics */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
-          <MetricCard
-            title="Today's Revenue"
-            value={`₹${
-              dashboardData?.today?.total_revenue?.toLocaleString() || "0"
-            }`}
-            change={dashboardData?.today?.vs_yesterday?.changes?.revenue_change}
-            subtitle={`${dashboardData?.today?.sales_count || 0} transactions`}
-            icon={AttachMoney}
-            color="success"
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
-          <MetricCard
-            title="Monthly Revenue"
-            value={`₹${
-              dashboardData?.month?.total_revenue?.toLocaleString() || "0"
-            }`}
-            change={dashboardData?.month?.vs_previous_month?.changes?.revenue_change}
-            subtitle={`${dashboardData?.month?.sales_count || 0} orders`}
-            icon={TrendingUp}
-            color="primary"
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
-          <MetricCard
-            title="Average Order Value"
-            value={`₹${dashboardData?.month?.average_sale?.toFixed(0) || "0"}`}
-            change={dashboardData?.month?.vs_previous_month?.changes?.avg_sale_change}
-            subtitle="Monthly average"
-            icon={Assessment}
-            color="info"
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
-          <MetricCard
-            title="Total Items Sold"
-            value={dashboardData?.month?.items_sold?.toLocaleString() || "0"}
-            change={dashboardData?.month?.vs_previous_month?.changes?.items_sold_change}
-            subtitle="This month"
-            icon={ShoppingCart}
-            color="warning"
-          />
-        </Grid>
-      </Grid>
+      {/* Tabs */}
+      <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }}>
+        <Tabs
+          value={activeTab}
+          onChange={(e, newValue) => setActiveTab(newValue)}
+        >
+          <Tab label="Overview" />
+          <Tab label="Detailed Analytics" />
+          <Tab label="Performance" />
+        </Tabs>
+      </Box>
 
-      {/* Charts Section */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        {/* Sales Trend Chart */}
-        <Grid size={{ xs: 12, lg: 8 }}>
-          <Card>
-            <CardContent>
-              <Box
-                display="flex"
-                justifyContent="space-between"
-                alignItems="center"
-                mb={3}
-              >
-                <Typography variant="h6" fontWeight="bold">
-                  Sales Trend
-                </Typography>
-                <Timeline color="action" />
-              </Box>
-              <Box height={400}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={dashboardData?.analytics?.daily_trend || []}>
-                    <defs>
-                      <linearGradient
-                        id="colorSales"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
+      {/* Tab Content */}
+      {activeTab === 0 && (
+        <>
+          {/* Key Metrics */}
+          <Grid container spacing={3} sx={{ mb: 4 }}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+              <MetricCard
+                title="Today's Revenue"
+                value={`₹${
+                  todayData?.revenue_metrics?.gross_revenue?.toLocaleString() ||
+                  "0"
+                }`}
+                change={todayData?.vs_yesterday?.changes?.revenue_change}
+                subtitle={`${todayData?.total_sales_count || 0} transactions`}
+                icon={AttachMoney}
+                color="success"
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+              <MetricCard
+                title="Period Revenue"
+                value={`₹${
+                  periodData?.revenue_metrics?.gross_revenue?.toLocaleString() ||
+                  "0"
+                }`}
+                change={periodData?.vs_previous_period?.changes?.revenue_change}
+                subtitle={`${periodData?.total_sales_count || 0} orders`}
+                icon={TrendingUp}
+                color="primary"
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+              <MetricCard
+                title="Average Order Value"
+                value={`₹${periodData?.average_sale_value?.toFixed(0) || "0"}`}
+                change={
+                  periodData?.vs_previous_period?.changes?.avg_sale_change
+                }
+                subtitle="Period average"
+                icon={Assessment}
+                color="info"
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+              <MetricCard
+                title="Total Items Sold"
+                value={periodData?.total_items_sold?.toLocaleString() || "0"}
+                subtitle="This period"
+                icon={ShoppingCart}
+                color="warning"
+              />
+            </Grid>
+          </Grid>
+
+          {/* Revenue Metrics */}
+          <Grid container spacing={3} sx={{ mb: 4 }}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+              <MetricCard
+                title="Effective Revenue"
+                value={`₹${
+                  periodData?.revenue_metrics?.effective_revenue?.toLocaleString() ||
+                  "0"
+                }`}
+                subtitle="Actual collected"
+                icon={CheckCircle}
+                color="success"
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+              <MetricCard
+                title="Total Paid"
+                value={`₹${
+                  periodData?.payment_metrics?.total_paid?.toLocaleString() ||
+                  "0"
+                }`}
+                subtitle={`${
+                  periodData?.payment_metrics?.collection_rate?.toFixed(1) || 0
+                }% collected`}
+                icon={Receipt}
+                color="primary"
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+              <MetricCard
+                title="Tax Collected"
+                value={`₹${
+                  periodData?.revenue_metrics?.total_tax_collected?.toLocaleString() ||
+                  "0"
+                }`}
+                subtitle="Total tax amount"
+                icon={AccountBalance}
+                color="info"
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+              <MetricCard
+                title="Discounts Given"
+                value={`₹${
+                  periodData?.revenue_metrics?.total_discount_given?.toLocaleString() ||
+                  "0"
+                }`}
+                subtitle="Total discounts"
+                icon={TrendingDown}
+                color="warning"
+              />
+            </Grid>
+          </Grid>
+
+          {/* Charts Section */}
+          <Grid container spacing={3} sx={{ mb: 4 }}>
+            {/* Sales Trend Chart */}
+            <Grid size={{ xs: 12, lg: 8 }}>
+              <Card>
+                <CardContent>
+                  <Box
+                    display="flex"
+                    justifyContent="space-between"
+                    alignItems="center"
+                    mb={3}
+                  >
+                    <Typography variant="h6" fontWeight="bold">
+                      Sales Trend
+                    </Typography>
+                    <Timeline color="action" />
+                  </Box>
+                  <Box height={400}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart
+                        data={
+                          periodData?.analytics?.period_daily_breakdown ||
+                          dashboardData?.monthly?.monthly_daily_breakdown ||
+                          []
+                        }
                       >
-                        <stop
-                          offset="5%"
-                          stopColor="#1976d2"
-                          stopOpacity={0.3}
-                        />
-                        <stop
-                          offset="95%"
-                          stopColor="#1976d2"
-                          stopOpacity={0}
-                        />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                    <XAxis
-                      dataKey="day"
-                      tickFormatter={(value) =>
-                        new Date(value).toLocaleDateString("en-IN", {
-                          month: "short",
-                          day: "numeric",
-                        })
-                      }
-                    />
-                    <YAxis
-                      tickFormatter={(value) =>
-                        `₹${(value / 1000).toFixed(0)}K`
-                      }
-                    />
-                    <Tooltip
-                      formatter={(value) => [
-                        `₹${value?.toLocaleString()}`,
-                        "Revenue",
-                      ]}
-                      labelFormatter={(label) =>
-                        new Date(label).toLocaleDateString("en-IN")
-                      }
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="daily_revenue"
-                      stroke="#1976d2"
-                      fillOpacity={1}
-                      fill="url(#colorSales)"
-                      strokeWidth={3}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* Payment Methods Breakdown */}
-        <Grid size={{ xs: 12, lg: 4 }}>
-          <Card sx={{ height: "100%" }}>
-            <CardContent>
-              <Typography variant="h6" fontWeight="bold" gutterBottom>
-                Payment Methods
-              </Typography>
-              <Box height={300}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={dashboardData?.analytics?.payment_methods || []}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={100}
-                      paddingAngle={5}
-                      dataKey="total"
-                      label={({ payment_method, percent }) =>
-                        `${payment_method.toUpperCase()} ${(
-                          percent * 100
-                        ).toFixed(0)}%`
-                      }
-                    >
-                      {dashboardData?.analytics?.payment_methods?.map((entry, index) => (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={CHART_COLORS[index % CHART_COLORS.length]}
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      formatter={(value) => [
-                        `₹${value?.toLocaleString()}`,
-                        "Amount",
-                      ]}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-
-      {/* Bottom Section */}
-      <Grid container spacing={3}>
-        {/* Top Products */}
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" fontWeight="bold" gutterBottom>
-                Top Selling Products
-              </Typography>
-              <List>
-                {dashboardData?.analytics?.top_items
-                  ?.slice(0, 5)
-                  .map((product, index) => (
-                    <React.Fragment key={product.product__name}>
-                      <ListItem sx={{ px: 0 }}>
-                        <ListItemIcon>
-                          <Avatar
-                            sx={{
-                              bgcolor: CHART_COLORS[index],
-                              width: 32,
-                              height: 32,
-                            }}
+                        <defs>
+                          <linearGradient
+                            id="colorSales"
+                            x1="0"
+                            y1="0"
+                            x2="0"
+                            y2="1"
                           >
-                            {index + 1}
-                          </Avatar>
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={product.product__name}
-                          secondary={`${product.total_quantity} units sold`}
+                            <stop
+                              offset="5%"
+                              stopColor="#1976d2"
+                              stopOpacity={0.3}
+                            />
+                            <stop
+                              offset="95%"
+                              stopColor="#1976d2"
+                              stopOpacity={0}
+                            />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                        <XAxis
+                          dataKey="day"
+                          tickFormatter={(value) =>
+                            new Date(value).toLocaleDateString("en-IN", {
+                              month: "short",
+                              day: "numeric",
+                            })
+                          }
                         />
-                        <Box textAlign="right">
-                          <Typography variant="body1" fontWeight="bold">
-                            ₹{product.total_revenue?.toLocaleString()}
-                          </Typography>
-                          <LinearProgress
-                            variant="determinate"
-                            value={(product.total_quantity / Math.max(...(dashboardData?.analytics?.top_items?.map(p => p.total_quantity) || [1]))) * 100}
-                            sx={{ mt: 0.5, width: 80 }}
-                            color={index < 2 ? "success" : "primary"}
-                          />
-                        </Box>
-                      </ListItem>
-                      {index < 4 && <Divider />}
-                    </React.Fragment>
-                  ))}
-              </List>
-            </CardContent>
-          </Card>
-        </Grid>
+                        <YAxis
+                          tickFormatter={(value) =>
+                            `₹${(value / 1000).toFixed(0)}K`
+                          }
+                        />
+                        <Tooltip
+                          formatter={(value) => [
+                            `₹${value?.toLocaleString()}`,
+                            "Revenue",
+                          ]}
+                          labelFormatter={(label) =>
+                            new Date(label).toLocaleDateString("en-IN")
+                          }
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="gross_revenue"
+                          stroke="#1976d2"
+                          fillOpacity={1}
+                          fill="url(#colorSales)"
+                          strokeWidth={3}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
 
-        {/* Top Customers */}
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" fontWeight="bold" gutterBottom>
-                Top Customers This Month
-              </Typography>
-              <List>
-                {dashboardData?.analytics?.top_customers?.slice(0, 5).map((customer, index) => (
-                  <React.Fragment key={customer.customer__name}>
-                    <ListItem sx={{ px: 0 }}>
-                      <ListItemIcon>
-                        <Avatar sx={{ bgcolor: "primary.main" }}>
-                          {customer.customer__name?.charAt(0)}
-                        </Avatar>
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={customer.customer__name}
-                        secondary={`${customer.order_count} orders • ${customer.items_purchased} items`}
-                      />
-                      <Box textAlign="right">
-                        <Typography variant="body1" fontWeight="bold">
-                          ₹{customer.total_purchases?.toLocaleString()}
-                        </Typography>
-                        {index === 0 && (
-                          <Chip
-                            label="VIP"
-                            size="small"
-                            color="warning"
-                            icon={<Star sx={{ fontSize: "16px !important" }} />}
-                          />
-                        )}
-                      </Box>
-                    </ListItem>
-                    {index < 4 && <Divider />}
-                  </React.Fragment>
-                ))}
-              </List>
-            </CardContent>
-          </Card>
+            {/* Payment Methods Breakdown */}
+            <Grid size={{ xs: 12, lg: 4 }}>
+              <Card sx={{ height: "100%" }}>
+                <CardContent>
+                  <Typography variant="h6" fontWeight="bold" gutterBottom>
+                    Payment Methods
+                  </Typography>
+                  <Box height={300}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={
+                            periodData?.analytics?.period_payment_methods ||
+                            dashboardData?.monthly?.monthly_payment_methods ||
+                            []
+                          }
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={100}
+                          paddingAngle={5}
+                          dataKey="revenue"
+                          label={({ payment_method, percent }) =>
+                            `${payment_method?.toUpperCase()} ${(
+                              percent * 100
+                            ).toFixed(0)}%`
+                          }
+                        >
+                          {(
+                            periodData?.analytics?.period_payment_methods ||
+                            dashboardData?.monthly?.monthly_payment_methods ||
+                            []
+                          )?.map((entry, index) => (
+                            <Cell
+                              key={`cell-${index}`}
+                              fill={CHART_COLORS[index % CHART_COLORS.length]}
+                            />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          formatter={(value) => [
+                            `₹${value?.toLocaleString()}`,
+                            "Amount",
+                          ]}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+
+          {/* Top Products and Customers */}
+          <Grid container spacing={3}>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" fontWeight="bold" gutterBottom>
+                    Top Selling Products
+                  </Typography>
+                  <List>
+                    {dashboardData?.insights?.top_products
+                      ?.slice(0, 5)
+                      .map((product, index) => (
+                        <React.Fragment key={product.product__name}>
+                          <ListItem sx={{ px: 0 }}>
+                            <ListItemIcon>
+                              <Avatar
+                                sx={{
+                                  bgcolor: CHART_COLORS[index],
+                                  width: 32,
+                                  height: 32,
+                                }}
+                              >
+                                {index + 1}
+                              </Avatar>
+                            </ListItemIcon>
+                            <ListItemText
+                              primary={
+                                <Typography variant="body2" noWrap>
+                                  {product.product__name?.substring(0, 50)}...
+                                </Typography>
+                              }
+                              secondary={`${product.total_quantity} units • ${product.total_orders} orders`}
+                            />
+                            <Box textAlign="right">
+                              <Typography variant="body1" fontWeight="bold">
+                                ₹{product.total_revenue?.toLocaleString()}
+                              </Typography>
+                            </Box>
+                          </ListItem>
+                          {index < 4 && <Divider />}
+                        </React.Fragment>
+                      ))}
+                  </List>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" fontWeight="bold" gutterBottom>
+                    Top Customers
+                  </Typography>
+                  <List>
+                    {dashboardData?.insights?.top_customers
+                      ?.slice(0, 5)
+                      .map((customer, index) => (
+                        <React.Fragment key={customer.customer__name}>
+                          <ListItem sx={{ px: 0 }}>
+                            <ListItemIcon>
+                              <Avatar sx={{ bgcolor: "primary.main" }}>
+                                {customer.customer__name?.charAt(0)}
+                              </Avatar>
+                            </ListItemIcon>
+                            <ListItemText
+                              primary={customer.customer__name}
+                              secondary={`${customer.order_count} orders • ${customer.items_purchased} items`}
+                            />
+                            <Box textAlign="right">
+                              <Typography variant="body1" fontWeight="bold">
+                                ₹{customer.total_purchases?.toLocaleString()}
+                              </Typography>
+                              {index === 0 && (
+                                <Chip
+                                  label="VIP"
+                                  size="small"
+                                  color="warning"
+                                  icon={
+                                    <Star
+                                      sx={{ fontSize: "16px !important" }}
+                                    />
+                                  }
+                                />
+                              )}
+                            </Box>
+                          </ListItem>
+                          {index < 4 && <Divider />}
+                        </React.Fragment>
+                      ))}
+                  </List>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+        </>
+      )}
+
+      {activeTab === 1 && (
+        <>
+          {/* Payment Status Breakdown */}
+          <Grid container spacing={3} sx={{ mb: 4 }}>
+            <Grid size={{ xs: 12 }}>
+              <PaymentStatusCard paymentData={periodData?.payment_metrics} />
+            </Grid>
+          </Grid>
+
+          {/* Daily Breakdown Table */}
+          <Grid container spacing={3}>
+            <Grid size={{ xs: 12 }}>
+              <DailyBreakdownTable
+                dailyData={
+                  salesReport?.detailed_analytics?.report_daily_breakdown ||
+                  periodData?.analytics?.period_daily_breakdown ||
+                  dashboardData?.monthly?.monthly_daily_breakdown
+                }
+              />
+            </Grid>
+          </Grid>
+        </>
+      )}
+
+      {activeTab === 2 && (
+        <Grid container spacing={3}>
+          <Grid size={{ xs: 12 }}>
+            <PerformanceIndicators
+              performanceData={periodData?.performance_indicators}
+              alerts={dashboardData?.insights?.alerts}
+            />
+          </Grid>
         </Grid>
-      </Grid>
+      )}
     </Box>
   );
 };
