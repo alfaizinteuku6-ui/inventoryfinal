@@ -152,6 +152,7 @@ const MetricCard = ({
 
 // Payment Status Component
 const PaymentStatusCard = ({ paymentData }) => {
+  console.log("Payment Data:", paymentData);
   const getStatusIcon = (status) => {
     const icons = {
       paid: CheckCircle,
@@ -306,8 +307,8 @@ const PerformanceIndicators = ({ performanceData, alerts }) => {
       color: "primary",
     },
     {
-      key: "collection_rate",
-      label: "Collection Rate",
+      key: "tax_rate",
+      label: "Tax Rate",
       suffix: "%",
       target: 90,
       color: "success",

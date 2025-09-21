@@ -54,63 +54,93 @@ class Sale(TimestampedModel):
         ]
 
     def save(self, *args, **kwargs):
+        # Generate sale number if new record
         if not self.sale_number:
             self.sale_number = self.generate_sale_number()
 
-        if self.pk:
+        # For existing records that exist in DB, update totals first
+        if self.pk and Sale.objects.filter(pk=self.pk).exists():
             self.update_totals()
 
+        # Always update payment status unless manually set to cancelled/refunded
         if self.payment_status not in ['cancelled', 'refunded']:
             self.update_payment_status()
+            
         super().save(*args, **kwargs)
 
     def update_totals(self):
+        """Calculate totals from sale items."""
         items = self.items.all()
 
-        self.subtotal = items.aggregate(
+        # Calculate subtotal (quantity * unit_price)
+        subtotal_result = items.aggregate(
             total=Sum(F('quantity') * F('unit_price'))
-        )['total'] or Decimal('0')
+        )
+        self.subtotal = subtotal_result['total'] or Decimal('0')
 
-        self.discount_amount = items.aggregate(
+        # Calculate total discount amount
+        discount_result = items.aggregate(
             total=Sum(
                 (F('quantity') * F('unit_price') * F('discount_percent')) / 100
             )
-        )['total'] or Decimal('0')
+        )
+        self.discount_amount = discount_result['total'] or Decimal('0')
 
-        self.tax_amount = items.aggregate(
+        # Calculate tax on discounted amount
+        tax_result = items.aggregate(
             total=Sum(
                 ((F('quantity') * F('unit_price') -
                   (F('quantity') * F('unit_price') * F('discount_percent')) / 100) *
                  F('tax_rate')) / 100
             )
-        )['total'] or Decimal('0')
+        )
+        self.tax_amount = tax_result['total'] or Decimal('0')
 
+        # Calculate final total
         self.total_amount = self.subtotal - self.discount_amount + self.tax_amount
 
     def update_payment_status(self):
         """Update payment status based on paid and refunded amount."""
-        net_paid = self.paid_amount - self.refunded_amount
-        if self.total_amount == 0 and net_paid == 0:
+        # Ensure we're working with Decimal values
+        total_amount = Decimal(str(self.total_amount))
+        paid_amount = Decimal(str(self.paid_amount))
+        refunded_amount = Decimal(str(self.refunded_amount))
+        
+        net_paid = paid_amount - refunded_amount
+        
+        # Handle edge cases
+        if total_amount == 0:
+            if net_paid == 0:
+                self.payment_status = 'pending'
+            elif net_paid > 0:
+                # Overpayment on zero total - should be refunded
+                self.payment_status = 'paid'
+            else:
+                self.payment_status = 'pending'
+        elif net_paid <= 0:
             self.payment_status = 'pending'
-        elif net_paid >= self.total_amount:
+        elif net_paid >= total_amount:
             self.payment_status = 'paid'
-        elif net_paid > 0:
-            self.payment_status = 'partial'
         else:
-            self.payment_status = 'pending'
+            self.payment_status = 'partial'
 
     def generate_sale_number(self):
+        """Generate unique sale number with date prefix."""
         from datetime import date
         today = date.today()
         prefix = f"SL{today.strftime('%Y%m%d')}"
 
+        # Get the last sale number for today
         last_sale = Sale.objects.filter(
             sale_number__startswith=prefix
-        ).order_by('sale_number').last()
+        ).order_by('-sale_number').first()  # Use first() with descending order
 
-        if last_sale:
-            last_number = int(last_sale.sale_number[-4:])
-            new_number = last_number + 1
+        if last_sale and len(last_sale.sale_number) >= len(prefix) + 4:
+            try:
+                last_number = int(last_sale.sale_number[-4:])
+                new_number = last_number + 1
+            except ValueError:
+                new_number = 1
         else:
             new_number = 1
 
@@ -126,47 +156,104 @@ class Sale(TimestampedModel):
         if self.payment_status == 'cancelled':
             return False, "Sale is already cancelled"
 
+        # For fully paid sales, require explicit refund/credit choice
         if self.payment_status == 'paid':
-            return False, "Cannot directly cancel a fully paid sale, issue refund instead"
-
-        # partially paid: refund or credit required
-        if self.payment_status == 'partial':
+            if not refund and not credit:
+                return False, "Fully paid sale requires refund=True or credit=True to cancel"
+            
             if refund:
                 self.refunded_amount = self.paid_amount
-                self.paid_amount = Decimal('0')
-                # do your refund logic here (e.g. create PaymentRefund record)
+                # Add your refund logic here (e.g. create PaymentRefund record)
             elif credit:
                 self.credit_issued = True
-                # record credit to customer ledger here
-            else:
-                return False, "Partial payment: specify refund=True or credit=True"
+                # Add customer credit logic here
 
-        # restore stock
+        # For partially paid sales
+        elif self.payment_status == 'partial':
+            if refund:
+                self.refunded_amount = self.paid_amount
+                # Add your refund logic here
+            elif credit:
+                self.credit_issued = True
+                # Add customer credit logic here
+            # If neither refund nor credit specified, just cancel (forfeit partial payment)
+
+        # Restore stock for all items
         for item in self.items.all():
             product = item.product
             product.stock_quantity += item.quantity
             product.save()
 
-            from apps.inventory.models import StockMovement
-            StockMovement.objects.create(
-                product=product,
-                movement_type='sale_cancellation',
-                quantity=item.quantity,
-                reference=f"Cancel-{self.sale_number}",
-                user=None
-            )
+            # Create stock movement record
+            try:
+                from apps.inventory.models import StockMovement
+                StockMovement.objects.create(
+                    product=product,
+                    movement_type='sale_cancellation',
+                    quantity=item.quantity,
+                    reference=f"Cancel-{self.sale_number}",
+                    user=None
+                )
+            except ImportError:
+                # Handle case where StockMovement model doesn't exist
+                pass
+
+        # Set status to cancelled
         self.payment_status = 'cancelled'
+        self.save()
+        
+        return True, "Sale cancelled successfully"
+
+    @transaction.atomic
+    def process_refund(self, amount):
+        """Process a partial or full refund."""
+        if self.payment_status == 'cancelled':
+            return False, "Cannot refund a cancelled sale"
+        
+        refund_amount = Decimal(str(amount))
+        max_refundable = self.paid_amount - self.refunded_amount
+        
+        if refund_amount <= 0:
+            return False, "Refund amount must be positive"
+        
+        if refund_amount > max_refundable:
+            return False, f"Cannot refund more than paid amount. Maximum refundable: {max_refundable}"
+        
+        self.refunded_amount += refund_amount
+        
+        # Update payment status
+        self.update_payment_status()
+        
+        # If fully refunded, mark as refunded status
+        if self.refunded_amount >= self.paid_amount:
+            self.payment_status = 'refunded'
         
         self.save()
-        print(self.payment_status)
-        return True, "Sale cancelled successfully"
+        return True, f"Refund of {refund_amount} processed successfully"
 
     @property
     def balance_due(self):
-        return max(self.total_amount - (self.paid_amount - self.refunded_amount), Decimal('0'))
+        """Calculate remaining balance due."""
+        if self.payment_status in ['cancelled', 'refunded']:
+            return Decimal('0')
+        
+        net_paid = Decimal(str(self.paid_amount)) - Decimal(str(self.refunded_amount))
+        due = Decimal(str(self.total_amount)) - net_paid
+        
+        return max(due, Decimal('0'))
+
+    @property
+    def is_overdue(self):
+        """Check if payment is overdue."""
+        if not self.due_date or self.payment_status in ['paid', 'cancelled', 'refunded']:
+            return False
+        
+        from django.utils import timezone
+        return timezone.now().date() > self.due_date
 
     def __str__(self):
         return f"Sale #{self.sale_number}"
+
 
 class SaleItem(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -182,22 +269,37 @@ class SaleItem(models.Model):
 
     def save(self, *args, **kwargs):
         # Store product details at time of sale
-        if not self.product_name:
+        if not self.product_name and self.product:
             self.product_name = self.product.name
-            self.product_sku = self.product.sku
+            self.product_sku = getattr(self.product, 'sku', '')
 
-        # Calculate line total
-        subtotal = Decimal(str(self.quantity)) * self.unit_price
-        discount = subtotal * (self.discount_percent / Decimal('100'))
+        # Calculate line total with proper Decimal handling
+        quantity_decimal = Decimal(str(self.quantity))
+        unit_price_decimal = Decimal(str(self.unit_price))
+        discount_percent_decimal = Decimal(str(self.discount_percent))
+        tax_rate_decimal = Decimal(str(self.tax_rate))
+        
+        subtotal = quantity_decimal * unit_price_decimal
+        discount = subtotal * (discount_percent_decimal / Decimal('100'))
         after_discount = subtotal - discount
-        tax = after_discount * (self.tax_rate / Decimal('100'))
+        tax = after_discount * (tax_rate_decimal / Decimal('100'))
         self.line_total = after_discount + tax
 
         super().save(*args, **kwargs)
         
-        # Update sale totals
-        self.sale.update_totals()
-        self.sale.save()
+        # Update sale totals if this is not a new sale being created
+        if self.sale_id:
+            self.sale.update_totals()
+            self.sale.save(update_fields=['subtotal', 'tax_amount', 'discount_amount', 'total_amount', 'payment_status'])
+
+    def delete(self, *args, **kwargs):
+        """Override delete to update sale totals."""
+        sale = self.sale
+        super().delete(*args, **kwargs)
+        
+        # Update sale totals after item deletion
+        sale.update_totals()
+        sale.save(update_fields=['subtotal', 'tax_amount', 'discount_amount', 'total_amount', 'payment_status'])
 
     def __str__(self):
         return f"{self.product_name} x {self.quantity}"

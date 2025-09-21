@@ -19,7 +19,7 @@ class SaleAdmin(admin.ModelAdmin):
         "sale_number", "customer", "sale_date", "due_date", "is_active",
         "subtotal", "discount_amount", "tax_amount", "total_amount",
         "paid_amount", "balance_due", "payment_status", "payment_method",
-        "salesperson"
+        "salesperson", "refunded_amount"
     )
     list_filter = ("payment_status", "payment_method", "sale_date")
     search_fields = ("sale_number", "customer__name", "salesperson__username")
