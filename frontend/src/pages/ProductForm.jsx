@@ -47,8 +47,8 @@ const ProductForm = () => {
     stock_quantity: 0,
     selling_price: "",
     cost_price: "",
-    low_stock_threshold: 0,
-    max_stock_threshold: 0,
+    max_stock_level: 0,
+    min_stock_level: 0,
     weight: "0.00",
     category: "",
     image: null,
@@ -96,7 +96,8 @@ const ProductForm = () => {
         cost_price: parseFloat,
         weight: parseFloat,
         stock_quantity: parseInt,
-        low_stock_threshold: parseInt,
+        min_stock_level: parseInt,
+        max_stock_level: parseInt,
       };
 
       Object.keys(formData).forEach((key) => {
@@ -477,11 +478,11 @@ const ProductForm = () => {
                       label="Low Stock Alert"
                       type="number"
                       fullWidth
-                      value={formData.low_stock_threshold}
+                      value={formData.min_stock_level}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
-                          low_stock_threshold: parseInt(e.target.value) || 0,
+                          min_stock_level: parseInt(e.target.value) || 0,
                         })
                       }
                       inputProps={{ min: 0 }}
@@ -497,11 +498,11 @@ const ProductForm = () => {
                       label="Max Stock Level"
                       type="number"
                       fullWidth
-                      value={formData.max_stock_threshold}
+                      value={formData.max_stock_level}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
-                          max_stock_threshold: parseInt(e.target.value) || 0,
+                          max_stock_level: parseInt(e.target.value) || 0,
                         })
                       }
                       inputProps={{ min: 0 }}

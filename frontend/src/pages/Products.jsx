@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Box,
   Button,
@@ -40,6 +40,8 @@ import {
   ButtonGroup,
   useMediaQuery,
   useTheme,
+  Backdrop,
+  CircularProgress,
 } from "@mui/material";
 import {
   Add,
@@ -63,62 +65,179 @@ import {
   Refresh,
   Inventory,
   FilterList,
+  Clear,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
-import { useProducts } from "../hooks/useSWR";
+import { useCategories, useProducts } from "../hooks/useSWR";
 import HeaderCard from "../components/HeaderCard";
 import StatsCard from "../components/StatsCard";
+import PaginationComponent from "../components/Pagination";
+import { products as productsApi } from "../services/api";
 
 const Products = () => {
   // State management
   const theme = useTheme();
-  const { data: products, mutate, isLoading, error } = useProducts();
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("all");
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+
+  // Pagination and search state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const [sortBy, setSortBy] = useState("name");
+  const [sortOrder, setSortOrder] = useState("asc");
 
-  // Filtered and searched products
-  const filteredProducts = useMemo(() => {
-    if (!products?.results) return [];
+  // Menu state
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
 
-    let filtered = products.results.filter((product) => {
-      const matchesSearch =
-        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.sku.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCategory =
-        categoryFilter === "all" || product.category_name === categoryFilter;
-      return matchesSearch && matchesCategory;
-    });
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+      setCurrentPage(1); // Reset to first page when search changes
+    }, 300);
+    console.log("Search Query:", searchQuery);
 
-    // Sort products
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case "name":
-          return a.name.localeCompare(b.name);
-        case "price":
-          return parseFloat(b.selling_price) - parseFloat(a.selling_price);
-        case "stock":
-          return b.stock_quantity - a.stock_quantity;
-        case "category":
-          return a.category_name.localeCompare(b.category_name);
-        default:
-          return 0;
-      }
-    });
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
-    return filtered;
-  }, [products?.results, searchQuery, categoryFilter, sortBy]);
+  // Build API params
+  const apiParams = useMemo(() => {
+    const params = {
+      page: currentPage,
+      page_size: itemsPerPage,
+    };
 
-  // Get unique categories
-  const categories = useMemo(() => {
-    if (!products?.results) return [];
-    const cats = [
-      ...new Set(products.results.map((p) => p.category_name).filter(Boolean)),
-    ];
-    return cats.sort();
-  }, [products?.results]);
+    // Search
+    if (debouncedSearchQuery) {
+      params.search = debouncedSearchQuery;
+    }
+
+    // Category filter
+    if (categoryFilter !== "all") {
+      params.category = categoryFilter;
+    }
+
+    // Ordering
+    const orderField = sortOrder === "desc" ? `-${sortBy}` : sortBy;
+    params.ordering = orderField;
+
+    return params;
+  }, [
+    currentPage,
+    itemsPerPage,
+    debouncedSearchQuery,
+    categoryFilter,
+    sortBy,
+    sortOrder,
+  ]);
+
+  const { data: CategoriesData, mutate: CategoriesMutate } = useCategories();
+  const {
+    data: productsData,
+    mutate,
+    isLoading,
+    error,
+  } = useProducts(apiParams);
+  // Extract data from API response
+  const products = productsData?.results || [];
+  const totalCount = productsData?.count || 0;
+  const totalPages = Math.ceil(totalCount / itemsPerPage);
+  const dashboardStats = productsData?.dashboard_stats || {};
+  const hasNextPage = Boolean(productsData?.next);
+  const hasPreviousPage = Boolean(productsData?.previous);
+
+  // Handle pagination
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    // Scroll to top when page changes
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleItemsPerPageChange = (newItemsPerPage) => {
+    setItemsPerPage(newItemsPerPage);
+    setCurrentPage(1); // Reset to first page
+  };
+
+  // Handle search
+  const handleSearchChange = (event) => {
+    setSearchQuery(event.target.value);
+  };
+
+  const handleClearSearch = () => {
+    setSearchQuery("");
+    setDebouncedSearchQuery("");
+    setCurrentPage(1);
+  };
+
+  // Handle filters
+  const handleCategoryChange = (event) => {
+    setCategoryFilter(event.target.value);
+    setCurrentPage(1);
+  };
+
+  const handleSortChange = (event) => {
+    setSortBy(event.target.value);
+    setCurrentPage(1);
+  };
+
+  const handleSortOrderToggle = () => {
+    setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+    setCurrentPage(1);
+  };
+
+  // Menu handlers
+  const handleMenuOpen = (event, product) => {
+    setAnchorEl(event.currentTarget);
+    setSelectedProduct(product);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+    setSelectedProduct(null);
+  };
+
+  // Delete handlers
+  const handleDeleteClick = () => {
+    setDeleteDialogOpen(true);
+    handleMenuClose();
+  };
+
+  const handleDeleteConfirm = async () => {
+    try {
+      // Implement delete API call here
+      await productsApi.delete(selectedProduct.id);
+      mutate(); // Refresh data
+      setSnackbar({
+        open: true,
+        message: "Product deleted successfully",
+        severity: "success",
+      });
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: "Failed to delete product",
+        severity: "error",
+      });
+    } finally {
+      setDeleteDialogOpen(false);
+      setSelectedProduct(null);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false);
+    setSelectedProduct(null);
+  };
 
   // Stock status helper
   const getStockStatus = (product) => {
@@ -157,7 +276,7 @@ const Products = () => {
     {
       icon: <Refresh />,
       name: "Refresh",
-      onClick: () => console.log("Refresh"),
+      onClick: () => mutate(),
     },
     {
       icon: <Analytics />,
@@ -201,7 +320,7 @@ const Products = () => {
   const ProductCard = ({ product, index }) => {
     const stockStatus = getStockStatus(product);
     const profitMargin = getProfitMargin(product);
-  
+
     return (
       <Fade in timeout={300 + index * 100}>
         <Card
@@ -236,9 +355,17 @@ const Products = () => {
                 <Inventory2 sx={{ fontSize: 48, color: "rgba(0,0,0,0.3)" }} />
               </Box>
             )}
-  
+
             {/* Status Badges */}
-            <Box sx={{ position: "absolute", top: 8, right: 8, display: "flex", gap: 0.5 }}>
+            <Box
+              sx={{
+                position: "absolute",
+                top: 8,
+                right: 8,
+                display: "flex",
+                gap: 0.5,
+              }}
+            >
               {stockStatus.severity !== "low" && (
                 <Chip
                   label={stockStatus.label}
@@ -253,7 +380,7 @@ const Products = () => {
                 />
               )}
             </Box>
-  
+
             {/* Profit Badge */}
             <Box sx={{ position: "absolute", top: 8, left: 8 }}>
               <Chip
@@ -263,14 +390,15 @@ const Products = () => {
                   fontSize: "0.7rem",
                   fontWeight: 600,
                   height: 22,
-                  backgroundColor: profitMargin > 20 ? "success.main" : "warning.main",
+                  backgroundColor:
+                    profitMargin > 20 ? "success.main" : "warning.main",
                   color: "white",
                   "& .MuiChip-label": { px: 1 },
                 }}
               />
             </Box>
           </Box>
-  
+
           <CardContent sx={{ p: 2.5 }}>
             <Stack spacing={1.5}>
               {/* Product Name */}
@@ -288,7 +416,7 @@ const Products = () => {
               >
                 {product.name}
               </Typography>
-  
+
               {/* SKU and Category in compact row */}
               <Stack direction="row" spacing={1} alignItems="center">
                 <Chip
@@ -302,13 +430,21 @@ const Products = () => {
                     "& .MuiChip-label": { px: 1 },
                   }}
                 />
-                <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.75rem" }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontSize: "0.75rem" }}
+                >
                   {product.category_name || "No Category"}
                 </Typography>
               </Stack>
-  
+
               {/* Price and Stock in row */}
-              <Stack direction="row" justifyContent="space-between" alignItems="center">
+              <Stack
+                direction="row"
+                justifyContent="space-between"
+                alignItems="center"
+              >
                 <Box>
                   <Typography
                     variant="h6"
@@ -323,7 +459,8 @@ const Products = () => {
                     color="text.secondary"
                     sx={{ fontSize: "0.7rem" }}
                   >
-                    Cost: ₹{parseFloat(product.cost_price).toLocaleString("en-IN")}
+                    Cost: ₹
+                    {parseFloat(product.cost_price).toLocaleString("en-IN")}
                   </Typography>
                 </Box>
                 <Box sx={{ textAlign: "right" }}>
@@ -346,11 +483,14 @@ const Products = () => {
                     color="text.secondary"
                     sx={{ fontSize: "0.7rem" }}
                   >
-                    Value: ₹{(product.selling_price * product.stock_quantity).toLocaleString("en-IN")}
+                    Value: ₹
+                    {(
+                      product.selling_price * product.stock_quantity
+                    ).toLocaleString("en-IN")}
                   </Typography>
                 </Box>
               </Stack>
-  
+
               {/* Action Buttons */}
               <Stack direction="row" spacing={1} sx={{ pt: 0.5 }}>
                 <Button
@@ -413,11 +553,19 @@ const Products = () => {
         p: { xs: 2, sm: 3 },
       }}
     >
+      {/* Loading Backdrop */}
+      <Backdrop
+        sx={{ color: "#fff", zIndex: (theme) => theme.zIndex.drawer + 1 }}
+        open={isLoading && currentPage === 1}
+      >
+        <CircularProgress color="inherit" />
+      </Backdrop>
+
       {/* Header Section */}
       <HeaderCard
         icon={<Inventory fontSize="large" />}
         title="Products Management"
-        subtitle="Manage your Products"
+        subtitle={`Manage your Products (${totalCount.toLocaleString()} total)`}
         actionButton={
           !isMobile && (
             <Button
@@ -442,7 +590,7 @@ const Products = () => {
         <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
           <StatsCard
             title="Total Products"
-            value={products?.dashboard_stats?.total_products || 0}
+            value={dashboardStats.total_products || 0}
             icon={<Inventory2 />}
             color="primary"
           />
@@ -451,9 +599,7 @@ const Products = () => {
           <StatsCard
             title="Inventory Value"
             value={`₹${
-              products?.dashboard_stats?.total_inventory_value?.toLocaleString(
-                "en-IN"
-              ) || 0
+              dashboardStats.total_inventory_value?.toLocaleString("en-IN") || 0
             }`}
             icon={<AttachMoney />}
             color="success"
@@ -462,7 +608,7 @@ const Products = () => {
         <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
           <StatsCard
             title="Low Stock Alert"
-            value={products?.dashboard_stats?.low_stock_alert || 0}
+            value={dashboardStats.low_stock_alert || 0}
             icon={<Warning />}
             color="warning"
           />
@@ -470,7 +616,7 @@ const Products = () => {
         <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
           <StatsCard
             title="Out of Stock"
-            value={products?.dashboard_stats?.out_of_stock || 0}
+            value={dashboardStats.out_of_stock || 0}
             icon={<LocalOffer />}
             color="error"
           />
@@ -487,89 +633,186 @@ const Products = () => {
           border: "1px solid rgba(0,0,0,0.06)",
         }}
       >
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
+        <Grid
+          container
           spacing={2}
-          alignItems={{ xs: "stretch", sm: "center" }}
+          alignItems="center"
           justifyContent="space-between"
         >
-          <TextField
-            placeholder="Search products by name or SKU..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Search color="action" />
-                </InputAdornment>
-              ),
-            }}
-            sx={{
-              minWidth: { xs: "100%", sm: 400 },
-              "& .MuiOutlinedInput-root": {
-                borderRadius: 3,
-                "& fieldset": { borderColor: "rgba(0,0,0,0.1)" },
-              },
-            }}
-          />
-          <TextField
-            select
-            label="Category"
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            sx={{ minWidth: 200 }}
-            size="small"
-            SelectProps={{ native: true }}
-          >
-            <option value="all">All Categories</option>
-            {categories.map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
-          </TextField>
+          {/* Search Field */}
+          <Grid size={{ xs: 12, md: 5 }}>
+            <TextField
+              fullWidth
+              placeholder="Search products by name, SKU, or description..."
+              value={searchQuery}
+              onChange={handleSearchChange}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Search color="action" />
+                  </InputAdornment>
+                ),
+                endAdornment: searchQuery && (
+                  <InputAdornment position="end">
+                    <IconButton onClick={handleClearSearch} size="small">
+                      <Clear />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: 3,
+                  "& fieldset": { borderColor: "rgba(0,0,0,0.1)" },
+                },
+              }}
+            />
+          </Grid>
 
-          <TextField
-            select
-            label="Sort By"
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            sx={{ minWidth: 160 }}
-            size="small"
-            SelectProps={{ native: true }}
+          {/* Category Filter */}
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <TextField
+              select
+              label="Category"
+              value={categoryFilter}
+              onChange={handleCategoryChange}
+              fullWidth
+              size="small"
+              SelectProps={{ native: true }}
+            >
+              <option value="all">All Categories</option>
+              {CategoriesData?.results.map((category) => (
+                <option key={category?.id} value={category?.id}>
+                  {category?.name}
+                </option>
+              ))}
+            </TextField>
+          </Grid>
+
+          {/* Sort By */}
+          <Grid size={{ xs: 12, sm: 6, md: 2 }}>
+            <TextField
+              select
+              label="Sort By"
+              value={sortBy}
+              onChange={handleSortChange}
+              fullWidth
+              size="small"
+              SelectProps={{ native: true }}
+            >
+              <option value="name">Name</option>
+              <option value="selling_price">Price</option>
+              <option value="stock_quantity">Stock</option>
+              <option value="created_at">Date Created</option>
+            </TextField>
+          </Grid>
+
+          {/* Sort Order Toggle */}
+          <Grid size={{ xs: 12, sm: 6, md: 2 }}>
+            <Button
+              variant="outlined"
+              onClick={handleSortOrderToggle}
+              fullWidth
+              sx={{
+                borderRadius: 2,
+                textTransform: "none",
+                fontWeight: 600,
+              }}
+            >
+              {sortOrder === "asc" ? "A-Z" : "Z-A"}
+            </Button>
+          </Grid>
+        </Grid>
+
+        {/* Results Info */}
+        <Box mt={2}>
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ whiteSpace: "nowrap" }}
           >
-            <option value="name">Name</option>
-            <option value="price">Price (High to Low)</option>
-            <option value="stock">Stock Quantity</option>
-            <option value="category">Category</option>
-          </TextField>
-          <Stack direction="row" spacing={1}>
-            <Tooltip title="Filter">
-              <IconButton
-                sx={{
-                  bgcolor: "rgba(0,0,0,0.04)",
-                  borderRadius: 2,
-                  "&:hover": { bgcolor: "rgba(0,0,0,0.08)" },
-                }}
-              >
-                <FilterList />
-              </IconButton>
-            </Tooltip>
+            {isLoading && currentPage > 1 ? (
+              <CircularProgress size={16} sx={{ mr: 1 }} />
+            ) : null}
+            {totalCount > 0 && `${totalCount.toLocaleString()} results`}
+            {debouncedSearchQuery && ` for "${debouncedSearchQuery}"`}
+          </Typography>
+        </Box>
+
+        {/* Active Filters */}
+        {(debouncedSearchQuery || categoryFilter !== "all") && (
+          <Stack
+            direction="row"
+            spacing={1}
+            alignItems="center"
+            flexWrap="wrap"
+            mt={2}
+          >
+            <Typography variant="body2" color="text.secondary">
+              Active filters:
+            </Typography>
+            {debouncedSearchQuery && (
+              <Chip
+                label={`Search: ${debouncedSearchQuery}`}
+                onDelete={handleClearSearch}
+                size="small"
+                color="primary"
+                variant="outlined"
+              />
+            )}
+            {categoryFilter !== "all" && (
+              <Chip
+                label={`Category: ${categoryFilter}`}
+                onDelete={() => setCategoryFilter("all")}
+                size="small"
+                color="primary"
+                variant="outlined"
+              />
+            )}
+            <Button
+              size="small"
+              onClick={() => {
+                setSearchQuery("");
+                setDebouncedSearchQuery("");
+                setCategoryFilter("all");
+                setCurrentPage(1);
+              }}
+              sx={{ ml: 1, textTransform: "none" }}
+            >
+              Clear all
+            </Button>
           </Stack>
-        </Stack>
+        )}
       </Paper>
 
       {/* Products Grid/List */}
-      {isLoading ? (
+      {isLoading && currentPage === 1 ? (
         <LoadingSkeleton />
-      ) : filteredProducts.length > 0 ? (
-        <Grid container spacing={3}>
-          {filteredProducts.map((product, index) => (
-            <Grid size={{ xs: 12, md: 6, lg: 4 }} key={product.id}>
-              <ProductCard product={product} index={index} />
-            </Grid>
-          ))}
-        </Grid>
+      ) : products.length > 0 ? (
+        <>
+          <Grid container spacing={3}>
+            {products.map((product, index) => (
+              <Grid size={{ xs: 12, md: 6, lg: 4 }} key={product.id}>
+                <ProductCard product={product} index={index} />
+              </Grid>
+            ))}
+          </Grid>
+
+          {/* Pagination */}
+          <Box sx={{ mt: 4, mb: 2 }}>
+            <PaginationComponent
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalCount={totalCount}
+              itemsPerPage={itemsPerPage}
+              onPageChange={handlePageChange}
+              onItemsPerPageChange={handleItemsPerPageChange}
+              showItemsPerPage={true}
+              showInfo={true}
+              itemsPerPageOptions={[10, 20, 50, 100]}
+            />
+          </Box>
+        </>
       ) : (
         <Paper
           elevation={0}
@@ -597,21 +840,23 @@ const Products = () => {
             fontWeight="600"
             sx={{ mb: 1, color: "rgba(0,0,0,0.7)" }}
           >
-            {searchQuery || categoryFilter !== "all"
+            {debouncedSearchQuery || categoryFilter !== "all"
               ? "No products match your criteria"
               : "No products found"}
           </Typography>
           <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-            {searchQuery || categoryFilter !== "all"
+            {debouncedSearchQuery || categoryFilter !== "all"
               ? "Try adjusting your search terms or filters"
               : "Start by adding your first product to inventory"}
           </Typography>
-          {searchQuery || categoryFilter !== "all" ? (
+          {debouncedSearchQuery || categoryFilter !== "all" ? (
             <Button
               variant="outlined"
               onClick={() => {
                 setSearchQuery("");
+                setDebouncedSearchQuery("");
                 setCategoryFilter("all");
+                setCurrentPage(1);
               }}
               sx={{
                 borderRadius: 3,
@@ -637,12 +882,101 @@ const Products = () => {
               fontWeight: 600,
             }}
           >
-            {searchQuery || categoryFilter !== "all"
+            {debouncedSearchQuery || categoryFilter !== "all"
               ? "Add Product"
               : "Add First Product"}
           </Button>
         </Paper>
       )}
+
+      {/* Context Menu */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+        PaperProps={{
+          elevation: 3,
+          sx: {
+            borderRadius: 2,
+            minWidth: 180,
+          },
+        }}
+      >
+        <MenuItem onClick={() => navigate(`/products/${selectedProduct?.id}`)}>
+          <ListItemIcon>
+            <Visibility fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>View Details</ListItemText>
+        </MenuItem>
+        <MenuItem
+          onClick={() => navigate(`/products/${selectedProduct?.id}/edit`)}
+        >
+          <ListItemIcon>
+            <Edit fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Edit Product</ListItemText>
+        </MenuItem>
+        <MenuItem
+          onClick={() => navigator.clipboard.writeText(selectedProduct?.sku)}
+        >
+          <ListItemIcon>
+            <ContentCopy fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Copy SKU</ListItemText>
+        </MenuItem>
+        <Divider />
+        <MenuItem onClick={handleDeleteClick} sx={{ color: "error.main" }}>
+          <ListItemIcon>
+            <Delete fontSize="small" color="error" />
+          </ListItemIcon>
+          <ListItemText>Delete</ListItemText>
+        </MenuItem>
+      </Menu>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleDeleteCancel}
+        PaperProps={{
+          sx: { borderRadius: 3 },
+        }}
+      >
+        <DialogTitle>Delete Product</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete "{selectedProduct?.name}"? This
+            action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ p: 3, pt: 0 }}>
+          <Button onClick={handleDeleteCancel} sx={{ borderRadius: 2 }}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteConfirm}
+            variant="contained"
+            color="error"
+            sx={{ borderRadius: 2 }}
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
+      >
+        <Alert
+          onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
+          severity={snackbar.severity}
+          sx={{ borderRadius: 2 }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
 
       {/* Floating Speed Dial */}
       <SpeedDial

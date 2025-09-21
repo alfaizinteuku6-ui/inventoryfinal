@@ -52,23 +52,12 @@ import {
   TrendingDown,
   Info,
 } from "@mui/icons-material";
-import {
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  PieChart,
-  Pie,
-  Cell,
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-} from "recharts";
 import { useSalesDashboard, useSalesReport } from "../hooks/useSWR";
+import { LineChart } from "@mui/x-charts/LineChart";
+import { PieChart } from "@mui/x-charts/PieChart";
+
+// Chart colors array (define this in your constants)
+const CHART_COLORS = ["#1976d2", "#dc004e", "#ed6c02", "#2e7d32", "#9c27b0"];
 
 // Enhanced MetricCard Component
 const MetricCard = ({
@@ -449,15 +438,6 @@ const Dashboard = () => {
     mutateReports();
   };
 
-  const CHART_COLORS = [
-    "#1976d2",
-    "#388e3c",
-    "#f57c00",
-    "#d32f2f",
-    "#7b1fa2",
-    "#0288d1",
-  ];
-
   if (loading) {
     return (
       <Box
@@ -662,68 +642,63 @@ const Dashboard = () => {
                     <Timeline color="action" />
                   </Box>
                   <Box height={400}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart
-                        data={
-                          periodData?.analytics?.period_daily_breakdown ||
-                          dashboardData?.monthly?.monthly_daily_breakdown ||
-                          []
-                        }
-                      >
-                        <defs>
-                          <linearGradient
-                            id="colorSales"
-                            x1="0"
-                            y1="0"
-                            x2="0"
-                            y2="1"
-                          >
-                            <stop
-                              offset="5%"
-                              stopColor="#1976d2"
-                              stopOpacity={0.3}
-                            />
-                            <stop
-                              offset="95%"
-                              stopColor="#1976d2"
-                              stopOpacity={0}
-                            />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                        <XAxis
-                          dataKey="day"
-                          tickFormatter={(value) =>
+                    <LineChart
+                      dataset={(
+                        periodData?.analytics?.period_daily_breakdown ||
+                        dashboardData?.monthly?.monthly_daily_breakdown ||
+                        []
+                      ).map((item) => ({
+                        ...item,
+                        day: new Date(item.day).getTime(), // Convert to timestamp
+                        gross_revenue: Number(item.gross_revenue) || 0, // Ensure numeric
+                      }))}
+                      xAxis={[
+                        {
+                          dataKey: "day",
+                          scaleType: "time",
+                          valueFormatter: (value) =>
                             new Date(value).toLocaleDateString("en-IN", {
                               month: "short",
                               day: "numeric",
-                            })
-                          }
-                        />
-                        <YAxis
-                          tickFormatter={(value) =>
-                            `₹${(value / 1000).toFixed(0)}K`
-                          }
-                        />
-                        <Tooltip
-                          formatter={(value) => [
-                            `₹${value?.toLocaleString()}`,
-                            "Revenue",
-                          ]}
-                          labelFormatter={(label) =>
-                            new Date(label).toLocaleDateString("en-IN")
-                          }
-                        />
-                        <Area
-                          type="monotone"
-                          dataKey="gross_revenue"
-                          stroke="#1976d2"
-                          fillOpacity={1}
-                          fill="url(#colorSales)"
-                          strokeWidth={3}
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
+                            }),
+                        },
+                      ]}
+                      yAxis={[
+                        {
+                          valueFormatter: (value) =>
+                            `₹${(value / 1000).toFixed(0)}K`,
+                        },
+                      ]}
+                      series={[
+                        {
+                          dataKey: "gross_revenue",
+                          label: "Revenue",
+                          color: "#1976d2",
+                          area: true,
+                          curve: "linear",
+                        },
+                      ]}
+                      height={400}
+                      margin={{ left: 25, right: 20, top: 20, bottom: 50 }}
+                      grid={{ horizontal: true, vertical: true }}
+                      slotProps={{
+                        tooltip: {
+                          formatter: (params) => {
+                            if (params && params.value !== undefined) {
+                              return `₹${Number(
+                                params.value
+                              ).toLocaleString()}`;
+                            }
+                            return "";
+                          },
+                        },
+                      }}
+                      sx={{
+                        "& .MuiAreaElement-root": {
+                          fillOpacity: 0.3,
+                        },
+                      }}
+                    />
                   </Box>
                 </CardContent>
               </Card>
@@ -737,45 +712,50 @@ const Dashboard = () => {
                     Payment Methods
                   </Typography>
                   <Box height={300}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={
+                    <PieChart
+                      series={[
+                        {
+                          data: (
                             periodData?.analytics?.period_payment_methods ||
                             dashboardData?.monthly?.monthly_payment_methods ||
                             []
-                          }
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={60}
-                          outerRadius={100}
-                          paddingAngle={5}
-                          dataKey="revenue"
-                          label={({ payment_method, percent }) =>
-                            `${payment_method?.toUpperCase()} ${(
-                              percent * 100
-                            ).toFixed(0)}%`
-                          }
-                        >
-                          {(
-                            periodData?.analytics?.period_payment_methods ||
-                            dashboardData?.monthly?.monthly_payment_methods ||
-                            []
-                          )?.map((entry, index) => (
-                            <Cell
-                              key={`cell-${index}`}
-                              fill={CHART_COLORS[index % CHART_COLORS.length]}
-                            />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          formatter={(value) => [
-                            `₹${value?.toLocaleString()}`,
-                            "Amount",
-                          ]}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
+                          ).map((item, index) => ({
+                            id: index,
+                            value: item.revenue,
+                            label: item.payment_method?.toUpperCase(),
+                            color: CHART_COLORS[index % CHART_COLORS.length],
+                          })),
+                          innerRadius: 60,
+                          outerRadius: 100,
+                          paddingAngle: 5,
+                          cornerRadius: 0,
+                          highlightScope: {
+                            faded: "global",
+                            highlighted: "item",
+                          },
+                          faded: {
+                            innerRadius: 30,
+                            additionalRadius: -30,
+                            color: "gray",
+                          },
+                        },
+                      ]}
+                      width={undefined}
+                      height={300}
+                      tooltip={{
+                        formatter: (params) => {
+                          const value = params.value;
+                          return `₹${value?.toLocaleString()}`;
+                        },
+                      }}
+                      slotProps={{
+                        legend: {
+                          direction: "column",
+                          position: { vertical: "middle", horizontal: "right" },
+                          padding: 0,
+                        },
+                      }}
+                    />
                   </Box>
                 </CardContent>
               </Card>

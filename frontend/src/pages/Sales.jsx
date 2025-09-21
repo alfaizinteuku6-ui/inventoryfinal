@@ -539,16 +539,16 @@ const Sales = () => {
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <StatsCard
             title="Total Sales"
-            value={sales?.summary?.total_sales || 0}
+            value={sales?.summary?.total_sales_count || 0}
             icon={<TrendingUp />}
             color="primary"
           />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <StatsCard
-            title="Total Revenue"
+            title="Gross Revenue"
             value={`₹${
-              sales?.summary?.total_revenue?.toLocaleString("en-IN") || 0
+              sales?.summary?.revenue_metrics?.gross_revenue?.toLocaleString("en-IN") || 0
             }`}
             icon={<Analytics />}
             color="success"
@@ -558,7 +558,7 @@ const Sales = () => {
           <StatsCard
             title="Paid Amount"
             value={`₹${
-              sales?.summary?.paid_amount?.toLocaleString("en-IN") || 0
+              sales?.summary?.payment_metrics?.total_paid?.toLocaleString("en-IN") || 0
             }`}
             icon={<Payment />}
             color="warning"
@@ -568,7 +568,7 @@ const Sales = () => {
           <StatsCard
             title="Pending Payments"
             value={`₹${
-              sales?.summary?.pending_payments?.toLocaleString("en-IN") || 0
+              sales?.summary?.payment_metrics?.total_outstanding?.toLocaleString("en-IN") || 0
             }`}
             icon={<ReceiptLong />}
             color="error"
