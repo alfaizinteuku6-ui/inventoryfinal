@@ -33,7 +33,7 @@ class ProductListSerializer(serializers.ModelSerializer):
         model = Product
         fields = [
             'id', 'name', 'sku', 'selling_price', 'stock_quantity',
-            'category_name', 'is_low_stock', 'image'
+            'category_name', 'is_low_stock', 'image', 'cost_price'
         ]
 
 class StockMovementSerializer(serializers.ModelSerializer):

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Box,
   Grid,
@@ -38,8 +38,6 @@ import {
   Assessment,
   Refresh,
   AccountBalance,
-  CreditCard,
-  Smartphone,
   Star,
   ArrowUpward,
   ArrowDownward,

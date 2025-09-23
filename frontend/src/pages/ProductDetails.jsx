@@ -8,8 +8,6 @@ import {
   Typography,
   Chip,
   Stack,
-  Divider,
-  Avatar,
   Paper,
   IconButton,
   Tooltip,
@@ -33,8 +31,6 @@ import {
   useMediaQuery,
   Breadcrumbs,
   Link,
-  Badge,
-  CircularProgress,
   Skeleton,
 } from "@mui/material";
 import {
@@ -58,25 +54,12 @@ import {
   BookmarkBorder,
   Analytics,
   History,
-  ShoppingCart,
   LocalOffer,
   Category,
-  CalendarToday,
-  Person,
   ImageNotSupported,
 } from "@mui/icons-material";
 import { useNavigate, useParams } from "react-router-dom";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-} from "recharts";
+import { LineChart } from '@mui/x-charts/LineChart';
 import { useProduct } from "../hooks/useSWR";
 
 const ProductDetails = () => {
@@ -895,33 +878,37 @@ const ProductDetails = () => {
             <Typography variant="h6" fontWeight="700" sx={{ mb: 2 }}>
               Sales Performance
             </Typography>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={salesHistory}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <RechartsTooltip
-                  formatter={(value, name) => [
-                    name === "amount" ? formatCurrency(value) : value,
-                    name === "amount" ? "Amount" : "Quantity",
-                  ]}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="amount"
-                  stroke={theme.palette.primary.main}
-                  strokeWidth={2}
-                  name="amount"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="quantity"
-                  stroke={theme.palette.success.main}
-                  strokeWidth={2}
-                  name="quantity"
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            <LineChart
+      xAxis={[
+        {
+          dataKey: 'date',            // maps your x-axis
+          label: 'Date',
+        },
+      ]}
+      series={[
+        {
+          dataKey: 'amount',
+          label: 'Amount',
+          color: theme.palette.primary.main,
+          valueFormatter: (value) => formatCurrency(value), // tooltip formatter
+        },
+        {
+          dataKey: 'quantity',
+          label: 'Quantity',
+          color: theme.palette.success.main,
+          valueFormatter: (value) => value,
+        },
+      ]}
+      dataset={salesHistory} // your data array
+      height={300}
+      grid={{ vertical: true, horizontal: true }} // equivalent to CartesianGrid
+      sx={{
+        // optional styling overrides
+        '& .MuiChartsAxis-tickLabel': {
+          fill: theme.palette.text.primary,
+        },
+      }}
+    />
 
             <Typography variant="h6" fontWeight="700" sx={{ mt: 4, mb: 2 }}>
               Sales Records
