@@ -74,17 +74,17 @@ export const auth = {
   logout: (data) => api.post('/auth/logout/', data), 
 };
 
-export const accounts ={
-  getMe : () => api.get('/accounts/users/me/'),
-  updateMe : (data) => api.patch('/accounts/users/me/', data),
-  changePassword : (data) => api.post('/accounts/users/change_password/', data),
-  getAllStaff: (params) => api.get('/accounts/staff/' , { params } ),
+export const accounts = {
+  getMe: () => api.get('/accounts/users/me/'),
+  updateMe: (data) => api.patch('/accounts/users/me/', data),
+  changePassword: (data) => api.post('/accounts/users/change_password/', data),
+  getAllStaff: (params) => api.get('/accounts/staff/', { params }),
   getStaffById: (id) => api.get(`/accounts/staff/${id}/`),
   createStaff: (data) => api.post('/accounts/staff/', data),
   updateStaff: (id, data) => api.patch(`/accounts/staff/${id}/`, data),
   deleteStaff: (id) => api.delete(`/accounts/staff/${id}/`),
   reactivateStaff: (id) => api.post(`/accounts/staff/${id}/reactivate/`),
-} 
+};
 
 export const products = {
   getAll: (params) => api.get('/products/', { params }),
@@ -112,13 +112,10 @@ export const sales = {
   getAll: (params) => api.get('/sales/', { params }),
   getById: (id) => api.get(`/sales/${id}/`),
   create: (data) => api.post('/sales/', data),
-
-  // New methods for update/edit functionality
   update: (id, data) => api.put(`/sales/${id}/`, data),
   partialUpdate: (id, data) => api.patch(`/sales/${id}/`, data),
   delete: (id) => api.delete(`/sales/${id}/`),
   cancelSale: (id, query) => api.post(`/sales/${id}/cancel_sale/${query}`),
-
   getTodaySales: () => api.get('/sales/today_sales/'),
   getSalesReport: (params) => api.get('/sales/sales_report/', { params }),
   getDashboardData: (params) => api.get('/sales/dashboard/', { params }),
@@ -138,6 +135,18 @@ export const vendors = {
   create: (data) => api.post('/vendors/', data),
   update: (id, data) => api.patch(`/vendors/${id}/`, data),
   delete: (id) => api.delete(`/vendors/${id}/`),
+};
+
+export const notifications = {
+  getAll: (params) => api.get('/notifications/', { params }),
+  getById: (id) => api.get(`/notifications/${id}/`),
+  markAsRead: (id) => api.post(`/notifications/${id}/mark_as_read/`),
+  markAllRead: () => api.post('/notifications/mark_all_read/'),
+  dismiss: (id) => api.post(`/notifications/${id}/dismiss/`),
+  generate: () => api.post('/notifications/generate/'),
+  getStats: () => api.get('/notifications/stats/'),
+  getRecent: () => api.get('/notifications/recent/'),
+  cleanup: () => api.delete('/notifications/cleanup/'),
 };
 
 export default api;

@@ -29,7 +29,7 @@ import {
   Edit as EditIcon,
   Home as HomeIcon,
 } from "@mui/icons-material";
-import { customers } from "../services/api";
+import { customers } from "../../services/api";
 
 const CustomerDialog = ({ open, onClose, editingCustomer, mutate }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -194,9 +194,11 @@ const CustomerDialog = ({ open, onClose, editingCustomer, mutate }) => {
                 </Typography>
                 <Box display="flex" gap={2} mt={1}>
                   <Chip
-                    label={customerTypes.find(
-                      (t) => t.value === formData.customer_type
-                    )?.label || "Individual Customer"}
+                    label={
+                      customerTypes.find(
+                        (t) => t.value === formData.customer_type
+                      )?.label || "Individual Customer"
+                    }
                     color={
                       customerTypes.find(
                         (t) => t.value === formData.customer_type

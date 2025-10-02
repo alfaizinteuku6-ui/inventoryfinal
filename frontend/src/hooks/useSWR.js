@@ -1,5 +1,5 @@
 import useSWR from 'swr';
-import { products, categories, sales, customers, vendors, stockMovements, accounts } from '../services/api';
+import { products, categories, sales, customers, vendors, stockMovements, accounts, notifications } from '../services/api';
 
 const fetcher = (url, params) => {
   const [endpoint, ...args] = url.split('|');
@@ -16,7 +16,7 @@ const fetcher = (url, params) => {
     case 'products-low-stock':
       return products.getLowStock().then(res => res.data);
     case 'stock-movements':
-        return stockMovements.getAll().then(res => res.data);
+      return stockMovements.getAll(params).then(res => res.data);
     case 'categories':
       return categories.getAll().then(res => res.data);
     case 'sales':
@@ -35,6 +35,14 @@ const fetcher = (url, params) => {
       return accounts.getMe().then(res => res.data);
     case 'vendors':
       return vendors.getAll(params).then(res => res.data);
+    case 'notifications':
+      return notifications.getAll(params).then(res => res.data);
+    case 'notification':
+      return notifications.getById(args[0]).then(res => res.data);
+    case 'notifications-stats':
+      return notifications.getStats().then(res => res.data);
+    case 'notifications-recent':
+      return notifications.getRecent().then(res => res.data);
     default:
       throw new Error(`Unknown endpoint: ${endpoint}`);
   }
@@ -111,4 +119,26 @@ export const useCustomers = (params = {}) => {
 
 export const useVendors = (params = {}) => {
   return useSWR(['vendors', params], ([url, params]) => fetcher(url, params));
+};
+
+export const useNotifications = (params = {}) => {
+  return useSWR(['notifications', params], ([url, params]) => fetcher(url, params), {
+    refreshInterval: 30000, // Refresh every 30 seconds
+  });
+};
+
+export const useNotification = (id) => {
+  return useSWR(id ? `notification|${id}` : null, fetcher);
+};
+
+export const useNotificationStats = () => {
+  return useSWR('notifications-stats', fetcher, {
+    refreshInterval: 30000, // Refresh every 30 seconds
+  });
+};
+
+export const useRecentNotifications = () => {
+  return useSWR('notifications-recent', fetcher, {
+    refreshInterval: 30000, // Refresh every 30 seconds
+  });
 };

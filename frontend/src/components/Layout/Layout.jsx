@@ -31,13 +31,14 @@ import {
   AccountCircle,
   Logout,
   Notifications as NotificationsIcon,
-  ShoppingCart as CartIcon,
   Store as StoreIcon,
   Receipt as ReceiptIcon,
 } from "@mui/icons-material";
 import { useAuth } from "../../hooks/useAuth";
 import { ThemeToggleButton } from "../ThemeToggleButton";
-import { useVendors } from "../../hooks/useSWR";
+import { useVendors, useNotificationStats } from "../../hooks/useSWR";
+import NotificationMenu from "./NotificationMenu";
+
 const drawerWidth = 280;
 
 const menuItems = [
@@ -66,7 +67,8 @@ const Layout = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const [notificationAnchor, setNotificationAnchor] = useState(null);
-  const {data: vendorData, isLoading } = useVendors();
+  const { data: vendorData, isLoading } = useVendors();
+  const { data: notificationStats } = useNotificationStats();
   const { user, logout } = useAuth();
 
   const navigate = useNavigate();
@@ -102,6 +104,8 @@ const Layout = () => {
   const isActiveRoute = (path) => {
     return location.pathname === path;
   };
+
+  const unreadCount = notificationStats?.unread_count || 0;
 
   const drawer = (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
@@ -247,23 +251,10 @@ const Layout = () => {
               <ThemeToggleButton />
             </Tooltip>
 
-            <Tooltip title="Quick Sale">
-              <IconButton
-                onClick={() => navigate("/pos")}
-                sx={{
-                  backgroundColor: theme.palette.primary.main,
-                  color: "white",
-                  "&:hover": { backgroundColor: theme.palette.primary.dark },
-                }}
-              >
-                <CartIcon />
-              </IconButton>
-            </Tooltip>
-
             {/* Notifications */}
             <Tooltip title="Notifications">
               <IconButton onClick={handleNotificationOpen}>
-                <Badge badgeContent={3} color="error">
+                <Badge badgeContent={unreadCount} color="error" max={99}>
                   <NotificationsIcon />
                 </Badge>
               </IconButton>
@@ -297,51 +288,11 @@ const Layout = () => {
         </Toolbar>
       </AppBar>
 
-      {/* Notification Menu */}
-      <Menu
+      {/* Notification Menu Component */}
+      <NotificationMenu
         anchorEl={notificationAnchor}
-        open={Boolean(notificationAnchor)}
         onClose={handleNotificationClose}
-        PaperProps={{
-          sx: { width: 320, maxHeight: 400 },
-        }}
-      >
-        <Box sx={{ p: 2, borderBottom: `1px solid ${theme.palette.divider}` }}>
-          <Typography variant="h6" fontWeight="600">
-            Notifications
-          </Typography>
-        </Box>
-        <MenuItem>
-          <Box>
-            <Typography variant="body2" fontWeight="500">
-              Low Stock Alert
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              5 products are running low on stock
-            </Typography>
-          </Box>
-        </MenuItem>
-        <MenuItem>
-          <Box>
-            <Typography variant="body2" fontWeight="500">
-              New Order
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Order #1234 received - ₹2,500
-            </Typography>
-          </Box>
-        </MenuItem>
-        <MenuItem>
-          <Box>
-            <Typography variant="body2" fontWeight="500">
-              Daily Report
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Today's sales report is ready
-            </Typography>
-          </Box>
-        </MenuItem>
-      </Menu>
+      />
 
       {/* User Menu */}
       <Menu

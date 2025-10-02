@@ -59,7 +59,7 @@ import {
   ImageNotSupported,
 } from "@mui/icons-material";
 import { useNavigate, useParams } from "react-router-dom";
-import { LineChart } from '@mui/x-charts/LineChart';
+import { LineChart } from "@mui/x-charts/LineChart";
 import { useProduct } from "../hooks/useSWR";
 
 const ProductDetails = () => {
@@ -363,17 +363,14 @@ const ProductDetails = () => {
                   gap: 1,
                 }}
               >
-                <IconButton
-                  onClick={() => setIsBookmarked(!isBookmarked)}
-                >
+                <IconButton onClick={() => setIsBookmarked(!isBookmarked)}>
                   {isBookmarked ? (
                     <Bookmark color="primary" />
                   ) : (
                     <BookmarkBorder />
                   )}
                 </IconButton>
-                <IconButton
-                >
+                <IconButton>
                   <QrCode />
                 </IconButton>
               </Box>
@@ -520,25 +517,27 @@ const ProductDetails = () => {
                     border: "1px solid rgba(0,0,0,0.06)",
                     textAlign: "center",
                     background:
-                      "linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)",
+                      "linear-gradient(135deg, #42a5f5 0%, #1e88e5 100%)",
+                    color: "white",
                   }}
                 >
-                  <AttachMoney
-                    sx={{ fontSize: 32, color: "primary.main", mb: 1 }}
-                  />
+                  <AttachMoney sx={{ fontSize: 32, color: "white", mb: 1 }} />
                   <Typography
                     variant={isMobile ? "h6" : "h5"}
                     fontWeight="800"
-                    color="primary.main"
-                    sx={{ wordBreak: "break-word" }}
+                    color="white"
                   >
                     {formatCurrency(product.selling_price)}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography
+                    variant="caption"
+                    sx={{ color: "rgba(255,255,255,0.9)" }}
+                  >
                     Selling Price
                   </Typography>
                 </Paper>
               </Grid>
+
               <Grid size={{ xs: 6, sm: 3 }}>
                 <Paper
                   elevation={0}
@@ -548,24 +547,27 @@ const ProductDetails = () => {
                     border: "1px solid rgba(0,0,0,0.06)",
                     textAlign: "center",
                     background:
-                      "linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%)",
+                      "linear-gradient(135deg, #66bb6a 0%, #388e3c 100%)",
+                    color: "white",
                   }}
                 >
-                  <TrendingUp
-                    sx={{ fontSize: 32, color: "success.main", mb: 1 }}
-                  />
+                  <TrendingUp sx={{ fontSize: 32, color: "white", mb: 1 }} />
                   <Typography
                     variant={isMobile ? "h6" : "h5"}
                     fontWeight="800"
-                    color="success.main"
+                    color="white"
                   >
                     {profitMargin}%
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography
+                    variant="caption"
+                    sx={{ color: "rgba(255,255,255,0.9)" }}
+                  >
                     Profit Margin
                   </Typography>
                 </Paper>
               </Grid>
+
               <Grid size={{ xs: 6, sm: 3 }}>
                 <Paper
                   elevation={0}
@@ -575,24 +577,27 @@ const ProductDetails = () => {
                     border: "1px solid rgba(0,0,0,0.06)",
                     textAlign: "center",
                     background:
-                      "linear-gradient(135deg, #fff3e0 0%, #ffcc02 30%)",
+                      "linear-gradient(135deg, #ffb300 0%, #f57c00 100%)",
+                    color: "white",
                   }}
                 >
-                  <Inventory2
-                    sx={{ fontSize: 32, color: "warning.main", mb: 1 }}
-                  />
+                  <Inventory2 sx={{ fontSize: 32, color: "white", mb: 1 }} />
                   <Typography
                     variant={isMobile ? "h6" : "h5"}
                     fontWeight="800"
-                    color="warning.main"
+                    color="white"
                   >
                     {product.stock_quantity}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography
+                    variant="caption"
+                    sx={{ color: "rgba(255,255,255,0.9)" }}
+                  >
                     In Stock
                   </Typography>
                 </Paper>
               </Grid>
+
               <Grid size={{ xs: 6, sm: 3 }}>
                 <Paper
                   elevation={0}
@@ -602,21 +607,22 @@ const ProductDetails = () => {
                     border: "1px solid rgba(0,0,0,0.06)",
                     textAlign: "center",
                     background:
-                      "linear-gradient(135deg, #fce4ec 0%, #f8bbd9 100%)",
+                      "linear-gradient(135deg, #ec407a 0%, #c2185b 100%)",
+                    color: "white",
                   }}
                 >
-                  <LocalOffer
-                    sx={{ fontSize: 32, color: "error.main", mb: 1 }}
-                  />
+                  <LocalOffer sx={{ fontSize: 32, color: "white", mb: 1 }} />
                   <Typography
                     variant={isMobile ? "h6" : "h5"}
                     fontWeight="800"
-                    color="error.main"
-                    sx={{ wordBreak: "break-word" }}
+                    color="white"
                   >
                     {formatCurrency(getStockValue())}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography
+                    variant="caption"
+                    sx={{ color: "rgba(255,255,255,0.9)" }}
+                  >
                     Stock Value
                   </Typography>
                 </Paper>
@@ -879,36 +885,36 @@ const ProductDetails = () => {
               Sales Performance
             </Typography>
             <LineChart
-      xAxis={[
-        {
-          dataKey: 'date',            // maps your x-axis
-          label: 'Date',
-        },
-      ]}
-      series={[
-        {
-          dataKey: 'amount',
-          label: 'Amount',
-          color: theme.palette.primary.main,
-          valueFormatter: (value) => formatCurrency(value), // tooltip formatter
-        },
-        {
-          dataKey: 'quantity',
-          label: 'Quantity',
-          color: theme.palette.success.main,
-          valueFormatter: (value) => value,
-        },
-      ]}
-      dataset={salesHistory} // your data array
-      height={300}
-      grid={{ vertical: true, horizontal: true }} // equivalent to CartesianGrid
-      sx={{
-        // optional styling overrides
-        '& .MuiChartsAxis-tickLabel': {
-          fill: theme.palette.text.primary,
-        },
-      }}
-    />
+              xAxis={[
+                {
+                  dataKey: "date", // maps your x-axis
+                  label: "Date",
+                },
+              ]}
+              series={[
+                {
+                  dataKey: "amount",
+                  label: "Amount",
+                  color: theme.palette.primary.main,
+                  valueFormatter: (value) => formatCurrency(value), // tooltip formatter
+                },
+                {
+                  dataKey: "quantity",
+                  label: "Quantity",
+                  color: theme.palette.success.main,
+                  valueFormatter: (value) => value,
+                },
+              ]}
+              dataset={salesHistory} // your data array
+              height={300}
+              grid={{ vertical: true, horizontal: true }} // equivalent to CartesianGrid
+              sx={{
+                // optional styling overrides
+                "& .MuiChartsAxis-tickLabel": {
+                  fill: theme.palette.text.primary,
+                },
+              }}
+            />
 
             <Typography variant="h6" fontWeight="700" sx={{ mt: 4, mb: 2 }}>
               Sales Records

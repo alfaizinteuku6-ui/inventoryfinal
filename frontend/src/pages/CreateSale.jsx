@@ -34,7 +34,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useProducts, useCustomers, useSale } from "../hooks/useSWR";
 import { sales } from "../services/api";
 import SaleItemRow from "../components/Sale/SaleItemRow ";
-import CustomerDialog from "../components/CustomerDailog";
+import CustomerDialog from "../components/Customers/CustomerDailog";
 
 const CreateSale = () => {
   const theme = useTheme();
@@ -67,12 +67,15 @@ const CreateSale = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const { data: saleDateById, isLoading, isError } = useSale(saleId);
 
- useEffect(() => {
+  useEffect(() => {
     if (saleId && saleDateById) {
       setIsEditMode(true);
-      setSaleData({...saleDateById, customer: saleDateById.customer_details?.id || ""});
+      setSaleData({
+        ...saleDateById,
+        customer: saleDateById.customer_details?.id || "",
+      });
     }
-  },[saleId, saleDateById]);
+  }, [saleId, saleDateById]);
 
   const updateItem = (index, field, value) => {
     const newItems = [...saleData.items];
@@ -169,9 +172,9 @@ const CreateSale = () => {
           line_total: parseFloat(item.line_total),
         })),
       };
-      if(isEditMode){
+      if (isEditMode) {
         await sales.update(saleId, formattedData);
-      }else{
+      } else {
         await sales.create(formattedData);
       }
       resetSaleForm();
@@ -215,7 +218,7 @@ const CreateSale = () => {
                 mb: 1,
               }}
             >
-             { isEditMode ? "Edit" : "Create New"} Sale
+              {isEditMode ? "Edit" : "Create New"} Sale
             </Typography>
             <Typography variant="h6" color="text.secondary">
               Build your sales transaction with our modern interface
@@ -593,7 +596,13 @@ const CreateSale = () => {
                       },
                     }}
                   >
-                    {loading ? isEditMode ? "Updating Sale..." : "Creating Sale..." : isEditMode ? "Update Sale" : "Create Sale"}
+                    {loading
+                      ? isEditMode
+                        ? "Updating Sale..."
+                        : "Creating Sale..."
+                      : isEditMode
+                      ? "Update Sale"
+                      : "Create Sale"}
                   </Button>
                 </Box>
               </form>

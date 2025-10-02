@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 from decouple import config
 import dj_database_url
+from django.core.serializers.json import DjangoJSONEncoder
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.append(os.path.join(BASE_DIR, 'apps'))
@@ -38,6 +39,7 @@ LOCAL_APPS = [
     'apps.sales',
     'apps.vendors',
     'apps.customers',
+    'apps.notifications',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -133,6 +135,16 @@ SWAGGER_SETTINGS = {
 
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = DEBUG  # Only in development
+
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'Asia/Kolkata'
+CELERY_RESULT_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_RESULT_EXPIRES = 3600
+CELERY_JSON_ENCODER = DjangoJSONEncoder
 
 # Static files
 STATIC_URL = '/static/'

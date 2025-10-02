@@ -11,6 +11,7 @@ from apps.inventory.views import CategoryViewSet, ProductViewSet, StockMovementV
 from apps.sales.views import SaleViewSet
 from apps.customers.views import CustomerViewSet
 from apps.vendors.views import VendorViewSet
+from apps.notifications.views import NotificationViewSet
 
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
@@ -37,6 +38,7 @@ router.register('stock-movements', StockMovementViewSet)
 router.register('sales', SaleViewSet)
 router.register(r'customers', CustomerViewSet, basename='customer')
 router.register(r'vendors', VendorViewSet, basename='vendor')
+router.register(r'notifications', NotificationViewSet, basename='notification')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
