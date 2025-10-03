@@ -10,6 +10,7 @@ from .serializers import SaleSerializer, CreateSaleSerializer
 from datetime import timedelta, datetime
 from decimal import Decimal
 import logging
+from config.pagination import StandardResultsSetPagination
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,7 @@ class SaleViewSet(viewsets.ModelViewSet):
     search_fields = ['sale_number', 'customer__name', 'notes']
     ordering_fields = ['sale_date', 'total_amount', 'created_at']
     ordering = ['-created_at']
+    pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
         """Override to exclude cancelled sales by default, but include for retrieve"""

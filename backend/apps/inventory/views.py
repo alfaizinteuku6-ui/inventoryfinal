@@ -10,12 +10,17 @@ from .serializers import (
     CategorySerializer, ProductSerializer, ProductListSerializer, 
     StockMovementSerializer
 )
+from rest_framework.filters import OrderingFilter
+from django_filters import rest_framework as fieldfilters
+from django_filters.rest_framework import DjangoFilterBackend
+from config.pagination import StandardResultsSetPagination
 
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.filter(is_active=True)
     serializer_class = CategorySerializer
     filter_backends = [filters.SearchFilter]
     search_fields = ['name', 'description']
+    pagination_class = StandardResultsSetPagination
 
     def perform_destroy(self, instance):
         """Soft delete instead of hard delete"""
@@ -29,6 +34,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     search_fields = ['name', 'description', 'sku', 'barcode']
     ordering_fields = ['name', 'created_at', 'selling_price', 'stock_quantity']
     ordering = ['-created_at']
+    pagination_class = StandardResultsSetPagination
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -124,11 +130,18 @@ class ProductViewSet(viewsets.ModelViewSet):
         except Product.DoesNotExist:
             return Response({'error': 'Product not found'}, 
                           status=status.HTTP_404_NOT_FOUND)
+        
 
+class StockMovementFilter(fieldfilters.FilterSet):
+    class Meta:
+        model = StockMovement
+        fields = ['product', 'movement_type']
+
+# Then in views.py:
 class StockMovementViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = StockMovement.objects.select_related('product', 'user')
     serializer_class = StockMovementSerializer
-    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
-    filterset_fields = ['product', 'movement_type']
+    filter_backends = [DjangoFilterBackend, OrderingFilter]  # mix of django-filter + DRF ordering
+    filterset_class = StockMovementFilter
     ordering = ['-created_at']
-
+    pagination_class = StandardResultsSetPagination

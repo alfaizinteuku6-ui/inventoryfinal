@@ -3,15 +3,15 @@ from django_filters.rest_framework import DjangoFilterBackend
 from .models import Customer
 from django.db.models import Sum, Count, Q, Case, When, DecimalField
 from .serializers import CustomerSerializer
+from config.pagination import StandardResultsSetPagination
 
 class CustomerViewSet(viewsets.ModelViewSet):
     serializer_class = CustomerSerializer
-    
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['customer_type', 'city', 'state']
     search_fields = ['name', 'email', 'phone']
     ordering_fields = ['name', 'created_at', 'total_spent', 'orders_count']
-    
+    pagination_class = StandardResultsSetPagination
     def get_queryset(self):
         """Annotate with sales data considering refunds"""
         return Customer.objects.filter(is_active=True).annotate(
