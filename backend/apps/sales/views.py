@@ -48,9 +48,13 @@ class SaleViewSet(viewsets.ModelViewSet):
         return base_queryset
     
     def get_serializer_class(self):
-        if self.action == 'create':
+        if self.action in ['create', 'update', 'partial_update']:
             return CreateSaleSerializer
         return SaleSerializer
+    
+    def perform_update(self, serializer):
+        """Ensure user context is available for updates"""
+        serializer.save()
 
     def perform_create(self, serializer):
         serializer.save(salesperson=self.request.user)

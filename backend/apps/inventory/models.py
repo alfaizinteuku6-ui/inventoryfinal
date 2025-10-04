@@ -3,6 +3,7 @@ from django.db import models
 from django.core.validators import MinValueValidator
 from apps.core.models import TimestampedModel
 import uuid
+from django.utils.timezone import now
 
 def generate_barcode():
     return str(uuid.uuid4())[:12]
@@ -19,10 +20,11 @@ class Category(TimestampedModel):
     def __str__(self):
         return self.name
 
+
 class Product(TimestampedModel):
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
-    sku = models.CharField(max_length=50, unique=True)
+    sku = models.CharField(max_length=50, unique=True, blank=True)  # auto-generated if blank
     barcode = models.CharField(max_length=50, unique=True, null=True, blank=True)
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True)
     
@@ -40,8 +42,7 @@ class Product(TimestampedModel):
     dimensions = models.CharField(max_length=100, blank=True)  # L x W x H
     image = models.ImageField(upload_to='products/', blank=True)
     tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
-    is_active = models.BooleanField(default=True)
-    
+
     class Meta:
         ordering = ['name']
         indexes = [
@@ -63,9 +64,26 @@ class Product(TimestampedModel):
             return ((self.selling_price - self.cost_price) / self.cost_price) * 100
         return 0
     
+    def generate_sku(self):
+        """
+        SKU Format: CAT-XXX-YYYY
+        Example: ELE-005-2025
+        """
+        if not self.category:
+            prefix = "GEN"  # Generic if no category
+        else:
+            prefix = self.category.name[:3].upper()
+
+        year = now().year
+        count = Product.objects.filter(category=self.category).count() + 1
+        return f"{prefix}-{count:03d}-{year}"
+
     def save(self, *args, **kwargs):
+        if not self.sku:
+            self.sku = self.generate_sku()
         if not self.barcode:
             self.barcode = generate_barcode()
+        print(self.is_active)
         super().save(*args, **kwargs)
 
 class StockMovement(TimestampedModel):

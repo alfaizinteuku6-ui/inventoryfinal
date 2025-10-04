@@ -30,7 +30,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.select_related('category').filter(is_active=True)
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['category', 'is_active']
+    filterset_fields = ['category']
     search_fields = ['name', 'description', 'sku', 'barcode']
     ordering_fields = ['name', 'created_at', 'selling_price', 'stock_quantity']
     ordering = ['-created_at']

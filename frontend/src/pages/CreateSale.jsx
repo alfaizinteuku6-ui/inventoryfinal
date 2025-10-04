@@ -20,6 +20,7 @@ import {
   Backdrop,
   CircularProgress,
   Tooltip,
+  Snackbar,
 } from "@mui/material";
 import {
   Add,
@@ -35,6 +36,7 @@ import { useProducts, useCustomers, useSale } from "../hooks/useSWR";
 import { sales } from "../services/api";
 import SaleItemRow from "../components/Sale/SaleItemRow ";
 import CustomerDialog from "../components/Customers/CustomerDailog";
+import CustomSnackbar from "../components/CusromSnackbar";
 
 const CreateSale = () => {
   const theme = useTheme();
@@ -226,18 +228,16 @@ const CreateSale = () => {
           </Box>
 
           {error && (
-            <Fade in>
-              <Alert
-                severity="error"
-                sx={{
-                  mb: 3,
-                  borderRadius: 2,
-                  "& .MuiAlert-message": { fontWeight: 500 },
-                }}
-              >
-                {error}
-              </Alert>
-            </Fade>
+            <CustomSnackbar
+              open={Boolean(error)}
+              severity="error"
+              message={
+                typeof error === "object"
+                  ? error.items?.items || JSON.stringify(error)
+                  : error
+              }
+              onClose={() => setError(null)}
+            />
           )}
 
           <Card

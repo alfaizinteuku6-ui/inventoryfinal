@@ -69,7 +69,7 @@ const Sales = () => {
             itemsPerPage={salesState.itemsPerPage}
             onPageChange={salesState.handlePageChange}
             onItemsPerPageChange={salesState.handleItemsPerPageChange}
-            itemsPerPageOptions={[10, 20, 50, 100]}
+            itemsPerPageOptions={[9, 18, 27, 50]}
             size="medium"
             showItemsPerPage={true}
             showInfo={true}

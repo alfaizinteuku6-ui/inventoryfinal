@@ -19,6 +19,10 @@ class ProductSerializer(serializers.ModelSerializer):
     is_low_stock = serializers.ReadOnlyField()
     profit_margin = serializers.ReadOnlyField()
     
+    def create(self, validated_data):
+        validated_data['is_active'] = True
+        return super().create(validated_data)
+    
     class Meta:
         model = Product
         fields = '__all__'
@@ -28,7 +32,7 @@ class ProductListSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)
     is_low_stock = serializers.ReadOnlyField()
     image = serializers.ImageField(read_only=True)
-
+    
     class Meta:
         model = Product
         fields = [

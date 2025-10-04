@@ -11,7 +11,7 @@ export const useSalesState = () => {
   const [paymentOption, setPaymentOption] = useState("full");
   const [customAmount, setCustomAmount] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(20);
+  const [itemsPerPage, setItemsPerPage] = useState(9);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [snackbar, setSnackbar] = useState({
     open: false,

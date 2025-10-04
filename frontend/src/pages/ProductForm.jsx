@@ -42,7 +42,6 @@ const ProductForm = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: "",
-    sku: "",
     description: "",
     stock_quantity: 0,
     selling_price: "",
@@ -52,6 +51,7 @@ const ProductForm = () => {
     weight: "0.00",
     category: "",
     image: null,
+    is_active: true,
   });
 
   const [imagePreview, setImagePreview] = useState(null);
@@ -292,29 +292,13 @@ const ProductForm = () => {
                 </Typography>
 
                 <Grid container spacing={2}>
-                  <Grid size={{ xs: 12, md: 8 }}>
+                  <Grid size={{ xs: 12, md: 12 }}>
                     <TextField
                       label="Product Name"
                       fullWidth
                       value={formData.name}
                       onChange={(e) =>
                         setFormData({ ...formData, name: e.target.value })
-                      }
-                      required
-                      sx={{
-                        "& .MuiOutlinedInput-root": {
-                          borderRadius: 2,
-                        },
-                      }}
-                    />
-                  </Grid>
-                  <Grid size={{ xs: 12, md: 4 }}>
-                    <TextField
-                      label="SKU"
-                      fullWidth
-                      value={formData.sku}
-                      onChange={(e) =>
-                        setFormData({ ...formData, sku: e.target.value })
                       }
                       required
                       sx={{
