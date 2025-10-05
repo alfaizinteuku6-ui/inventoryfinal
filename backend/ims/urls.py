@@ -17,6 +17,9 @@ from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from rest_framework import permissions
 
+from django.views.generic import TemplateView
+from apps.core.views import IndexView
+
 # Schema view configuration
 schema_view = get_schema_view(
     openapi.Info(
@@ -42,6 +45,8 @@ router.register(r'notifications', NotificationViewSet, basename='notification')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    
+    re_path(r'^.*$', TemplateView.as_view(template_name='index.html')),
 
     # Swagger URLs
     path('swagger<format>/', schema_view.without_ui(cache_timeout=0), name='schema-json'),
@@ -61,3 +66,4 @@ urlpatterns = [
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

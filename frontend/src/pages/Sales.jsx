@@ -5,7 +5,7 @@ import CustomSnackbar from "../components/CusromSnackbar";
 import CancelSaleModal from "../components/Sale/CancelSaleModal";
 import PaginationComponent from "../components/Pagination";
 import SalesHeader from "../components/Sale/SalesHeader";
-import SalesStats from "../components/Sale/SalesStats";
+// import SalesStats from "../components/Sale/SalesStats";
 import SalesFilters from "../components/Sale/SalesFilters";
 import SalesGrid from "../components/Sale/SalesGrid";
 import PaymentModal from "../components/Sale/PaymentModal";
@@ -37,7 +37,7 @@ const Sales = () => {
       />
 
       <SalesHeader navigate={navigate} />
-      <SalesStats summary={salesState?.salesSummary} />
+      {/* <SalesStats summary={salesState?.salesSummary} /> */}
 
       <SalesFilters
         searchTerm={salesState.searchTerm}

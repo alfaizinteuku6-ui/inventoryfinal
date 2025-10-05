@@ -65,6 +65,7 @@ export default defineConfig({
       }
     }
   },
+  base: '/static/',
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
@@ -74,7 +75,7 @@ export default defineConfig({
           vendor: ['react', 'react-dom'],
           mui: ['@mui/material', '@mui/icons-material'],
           router: ['react-router-dom'],
-          charts: ['recharts']
+          charts: ['@mui/x-charts']
         }
       }
     }

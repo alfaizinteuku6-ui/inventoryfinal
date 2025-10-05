@@ -13,8 +13,11 @@ db.sqlite3
 
 media
 
-.venv/
+venv/
 .inventoryEnv/
+
+templates/
+static/
 
 # Celery
 celerybeat-schedule*

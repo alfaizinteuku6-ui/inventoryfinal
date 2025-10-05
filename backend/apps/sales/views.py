@@ -61,23 +61,23 @@ class SaleViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(salesperson=self.request.user)
 
-    def list(self, request, *args, **kwargs):
-        """Override list to include comprehensive summary statistics"""
-        queryset = self.filter_queryset(self.get_queryset())
-        summary_stats = self.get_comprehensive_period_stats(queryset)
+    # def list(self, request, *args, **kwargs):
+    #     """Override list to include comprehensive summary statistics"""
+    #     queryset = self.filter_queryset(self.get_queryset())
+    #     summary_stats = self.get_comprehensive_period_stats(queryset)
         
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            response = self.get_paginated_response(serializer.data)
-            response.data['summary'] = summary_stats
-            return response
+    #     page = self.paginate_queryset(queryset)
+    #     if page is not None:
+    #         serializer = self.get_serializer(page, many=True)
+    #         response = self.get_paginated_response(serializer.data)
+    #         response.data['summary'] = summary_stats
+    #         return response
 
-        serializer = self.get_serializer(queryset, many=True)
-        return Response({
-            'results': serializer.data,
-            'summary': summary_stats
-        })
+    #     serializer = self.get_serializer(queryset, many=True)
+    #     return Response({
+    #         'results': serializer.data,
+    #         'summary': summary_stats
+    #     })
     
     def parse_date(self, date_str):
         """Parse date string to date object"""
@@ -178,21 +178,14 @@ class SaleViewSet(viewsets.ModelViewSet):
         """Get comprehensive stats for a queryset with proper revenue calculations"""
         # Use enhanced revenue calculation
         queryset = self.get_revenue_queryset(queryset)
+        active_queryset = queryset.filter(is_active=True)
         
-        # Filter only non-deleted/active sales if you have soft delete
-        # If you don't have is_active field, remove this line
-        try:
-            active_queryset = queryset.filter(is_active=True)
-        except:
-            active_queryset = queryset
-        
-        # Overall statistics - exclude cancelled and refunded from counts
-        stats_queryset = active_queryset.exclude(payment_status__in=['cancelled', 'refunded'])
-        
+        # Overall statistics - exclude refunded from counts
+        stats_queryset = active_queryset.exclude(payment_status__in=['refunded'])
         overall_stats = stats_queryset.aggregate(
-            total_sales_count=Count('id'),
+            total_sales_count=Count('id', distinct=True),
             
-            # Revenue metrics (these already exclude cancelled/refunded via effective_revenue calculation)
+            # Revenue metrics (these already exclude refunded via effective_revenue calculation)
             gross_revenue=Sum('total_amount'),
             effective_revenue=Sum('effective_revenue'),
             pretax_revenue=Sum('pretax_amount'),
@@ -221,7 +214,7 @@ class SaleViewSet(viewsets.ModelViewSet):
         
         # Payment status breakdown - use ALL sales including cancelled/refunded
         payment_status_stats = active_queryset.values('payment_status').annotate(
-            count=Count('id'),
+            count=Count('id', distinct=True),
             revenue=Sum('effective_revenue'),  # This will be 0 for cancelled/refunded
             paid_amount=Sum('paid_amount'),
             outstanding=Sum('outstanding_amount')
@@ -369,7 +362,7 @@ class SaleViewSet(viewsets.ModelViewSet):
         daily_breakdown = list(active_queryset.annotate(
             day=TruncDay('sale_date')
         ).values('day').annotate(
-            sales_count=Count('id'),
+            sales_count=Count('id', distinct=True),
             gross_revenue=Sum('total_amount'),
             effective_revenue=Sum('effective_revenue'),
             paid_amount=Sum('paid_amount'),
@@ -394,9 +387,9 @@ class SaleViewSet(viewsets.ModelViewSet):
         
         # Payment method breakdown
         payment_method_breakdown = list(active_queryset.exclude(
-            payment_status='cancelled'
+            payment_status='refunded'
         ).values('payment_method').annotate(
-            count=Count('id'),
+            count=Count('id', distinct=True),
             revenue=Sum('effective_revenue'),
             paid_amount=Sum('paid_amount'),
             outstanding=Sum('outstanding_amount'),
@@ -532,7 +525,7 @@ class SaleViewSet(viewsets.ModelViewSet):
                 payment_status='cancelled'
             ).values('customer__name', 'customer__id').annotate(
                 total_purchases=Sum('effective_revenue'),
-                order_count=Count('id'),
+                order_count=Count('id', distinct=True),
                 items_purchased=Sum('items__quantity'),
                 avg_order_value=Avg('total_amount'),
                 outstanding_amount=Sum('outstanding_amount')
