@@ -11,6 +11,8 @@ from datetime import timedelta, datetime
 from decimal import Decimal
 import logging
 from config.pagination import StandardResultsSetPagination
+from decimal import Decimal, ROUND_HALF_UP
+from django.db import transaction
 
 logger = logging.getLogger(__name__)
 
@@ -123,49 +125,51 @@ class SaleViewSet(viewsets.ModelViewSet):
 
     def get_revenue_queryset(self, queryset):
         """
-        Enhanced revenue calculation with proper tax rate computation.
-        Effective revenue = gross revenue minus refunds (0 for cancelled sales).
-        Tax rate is calculated as tax_amount / (total_amount - tax_amount) for accuracy.
+        Enhanced revenue calculation with proper handling of refunds and cancellations.
+        
+        Key changes:
+        - Effective revenue properly handles refunded status
+        - Pre-tax amount calculation is more accurate
+        - Outstanding amount calculation considers refunded_amount
         """
         return queryset.annotate(
             # Effective revenue after considering cancellations and refunds
             effective_revenue=Case(
                 When(payment_status='cancelled', then=Value(0, output_field=DecimalField())),
-                When(payment_status='refunded', 
-                     then=F('total_amount') - Coalesce(F('refunded_amount'), Value(0, output_field=DecimalField()))),
+                When(payment_status='refunded', then=Value(0, output_field=DecimalField())),
                 default=F('total_amount'),
                 output_field=DecimalField(max_digits=12, decimal_places=2)
             ),
             
-            # Pre-tax amount (total minus tax) for proper tax rate calculation
+            # Pre-tax amount (total minus tax) - only for non-cancelled/refunded sales
             pretax_amount=Case(
-                When(payment_status='cancelled', then=Value(0, output_field=DecimalField())),
+                When(payment_status__in=['cancelled', 'refunded'], then=Value(0, output_field=DecimalField())),
                 default=F('total_amount') - Coalesce(F('tax_amount'), Value(0, output_field=DecimalField())),
                 output_field=DecimalField(max_digits=12, decimal_places=2)
             ),
             
-            # Net revenue after discounts but before tax
+            # Net revenue (after discounts, before tax) - only for active sales
             net_revenue=Case(
-                When(payment_status='cancelled', then=Value(0, output_field=DecimalField())),
-                When(payment_status='refunded', 
-                     then=(F('total_amount') - Coalesce(F('discount_amount'), Value(0, output_field=DecimalField())) 
-                           - Coalesce(F('refunded_amount'), Value(0, output_field=DecimalField())))),
-                default=F('total_amount') - Coalesce(F('discount_amount'), Value(0, output_field=DecimalField())),
-                output_field=DecimalField(max_digits=12, decimal_places=2)
-            ),
-            
-            # Outstanding amount (for partially paid sales)
-            outstanding_amount=Case(
                 When(payment_status__in=['cancelled', 'refunded'], then=Value(0, output_field=DecimalField())),
-                When(payment_status='paid', then=Value(0, output_field=DecimalField())),
-                default=F('total_amount') - F('paid_amount'),
+                default=F('subtotal') - Coalesce(F('discount_amount'), Value(0, output_field=DecimalField())),
                 output_field=DecimalField(max_digits=12, decimal_places=2)
             ),
             
-            # Collection efficiency
+            # Outstanding amount (what's still owed)
+            outstanding_amount=Case(
+                When(payment_status__in=['cancelled', 'refunded', 'paid'], 
+                    then=Value(0, output_field=DecimalField())),
+                default=F('total_amount') - F('paid_amount') + Coalesce(F('refunded_amount'), Value(0, output_field=DecimalField())),
+                output_field=DecimalField(max_digits=12, decimal_places=2)
+            ),
+            
+            # Collection efficiency (percentage of total amount that's been paid)
             collection_rate=Case(
                 When(total_amount=0, then=Value(0, output_field=FloatField())),
-                default=Cast((F('paid_amount') * Value(100.0)) / F('total_amount'), FloatField()),
+                default=Cast(
+                    ((F('paid_amount') - Coalesce(F('refunded_amount'), Value(0))) * Value(100.0)) / F('total_amount'), 
+                    FloatField()
+                ),
                 output_field=FloatField()
             )
         )
@@ -175,14 +179,20 @@ class SaleViewSet(viewsets.ModelViewSet):
         # Use enhanced revenue calculation
         queryset = self.get_revenue_queryset(queryset)
         
-        # Filter only active sales
-        active_queryset = queryset.filter(is_active=True)
+        # Filter only non-deleted/active sales if you have soft delete
+        # If you don't have is_active field, remove this line
+        try:
+            active_queryset = queryset.filter(is_active=True)
+        except:
+            active_queryset = queryset
         
-        # Overall statistics
-        overall_stats = active_queryset.aggregate(
+        # Overall statistics - exclude cancelled and refunded from counts
+        stats_queryset = active_queryset.exclude(payment_status__in=['cancelled', 'refunded'])
+        
+        overall_stats = stats_queryset.aggregate(
             total_sales_count=Count('id'),
             
-            # Revenue metrics
+            # Revenue metrics (these already exclude cancelled/refunded via effective_revenue calculation)
             gross_revenue=Sum('total_amount'),
             effective_revenue=Sum('effective_revenue'),
             pretax_revenue=Sum('pretax_amount'),
@@ -202,17 +212,17 @@ class SaleViewSet(viewsets.ModelViewSet):
         # Calculate average items per sale separately to handle potential None
         avg_items_per_sale = 0.0
         if overall_stats['total_sales_count'] and overall_stats['total_sales_count'] > 0:
-            items_per_sale_queryset = active_queryset.exclude(items__isnull=True)
+            items_per_sale_queryset = stats_queryset.exclude(items__isnull=True)
             if items_per_sale_queryset.exists():
                 avg_items_data = items_per_sale_queryset.aggregate(
                     avg_items=Avg('items__quantity')
                 )
                 avg_items_per_sale = float(avg_items_data['avg_items'] or 0)
         
-        # Enhanced payment status breakdown - handle refunded items properly
+        # Payment status breakdown - use ALL sales including cancelled/refunded
         payment_status_stats = active_queryset.values('payment_status').annotate(
             count=Count('id'),
-            revenue=Sum('effective_revenue'),
+            revenue=Sum('effective_revenue'),  # This will be 0 for cancelled/refunded
             paid_amount=Sum('paid_amount'),
             outstanding=Sum('outstanding_amount')
         )
@@ -227,52 +237,6 @@ class SaleViewSet(viewsets.ModelViewSet):
                 'paid_amount': float(stat['paid_amount']) if stat['paid_amount'] else 0.0,
                 'outstanding': float(stat['outstanding']) if stat['outstanding'] else 0.0
             }
-        
-        # Handle refunded items from cancelled and refunded sales
-        try:
-            # Get cancelled sales that have refunded amounts
-            cancelled_with_refunds = active_queryset.filter(
-                payment_status='cancelled'
-            ).exclude(
-                Q(refunded_amount__isnull=True) | Q(refunded_amount=0)
-            ).aggregate(
-                refunded_count=Count('id'),
-                total_refunded_amount=Sum('refunded_amount')
-            )
-            
-            # Get refunded sales that have refunded amounts
-            refunded_sales = active_queryset.filter(
-                payment_status='refunded'
-            ).exclude(
-                Q(refunded_amount__isnull=True) | Q(refunded_amount=0)
-            ).aggregate(
-                refunded_count=Count('id'),
-                total_refunded_amount=Sum('refunded_amount')
-            )
-            
-            # Initialize refunded status if not exists
-            if 'refunded' not in status_breakdown:
-                status_breakdown['refunded'] = {'count': 0, 'revenue': 0.0, 'paid_amount': 0.0, 'outstanding': 0.0}
-            
-            # Add cancelled sales with refunds to refunded counter
-            if cancelled_with_refunds['refunded_count']:
-                status_breakdown['refunded']['count'] += cancelled_with_refunds['refunded_count']
-                # Refunds should go to paid_amount (as negative cash flow), not revenue
-                status_breakdown['refunded']['paid_amount'] += float(cancelled_with_refunds['total_refunded_amount'] or 0)
-                
-                # Keep cancelled counter as is - don't subtract since we want both counters
-            
-            # Add refunded sales to refunded counter (this might already be there from the main query)
-            if refunded_sales['refunded_count']:
-                # Only add if not already counted in the main status breakdown
-                refunded_already_counted = status_breakdown.get('refunded', {}).get('count', 0)
-                if refunded_already_counted == 0:  # If refunded wasn't in main breakdown
-                    status_breakdown['refunded']['count'] += refunded_sales['refunded_count']
-                    # Refunds should go to paid_amount (as negative cash flow), not revenue
-                    status_breakdown['refunded']['paid_amount'] += float(refunded_sales['total_refunded_amount'] or 0)
-                
-        except Exception as e:
-            logger.warning(f"Error handling refunded sales: {e}")
         
         # Ensure all status types are represented
         for status_type in ['pending', 'partial', 'paid', 'refunded', 'cancelled']:
@@ -297,16 +261,33 @@ class SaleViewSet(viewsets.ModelViewSet):
         items_count = overall_stats['total_items'] or 0
         avg_sale = safe_float(overall_stats['avg_sale_value'])
         
-        # Get additional metrics with error handling
+        # Get additional metrics with error handling - from ALL active sales
         try:
             additional_stats = active_queryset.aggregate(
-                total_discount=Coalesce(Sum('discount_amount'), Value(Decimal('0.00'), output_field=DecimalField())),
-                total_tax=Coalesce(Sum('tax_amount'), Value(Decimal('0.00'), output_field=DecimalField())),
-                # Get total refunded from both 'refunded' status sales and cancelled sales with refunds
+                # Only sum discount and tax from non-cancelled/refunded sales
+                total_discount=Coalesce(
+                    Sum(Case(
+                        When(payment_status__in=['cancelled', 'refunded'], then=Value(0)),
+                        default=F('discount_amount'),
+                        output_field=DecimalField()
+                    )),
+                    Value(Decimal('0.00'), output_field=DecimalField())
+                ),
+                total_tax=Coalesce(
+                    Sum(Case(
+                        When(payment_status__in=['cancelled', 'refunded'], then=Value(0)),
+                        default=F('tax_amount'),
+                        output_field=DecimalField()
+                    )),
+                    Value(Decimal('0.00'), output_field=DecimalField())
+                ),
+                # Total refunded amount from both refunded and cancelled sales
                 total_refunded=Coalesce(
                     Sum(Case(
-                        When(payment_status='refunded', then=F('refunded_amount')),
-                        When(Q(payment_status='cancelled') & Q(refunded_amount__gt=0), then=F('refunded_amount')),
+                        When(
+                            Q(payment_status__in=['refunded', 'cancelled']) & Q(refunded_amount__gt=0),
+                            then=F('refunded_amount')
+                        ),
                         default=Value(0, output_field=DecimalField()),
                         output_field=DecimalField()
                     )), 
@@ -326,28 +307,44 @@ class SaleViewSet(viewsets.ModelViewSet):
         if pretax_revenue > 0:
             tax_rate = round((total_tax / pretax_revenue) * 100, 2)
 
+        # Total count of ALL sales (including cancelled/refunded)
+        total_count_all = active_queryset.count()
+        
+        # Count of pending sales (pending + partial)
+        pending_count = status_breakdown['pending']['count'] + status_breakdown['partial']['count']
+        
+        # Completion rate based on non-cancelled/refunded sales only
+        completion_rate = 0.0
+        if count > 0:
+            completion_rate = round((status_breakdown['paid']['count'] / count) * 100, 2)
+
         return {
-            # Basic metrics
+            # Basic metrics (excluding cancelled/refunded)
             'total_sales_count': count,
             'total_items_sold': items_count,
             'average_sale_value': round(avg_sale, 2),
             'average_items_per_sale': round(avg_items_per_sale, 2),
             
-            # Revenue breakdown
+            # All sales count (including cancelled/refunded)
+            'total_all_sales': total_count_all,
+            'cancelled_sales_count': status_breakdown['cancelled']['count'],
+            'refunded_sales_count': status_breakdown['refunded']['count'],
+            
+            # Revenue breakdown (from non-cancelled/refunded sales)
             'revenue_metrics': {
-                'gross_revenue': gross_revenue,
-                'effective_revenue': effective_revenue,
-                'pretax_revenue': pretax_revenue,
-                'net_revenue': net_revenue,
-                'total_tax_collected': total_tax,
-                'total_discount_given': total_discount,
-                'total_refunded': total_refunded
+                'gross_revenue': round(gross_revenue, 2),
+                'effective_revenue': round(effective_revenue, 2),
+                'pretax_revenue': round(pretax_revenue, 2),
+                'net_revenue': round(net_revenue, 2),
+                'total_tax_collected': round(total_tax, 2),
+                'total_discount_given': round(total_discount, 2),
+                'total_refunded': round(total_refunded, 2)
             },
             
             # Payment metrics
             'payment_metrics': {
-                'total_paid': total_paid,
-                'total_outstanding': total_outstanding,
+                'total_paid': round(total_paid, 2),
+                'total_outstanding': round(total_outstanding, 2),
                 'collection_rate': round((total_paid / gross_revenue) * 100, 2) if gross_revenue else 0.0,
                 'payment_status_breakdown': status_breakdown
             },
@@ -356,12 +353,13 @@ class SaleViewSet(viewsets.ModelViewSet):
             'performance_indicators': {
                 'refund_rate': round((total_refunded / gross_revenue) * 100, 2) if gross_revenue else 0.0,
                 'discount_rate': round((total_discount / gross_revenue) * 100, 2) if gross_revenue else 0.0,
-                'tax_rate': tax_rate,  # Now properly calculated as tax/pretax
-                'pending_sales_count': status_breakdown['pending']['count'] + status_breakdown['partial']['count'],
-                'completion_rate': round((status_breakdown['paid']['count'] / count) * 100, 2) if count else 0.0
+                'tax_rate': tax_rate,
+                'pending_sales_count': pending_count,
+                'completion_rate': completion_rate,
+                'cancellation_rate': round((status_breakdown['cancelled']['count'] / total_count_all) * 100, 2) if total_count_all else 0.0
             }
         }
-
+        
     def get_time_range_analytics(self, queryset, period_name="period"):
         """Get detailed time-range analytics with trends"""
         queryset = self.get_revenue_queryset(queryset)
@@ -731,47 +729,83 @@ class SaleViewSet(viewsets.ModelViewSet):
         return Response(response_data)
     
     @action(detail=True, methods=['post'])
+    @transaction.atomic
     def add_payment(self, request, pk=None):
         """Add payment to sale"""
         sale = self.get_object()
+        
+        # Prevent payment to cancelled or refunded sales
+        if sale.payment_status in ['cancelled', 'refunded']:
+            return Response(
+                {'error': f'Cannot add payment to a {sale.payment_status} sale'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
         amount = request.data.get('amount')
+        payment_method = request.data.get('payment_method')
 
         if not amount:
-            return Response({'error': 'Amount is required'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {'error': 'Amount is required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         try:
-            amount = Decimal(amount)
+            amount = Decimal(str(amount)).quantize(
+                Decimal('0.01'), rounding=ROUND_HALF_UP
+            )
             if amount <= 0:
-                raise ValueError
-        except ValueError:
-            return Response({'error': 'Invalid amount'}, status=status.HTTP_400_BAD_REQUEST)
+                raise ValueError("Amount must be positive")
+        except (ValueError, Exception) as e:
+            return Response(
+                {'error': f'Invalid amount: {str(e)}'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        if amount > sale.balance_due:
-            return Response({'error': 'Amount exceeds balance due'}, status=status.HTTP_400_BAD_REQUEST)
-
-        sale.paid_amount += amount
-        sale.save()
-
-        return Response(self.get_serializer(sale).data)
-    
-    @action(detail=True, methods=['post'])
-    def cancel_sale(self, request, pk=None):
-        """
-        Cancel a sale and restore stock.
-        For partially paid sales you must pass either ?refund=true or ?credit=true.
-        """
-        sale = self.get_object()
-
-        # Check flags from query params
-        refund_flag = str(request.query_params.get('refund', 'false')).lower() == 'true'
-        credit_flag = str(request.query_params.get('credit', 'false')).lower() == 'true'
+        # Calculate current balance due
+        balance_due = sale.balance_due
         
-        success, message = sale.cancel_sale(refund=refund_flag, credit=credit_flag)
-    
-        if not success:
-            return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
+        if amount > balance_due:
+            return Response(
+                {
+                    'error': 'Amount exceeds balance due',
+                    'balance_due': str(balance_due),
+                    'requested_amount': str(amount)
+                }, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
+        # Update paid amount
+        sale.paid_amount = (
+            Decimal(str(sale.paid_amount)) + amount
+        ).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        
+        # Update payment method if provided
+        if payment_method:
+            sale.payment_method = payment_method
+        
+        # Save will automatically update payment_status via update_payment_status()
+        sale.save()
+        
+        # Optional: Create payment transaction record
+        try:
+            from apps.payments.models import Payment
+            Payment.objects.create(
+                sale=sale,
+                amount=amount,
+                payment_method=payment_method or sale.payment_method,
+                user=request.user
+            )
+        except ImportError:
+            pass  # Payment model doesn't exist yet
+        
+        # Return updated sale data
+        serializer = self.get_serializer(sale)
         return Response({
-            'message': message,
-            'sale': self.get_serializer(sale).data
-        })
+            'message': 'Payment added successfully',
+            'payment_amount': str(amount),
+            'total_paid': str(sale.paid_amount),
+            'balance_due': str(sale.balance_due),
+            'payment_status': sale.payment_status,
+            'sale': serializer.data
+        }, status=status.HTTP_200_OK)

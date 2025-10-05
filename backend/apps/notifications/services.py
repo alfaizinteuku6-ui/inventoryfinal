@@ -349,7 +349,7 @@ class NotificationService:
                         message=f'{product.name} has a profit margin of only {product.profit_margin:.1f}%. Consider adjusting pricing.',
                         product=product,
                         metadata={
-                            'profit_margin': round(product.profit_margin, 2),
+                            'profit_margin': float(product.profit_margin),
                             'cost_price': str(product.cost_price),
                             'selling_price': str(product.selling_price),
                             'sku': product.sku

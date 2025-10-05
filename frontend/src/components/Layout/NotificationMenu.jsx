@@ -26,7 +26,7 @@ import { useNotifications } from "../../hooks/useSWR";
 import { notifications as notificationsApi } from "../../services/api";
 import { mutate } from "swr";
 
-const NotificationMenu = ({ anchorEl, onClose }) => {
+const NotificationMenu = ({ anchorEl, onClose, mutateStats }) => {
   const theme = useTheme();
   const [filter, setFilter] = useState("all");
   const { data: notificationsData, error, isLoading } = useNotifications({
@@ -37,6 +37,7 @@ const NotificationMenu = ({ anchorEl, onClose }) => {
     try {
       await notificationsApi.markAsRead(id);
       mutate(["notifications", { is_read: filter === "unread" ? false : undefined }]);
+      mutateStats();
     } catch (error) {
       console.error("Error marking notification as read:", error);
     }
@@ -46,6 +47,7 @@ const NotificationMenu = ({ anchorEl, onClose }) => {
     try {
       await notificationsApi.markAllRead();
       mutate(["notifications", { is_read: filter === "unread" ? false : undefined }]);
+      mutateStats();
     } catch (error) {
       console.error("Error marking all as read:", error);
     }
@@ -55,6 +57,7 @@ const NotificationMenu = ({ anchorEl, onClose }) => {
     try {
       await notificationsApi.dismiss(id);
       mutate(["notifications", { is_read: filter === "unread" ? false : undefined }]);
+      mutateStats();
     } catch (error) {
       console.error("Error dismissing notification:", error);
     }

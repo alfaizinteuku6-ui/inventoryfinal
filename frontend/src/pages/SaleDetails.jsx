@@ -37,53 +37,16 @@ import {
   AttachMoney,
 } from "@mui/icons-material";
 import { useNavigate, useParams } from "react-router-dom";
-import { sales } from "../services/api";
-import generateInvoicePDF from "../utils/invoice";
-import { useSale, useVendors } from "../hooks/useSWR";
+import { useSale } from "../hooks/useSWR";
+import PaymentModal from "../components/Sale/PaymentModal";
+import { useSalesState } from "../hooks/useSalesState";
 
 const SaleDetails = () => {
   const theme = useTheme();
+  const salesState = useSalesState();
   const navigate = useNavigate();
   const { id } = useParams();
   const { data: sale, isLoading: loading, error } = useSale(id);
-  const { data: companyInfo, isLoading: vendorLoading } = useVendors();
-
-  const handleEdit = () => {
-    navigate(`/sales/${id}/edit`);
-  };
-
-  const handleDelete = async () => {
-    if (
-      window.confirm(
-        "Are you sure you want to delete this sale? This action cannot be undone."
-      )
-    ) {
-      try {
-        await sales.delete(id);
-        navigate("/sales");
-      } catch (error) {
-        alert(error.response?.data?.error || "Failed to delete sale");
-      }
-    }
-  };
-
-  const handleAddPayment = async () => {
-    const amount = prompt("Enter payment amount:");
-    if (!amount) return;
-    try {
-      await sales.addPayment(id, { amount });
-      // Refresh sale data
-      const response = await sales.get(id);
-
-      alert("Payment recorded successfully!");
-    } catch (error) {
-      alert(error.response?.data?.error || "Failed to add payment");
-    }
-  };
-
-  const handleDownloadPDF = () => {
-    generateInvoicePDF(sale, companyInfo);
-  };
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -113,7 +76,7 @@ const SaleDetails = () => {
     }
   };
 
-  if (loading || vendorLoading) {
+  if (loading) {
     return (
       <Container maxWidth="xl" sx={{ py: 4 }}>
         <Skeleton variant="text" width={200} height={40} sx={{ mb: 2 }} />
@@ -460,7 +423,9 @@ const SaleDetails = () => {
                     <Button
                       variant="contained"
                       startIcon={<Download />}
-                      onClick={handleDownloadPDF}
+                      onClick={() => {
+                        salesState.handleDownloadPDF(sale);
+                      }}
                       fullWidth
                       sx={{
                         borderRadius: 2,
@@ -477,7 +442,7 @@ const SaleDetails = () => {
                           variant="contained"
                           color="success"
                           startIcon={<Payment />}
-                          onClick={handleAddPayment}
+                          onClick={salesState.handleAddPayment}
                           fullWidth
                           sx={{
                             borderRadius: 2,
@@ -494,7 +459,7 @@ const SaleDetails = () => {
                           variant="contained"
                           color="warning"
                           startIcon={<Edit />}
-                          onClick={handleEdit}
+                          onClick={salesState.handleEdit}
                           fullWidth
                           sx={{
                             borderRadius: 2,
@@ -508,7 +473,9 @@ const SaleDetails = () => {
                     <Button
                       variant="contained"
                       color="error"
-                      onClick={handleDelete}
+                      onClick={() => {
+                        salesState.handleDeleteSale(sale.id);
+                      }}
                       startIcon={<Delete />}
                       fullWidth
                       sx={{
@@ -593,6 +560,16 @@ const SaleDetails = () => {
           </Grid>
         </Box>
       </Fade>
+      <PaymentModal
+        open={salesState.paymentModalOpen}
+        selectedSale={sale}
+        paymentOption={salesState.paymentOption}
+        customAmount={salesState.customAmount}
+        onClose={salesState.handleClosePaymentModal}
+        onPaymentOptionChange={salesState.setPaymentOption}
+        onCustomAmountChange={salesState.setCustomAmount}
+        onSubmit={salesState.handlePaymentSubmit}
+      />
     </Container>
   );
 };

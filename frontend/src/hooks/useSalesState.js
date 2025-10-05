@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useSales, useVendors } from "./useSWR";
 import { sales as SalesApi } from "../services/api";
+import generateInvoicePDF from "../utils/invoice";
 
 export const useSalesState = () => {
   // Local UI state
@@ -141,6 +142,15 @@ export const useSalesState = () => {
     setCustomAmount("");
   };
 
+  const handleEdit = () => {
+    navigate(`/sales/${id}/edit`);
+  };
+
+  const handleDownloadPDF = async (sale) => {
+    generateInvoicePDF(sale, companyInfo);
+  };
+
+
   return {
     // state
     searchTerm,
@@ -178,5 +188,7 @@ export const useSalesState = () => {
     handleAddPayment,
     handlePaymentSubmit,
     handleClosePaymentModal,
+    handleEdit,
+    handleDownloadPDF,
   };
 };

@@ -68,7 +68,7 @@ const Layout = () => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [notificationAnchor, setNotificationAnchor] = useState(null);
   const { data: vendorData, isLoading } = useVendors();
-  const { data: notificationStats } = useNotificationStats();
+  const { data: notificationStats, mutate: statsMutate } = useNotificationStats();
   const { user, logout } = useAuth();
 
   const navigate = useNavigate();
@@ -105,8 +105,8 @@ const Layout = () => {
     return location.pathname === path;
   };
 
-  const unreadCount = notificationStats?.unread_count || 0;
-
+  const unreadCount = notificationStats?.unread || 0;
+  
   const drawer = (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
       <Box
@@ -292,6 +292,7 @@ const Layout = () => {
       <NotificationMenu
         anchorEl={notificationAnchor}
         onClose={handleNotificationClose}
+        mutateStats={statsMutate}
       />
 
       {/* User Menu */}

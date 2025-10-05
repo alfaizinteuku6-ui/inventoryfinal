@@ -15,3 +15,8 @@ media
 
 .venv/
 .inventoryEnv/
+
+# Celery
+celerybeat-schedule*
+celerybeat.pid
+celerybeat.db

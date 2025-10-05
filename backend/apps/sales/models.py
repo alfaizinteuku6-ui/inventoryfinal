@@ -2,7 +2,7 @@ from django.db import models, transaction
 from django.core.validators import MinValueValidator
 from django.db.models import Sum, F
 from apps.core.models import TimestampedModel
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 import uuid
 
 class Sale(TimestampedModel):
@@ -37,7 +37,6 @@ class Sale(TimestampedModel):
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending')
     payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, default='cash')
 
-    # new fields to keep track of refunds/credits
     refunded_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     credit_issued = models.BooleanField(default=False)
 
@@ -58,7 +57,7 @@ class Sale(TimestampedModel):
         if not self.sale_number:
             self.sale_number = self.generate_sale_number()
 
-        # For existing records that exist in DB, update totals first
+        # For existing records, update totals first
         if self.pk and Sale.objects.filter(pk=self.pk).exists():
             self.update_totals()
 
@@ -76,7 +75,9 @@ class Sale(TimestampedModel):
         subtotal_result = items.aggregate(
             total=Sum(F('quantity') * F('unit_price'))
         )
-        self.subtotal = subtotal_result['total'] or Decimal('0')
+        self.subtotal = (subtotal_result['total'] or Decimal('0')).quantize(
+            Decimal('0.01'), rounding=ROUND_HALF_UP
+        )
 
         # Calculate total discount amount
         discount_result = items.aggregate(
@@ -84,7 +85,9 @@ class Sale(TimestampedModel):
                 (F('quantity') * F('unit_price') * F('discount_percent')) / 100
             )
         )
-        self.discount_amount = discount_result['total'] or Decimal('0')
+        self.discount_amount = (discount_result['total'] or Decimal('0')).quantize(
+            Decimal('0.01'), rounding=ROUND_HALF_UP
+        )
 
         # Calculate tax on discounted amount
         tax_result = items.aggregate(
@@ -94,32 +97,44 @@ class Sale(TimestampedModel):
                  F('tax_rate')) / 100
             )
         )
-        self.tax_amount = tax_result['total'] or Decimal('0')
+        self.tax_amount = (tax_result['total'] or Decimal('0')).quantize(
+            Decimal('0.01'), rounding=ROUND_HALF_UP
+        )
 
         # Calculate final total
-        self.total_amount = self.subtotal - self.discount_amount + self.tax_amount
+        self.total_amount = (self.subtotal - self.discount_amount + self.tax_amount).quantize(
+            Decimal('0.01'), rounding=ROUND_HALF_UP
+        )
 
     def update_payment_status(self):
         """Update payment status based on paid and refunded amount."""
-        # Ensure we're working with Decimal values
-        total_amount = Decimal(str(self.total_amount))
-        paid_amount = Decimal(str(self.paid_amount))
-        refunded_amount = Decimal(str(self.refunded_amount))
+        # Ensure we're working with normalized Decimal values
+        total_amount = Decimal(str(self.total_amount)).quantize(
+            Decimal('0.01'), rounding=ROUND_HALF_UP
+        )
+        paid_amount = Decimal(str(self.paid_amount)).quantize(
+            Decimal('0.01'), rounding=ROUND_HALF_UP
+        )
+        refunded_amount = Decimal(str(self.refunded_amount)).quantize(
+            Decimal('0.01'), rounding=ROUND_HALF_UP
+        )
         
         net_paid = paid_amount - refunded_amount
+        
+        # Small tolerance for floating point comparison (1 cent)
+        tolerance = Decimal('0.01')
         
         # Handle edge cases
         if total_amount == 0:
             if net_paid == 0:
                 self.payment_status = 'pending'
             elif net_paid > 0:
-                # Overpayment on zero total - should be refunded
                 self.payment_status = 'paid'
             else:
                 self.payment_status = 'pending'
-        elif net_paid <= 0:
+        elif net_paid <= tolerance:  # Essentially zero or negative
             self.payment_status = 'pending'
-        elif net_paid >= total_amount:
+        elif net_paid >= total_amount - tolerance:  # Fully paid (within tolerance)
             self.payment_status = 'paid'
         else:
             self.payment_status = 'partial'
@@ -133,7 +148,7 @@ class Sale(TimestampedModel):
         # Get the last sale number for today
         last_sale = Sale.objects.filter(
             sale_number__startswith=prefix
-        ).order_by('-sale_number').first()  # Use first() with descending order
+        ).order_by('-sale_number').first()
 
         if last_sale and len(last_sale.sale_number) >= len(prefix) + 4:
             try:
@@ -163,20 +178,15 @@ class Sale(TimestampedModel):
             
             if refund:
                 self.refunded_amount = self.paid_amount
-                # Add your refund logic here (e.g. create PaymentRefund record)
             elif credit:
                 self.credit_issued = True
-                # Add customer credit logic here
 
         # For partially paid sales
         elif self.payment_status == 'partial':
             if refund:
                 self.refunded_amount = self.paid_amount
-                # Add your refund logic here
             elif credit:
                 self.credit_issued = True
-                # Add customer credit logic here
-            # If neither refund nor credit specified, just cancel (forfeit partial payment)
 
         # Restore stock for all items
         for item in self.items.all():
@@ -195,7 +205,6 @@ class Sale(TimestampedModel):
                     user=None
                 )
             except ImportError:
-                # Handle case where StockMovement model doesn't exist
                 pass
 
         # Set status to cancelled
@@ -210,8 +219,12 @@ class Sale(TimestampedModel):
         if self.payment_status == 'cancelled':
             return False, "Cannot refund a cancelled sale"
         
-        refund_amount = Decimal(str(amount))
-        max_refundable = self.paid_amount - self.refunded_amount
+        refund_amount = Decimal(str(amount)).quantize(
+            Decimal('0.01'), rounding=ROUND_HALF_UP
+        )
+        max_refundable = (
+            Decimal(str(self.paid_amount)) - Decimal(str(self.refunded_amount))
+        ).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
         
         if refund_amount <= 0:
             return False, "Refund amount must be positive"
@@ -237,10 +250,22 @@ class Sale(TimestampedModel):
         if self.payment_status in ['cancelled', 'refunded']:
             return Decimal('0')
         
-        net_paid = Decimal(str(self.paid_amount)) - Decimal(str(self.refunded_amount))
-        due = Decimal(str(self.total_amount)) - net_paid
+        total = Decimal(str(self.total_amount)).quantize(
+            Decimal('0.01'), rounding=ROUND_HALF_UP
+        )
+        paid = Decimal(str(self.paid_amount)).quantize(
+            Decimal('0.01'), rounding=ROUND_HALF_UP
+        )
+        refunded = Decimal(str(self.refunded_amount)).quantize(
+            Decimal('0.01'), rounding=ROUND_HALF_UP
+        )
         
-        return max(due, Decimal('0'))
+        net_paid = paid - refunded
+        due = total - net_paid
+        
+        return max(due, Decimal('0')).quantize(
+            Decimal('0.01'), rounding=ROUND_HALF_UP
+        )
 
     @property
     def is_overdue(self):
@@ -259,8 +284,8 @@ class SaleItem(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     sale = models.ForeignKey(Sale, related_name='items', on_delete=models.CASCADE)
     product = models.ForeignKey('inventory.Product', on_delete=models.PROTECT)
-    product_name = models.CharField(max_length=255)  # Store name at time of sale
-    product_sku = models.CharField(max_length=50, blank=True)  # Store SKU at time of sale
+    product_name = models.CharField(max_length=255)
+    product_sku = models.CharField(max_length=50, blank=True)
     quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
     unit_price = models.DecimalField(max_digits=12, decimal_places=2)
     discount_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0)
@@ -273,17 +298,23 @@ class SaleItem(models.Model):
             self.product_name = self.product.name
             self.product_sku = getattr(self.product, 'sku', '')
 
-        # Calculate line total with proper Decimal handling
+        # Calculate line total with proper Decimal handling and rounding
         quantity_decimal = Decimal(str(self.quantity))
         unit_price_decimal = Decimal(str(self.unit_price))
         discount_percent_decimal = Decimal(str(self.discount_percent))
         tax_rate_decimal = Decimal(str(self.tax_rate))
         
         subtotal = quantity_decimal * unit_price_decimal
-        discount = subtotal * (discount_percent_decimal / Decimal('100'))
+        discount = (subtotal * discount_percent_decimal / Decimal('100')).quantize(
+            Decimal('0.01'), rounding=ROUND_HALF_UP
+        )
         after_discount = subtotal - discount
-        tax = after_discount * (tax_rate_decimal / Decimal('100'))
-        self.line_total = after_discount + tax
+        tax = (after_discount * tax_rate_decimal / Decimal('100')).quantize(
+            Decimal('0.01'), rounding=ROUND_HALF_UP
+        )
+        self.line_total = (after_discount + tax).quantize(
+            Decimal('0.01'), rounding=ROUND_HALF_UP
+        )
 
         super().save(*args, **kwargs)
         
