@@ -1,6 +1,7 @@
 from django.db import models, transaction
 from django.core.validators import MinValueValidator
-from django.db.models import Sum, F
+from django.db.models import Sum, F, Q
+from django.utils import timezone
 from apps.core.models import TimestampedModel
 from decimal import Decimal, ROUND_HALF_UP
 import uuid
@@ -41,7 +42,7 @@ class Sale(TimestampedModel):
     credit_issued = models.BooleanField(default=False)
 
     notes = models.TextField(blank=True)
-    salesperson = models.ForeignKey('accounts.User', on_delete=models.SET_NULL, null=True)
+    salesperson = models.ForeignKey('accounts.User', on_delete=models.SET_NULL, null=True, related_name='sales')
 
     class Meta:
         ordering = ['-created_at']
@@ -50,6 +51,7 @@ class Sale(TimestampedModel):
             models.Index(fields=['customer']),
             models.Index(fields=['sale_date']),
             models.Index(fields=['payment_status']),
+            models.Index(fields=['payment_status', 'due_date']),
         ]
 
     def save(self, *args, **kwargs):
@@ -57,23 +59,27 @@ class Sale(TimestampedModel):
         if not self.sale_number:
             self.sale_number = self.generate_sale_number()
 
-        # For existing records, update totals first
-        if self.pk and Sale.objects.filter(pk=self.pk).exists():
+        # For existing records, update totals and status
+        if self.pk:
             self.update_totals()
-
-        # Always update payment status unless manually set to cancelled/refunded
-        if self.payment_status not in ['cancelled', 'refunded']:
             self.update_payment_status()
-            
+
         super().save(*args, **kwargs)
 
     def update_totals(self):
         """Calculate totals from sale items."""
         items = self.items.all()
 
+        if not items.exists():
+            self.subtotal = Decimal('0')
+            self.discount_amount = Decimal('0')
+            self.tax_amount = Decimal('0')
+            self.total_amount = Decimal('0')
+            return
+
         # Calculate subtotal (quantity * unit_price)
         subtotal_result = items.aggregate(
-            total=Sum(F('quantity') * F('unit_price'))
+            total=Sum(F('quantity') * F('unit_price'), output_field=models.DecimalField())
         )
         self.subtotal = (subtotal_result['total'] or Decimal('0')).quantize(
             Decimal('0.01'), rounding=ROUND_HALF_UP
@@ -82,7 +88,8 @@ class Sale(TimestampedModel):
         # Calculate total discount amount
         discount_result = items.aggregate(
             total=Sum(
-                (F('quantity') * F('unit_price') * F('discount_percent')) / 100
+                (F('quantity') * F('unit_price') * F('discount_percent')) / 100,
+                output_field=models.DecimalField()
             )
         )
         self.discount_amount = (discount_result['total'] or Decimal('0')).quantize(
@@ -94,7 +101,8 @@ class Sale(TimestampedModel):
             total=Sum(
                 ((F('quantity') * F('unit_price') -
                   (F('quantity') * F('unit_price') * F('discount_percent')) / 100) *
-                 F('tax_rate')) / 100
+                 F('tax_rate')) / 100,
+                output_field=models.DecimalField()
             )
         )
         self.tax_amount = (tax_result['total'] or Decimal('0')).quantize(
@@ -107,8 +115,8 @@ class Sale(TimestampedModel):
         )
 
     def update_payment_status(self):
-        """Update payment status based on paid and refunded amount."""
-        # Ensure we're working with normalized Decimal values
+        """Update payment status based on paid and refunded amount - in real-time."""
+        # Normalize all decimal values
         total_amount = Decimal(str(self.total_amount)).quantize(
             Decimal('0.01'), rounding=ROUND_HALF_UP
         )
@@ -118,20 +126,19 @@ class Sale(TimestampedModel):
         refunded_amount = Decimal(str(self.refunded_amount)).quantize(
             Decimal('0.01'), rounding=ROUND_HALF_UP
         )
-        
+
         net_paid = paid_amount - refunded_amount
-        
+
         # Small tolerance for floating point comparison (1 cent)
         tolerance = Decimal('0.01')
-        
+
+        # Don't override manually set cancelled/refunded status
+        if self.payment_status in ['cancelled', 'refunded']:
+            return
+
         # Handle edge cases
         if total_amount == 0:
-            if net_paid == 0:
-                self.payment_status = 'pending'
-            elif net_paid > 0:
-                self.payment_status = 'paid'
-            else:
-                self.payment_status = 'pending'
+            self.payment_status = 'paid' if net_paid > 0 else 'pending'
         elif net_paid <= tolerance:  # Essentially zero or negative
             self.payment_status = 'pending'
         elif net_paid >= total_amount - tolerance:  # Fully paid (within tolerance)
@@ -171,28 +178,24 @@ class Sale(TimestampedModel):
         if self.payment_status == 'cancelled':
             return False, "Sale is already cancelled"
 
+        # Refresh from database to get current state
+        self.refresh_from_db()
+
         # For fully paid sales, require explicit refund/credit choice
         if self.payment_status == 'paid':
             if not refund and not credit:
                 return False, "Fully paid sale requires refund=True or credit=True to cancel"
-            
-            if refund:
-                self.refunded_amount = self.paid_amount
-            elif credit:
-                self.credit_issued = True
 
-        # For partially paid sales
-        elif self.payment_status == 'partial':
-            if refund:
-                self.refunded_amount = self.paid_amount
-            elif credit:
-                self.credit_issued = True
+        # For pending sales, no need for refund/credit
+        if self.payment_status == 'pending':
+            refund = False
+            credit = False
 
         # Restore stock for all items
         for item in self.items.all():
             product = item.product
             product.stock_quantity += item.quantity
-            product.save()
+            product.save(update_fields=['stock_quantity', 'updated_at'])
 
             # Create stock movement record
             try:
@@ -202,47 +205,45 @@ class Sale(TimestampedModel):
                     movement_type='sale_cancellation',
                     quantity=item.quantity,
                     reference=f"Cancel-{self.sale_number}",
-                    user=None
+                    notes=f"Cancelled Sale: {self.sale_number}"
                 )
             except ImportError:
                 pass
 
-        # Set status to cancelled
-        self.payment_status = 'cancelled'
-        self.save()
-        
-        return True, "Sale cancelled successfully"
-
-    @transaction.atomic
-    def process_refund(self, amount):
-        """Process a partial or full refund."""
-        if self.payment_status == 'cancelled':
-            return False, "Cannot refund a cancelled sale"
-        
-        refund_amount = Decimal(str(amount)).quantize(
+        # Normalize amounts for precise comparison
+        current_paid = Decimal(str(self.paid_amount)).quantize(
             Decimal('0.01'), rounding=ROUND_HALF_UP
         )
-        max_refundable = (
-            Decimal(str(self.paid_amount)) - Decimal(str(self.refunded_amount))
-        ).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        current_refunded = Decimal(str(self.refunded_amount)).quantize(
+            Decimal('0.01'), rounding=ROUND_HALF_UP
+        )
+
+        # Handle refund: update refunded_amount to match paid_amount
+        if refund:
+            # Calculate how much still needs to be refunded
+            amount_to_refund = current_paid - current_refunded
+            
+            if amount_to_refund > 0:
+                self.refunded_amount = Decimal(str(self.refunded_amount + amount_to_refund)).quantize(
+                    Decimal('0.01'), rounding=ROUND_HALF_UP
+                )
+                # When fully refunded, set status to refunded
+                self.payment_status = 'refunded'
+            else:
+                # Already fully refunded, just mark as cancelled
+                self.payment_status = 'cancelled'
+        else:
+            # Handle credit: mark credit as issued and set to cancelled
+            if credit:
+                self.credit_issued = True
+            
+            # Set status to cancelled
+            self.payment_status = 'cancelled'
         
-        if refund_amount <= 0:
-            return False, "Refund amount must be positive"
-        
-        if refund_amount > max_refundable:
-            return False, f"Cannot refund more than paid amount. Maximum refundable: {max_refundable}"
-        
-        self.refunded_amount += refund_amount
-        
-        # Update payment status
-        self.update_payment_status()
-        
-        # If fully refunded, mark as refunded status
-        if self.refunded_amount >= self.paid_amount:
-            self.payment_status = 'refunded'
-        
+        # Save all changes atomically
         self.save()
-        return True, f"Refund of {refund_amount} processed successfully"
+
+        return True, "Sale cancelled successfully"
 
     @property
     def balance_due(self):
@@ -272,13 +273,11 @@ class Sale(TimestampedModel):
         """Check if payment is overdue."""
         if not self.due_date or self.payment_status in ['paid', 'cancelled', 'refunded']:
             return False
-        
-        from django.utils import timezone
+
         return timezone.now().date() > self.due_date
 
     def __str__(self):
         return f"Sale #{self.sale_number}"
-
 
 class SaleItem(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
