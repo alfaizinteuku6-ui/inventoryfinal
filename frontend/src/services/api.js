@@ -1,3 +1,4 @@
+
 // frontend/src/services/api.js
 import axios from 'axios';
 
@@ -8,14 +9,52 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // CRITICAL: Send cookies with requests
 });
 
-// Request interceptor to add auth token
+// Helper function to get CSRF token from cookies
+const getCsrfToken = () => {
+  const name = 'csrftoken';
+  let csrfToken = '';
+  if (document.cookie && document.cookie !== '') {
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === name + '=') {
+        csrfToken = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return csrfToken;
+};
+
+// Initialize CSRF token by making a GET request
+const initializeCsrfToken = async () => {
+  try {
+    await api.get('/csrf/', { withCredentials: true });
+  } catch (error) {
+    console.warn('Failed to initialize CSRF token:', error);
+  }
+};
+
+// Call on module load
+initializeCsrfToken();
+
+// Request interceptor to add auth token and CSRF token
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('access_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    // Add CSRF token for state-changing requests
+    if (['post', 'put', 'patch', 'delete'].includes(config.method?.toLowerCase())) {
+      const csrfToken = getCsrfToken();
+      if (csrfToken) {
+        config.headers['X-CSRFToken'] = csrfToken;
+      }
     }
 
     if (config.data instanceof FormData) {
@@ -35,7 +74,10 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Only try to refresh if we have tokens and it's not a login/refresh request
+    const isAuthRequest = originalRequest.url.includes('/auth/login/') || originalRequest.url.includes('/auth/refresh/');
+    
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthRequest) {
       originalRequest._retry = true;
 
       try {
@@ -46,6 +88,8 @@ api.interceptors.response.use(
 
         const response = await axios.post(`${API_BASE_URL}/auth/refresh/`, {
           refresh: refreshToken,
+        }, {
+          withCredentials: true,
         });
 
         const { access } = response.data;
@@ -66,9 +110,9 @@ api.interceptors.response.use(
   }
 );
 
-
 // API functions
 export const auth = {
+  getCsrfToken: () => api.get('/csrf/'),
   login: (credentials) => api.post('/auth/login/', credentials),
   refresh: (data) => api.post('/auth/refresh/', data),
   logout: (data) => api.post('/auth/logout/', data), 

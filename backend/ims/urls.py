@@ -12,6 +12,7 @@ from apps.sales.views import SaleViewSet
 from apps.customers.views import CustomerViewSet
 from apps.vendors.views import VendorViewSet
 from apps.notifications.views import NotificationViewSet
+from apps.accounts.views import get_csrf_token
 
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
@@ -45,15 +46,14 @@ router.register(r'notifications', NotificationViewSet, basename='notification')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    
-    re_path(r'^.*$', TemplateView.as_view(template_name='index.html')),
-
     # Swagger URLs
     path('swagger<format>/', schema_view.without_ui(cache_timeout=0), name='schema-json'),
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
     
     # Authentication
+    path('api/csrf/', get_csrf_token, name='get_csrf_token'),
+
     path('api/auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     
@@ -62,6 +62,10 @@ urlpatterns = [
     
     # App-specific URLs
     path('api/accounts/', include('apps.accounts.urls')),
+]
+
+urlpatterns += [
+    re_path(r'^.*$', TemplateView.as_view(template_name='index.html')),
 ]
 
 if settings.DEBUG:

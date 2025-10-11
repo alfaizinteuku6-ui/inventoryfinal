@@ -7,12 +7,10 @@ import {
   TextField,
   Button,
   Typography,
-  Alert,
   CircularProgress,
   Container,
   InputAdornment,
   IconButton,
-  Divider,
   Fade,
   useTheme,
   useMediaQuery,
@@ -33,6 +31,7 @@ import {
 } from "@mui/icons-material";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import CustomSnackbar from "../components/CustomSnackbar";
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -42,6 +41,7 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
 
   const { login, isLoading, error, clearError } = useAuth();
   const navigate = useNavigate();
@@ -59,40 +59,45 @@ const Login = () => {
   }, []);
 
   useEffect(() => {
-    // Clear errors when user starts typing
+    // Show snackbar when error appears
     if (error) {
-      const timer = setTimeout(clearError, 5000);
-      return () => clearTimeout(timer);
+      setSnackbarOpen(true);
     }
-  }, [error, clearError]);
+  }, [error]);
 
   const handleInputChange = (field) => (e) => {
     setFormData((prev) => ({
       ...prev,
       [field]: e.target.value,
-    }));
-    // Clear error when user starts typing
-    if (error) clearError();
+    }));;
   };
-
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
+    e.stopPropagation();
 
     if (!formData.email || !formData.password) {
       return;
     }
 
     try {
-      await login(formData);
-      navigate(from, { replace: true });
+      const result = await login(formData);
+      if (result) {
+        navigate(from, { replace: true });
+      }
     } catch (err) {
-      // Error is handled by the AuthContext
       console.error("Login failed:", err);
+      // Error is handled by the AuthContext and displayed in snackbar
     }
   };
 
   const handleTogglePassword = () => {
     setShowPassword(!showPassword);
+  };
+
+  const handleSnackbarClose = () => {
+    setSnackbarOpen(false);
+    clearError();
   };
 
   const features = [
@@ -333,23 +338,6 @@ const Login = () => {
                   </Box>
                 )}
 
-                {/* Error Alert */}
-                {error && (
-                  <Alert
-                    severity="error"
-                    sx={{
-                      mb: 3,
-                      borderRadius: 2,
-                      "& .MuiAlert-message": {
-                        fontSize: "0.9rem",
-                      },
-                    }}
-                    onClose={clearError}
-                  >
-                    {error}
-                  </Alert>
-                )}
-
                 {/* Login Form */}
                 <form onSubmit={handleSubmit} noValidate>
                   <TextField
@@ -465,6 +453,15 @@ const Login = () => {
           </Fade>
         </Box>
       </Container>
+
+      {/* Custom Snackbar for Error Messages */}
+      <CustomSnackbar
+        open={snackbarOpen}
+        severity="error"
+        message={error || ""}
+        onClose={handleSnackbarClose}
+        autoHideDuration={4000}
+      />
     </Box>
   );
 };

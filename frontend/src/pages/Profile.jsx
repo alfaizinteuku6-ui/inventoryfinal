@@ -17,7 +17,7 @@ import StaffTab from "../components/Profile/StaffTab";
 import SecurityTab from "../components/Profile/SecurityTab";
 import { useVendors, useAuthUser, useGetAllStaff } from "../hooks/useSWR";
 import { accounts, vendors } from "../services/api";
-import CustomSnackbar from "../components/CusromSnackbar";
+import CustomSnackbar from "../components/CustomSnackbar";
 
 // Main Profile Component
 function Profile() {

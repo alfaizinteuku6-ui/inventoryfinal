@@ -9,7 +9,7 @@ from django.core.serializers.json import DjangoJSONEncoder
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.append(os.path.join(BASE_DIR, 'apps'))
 SECRET_KEY = config('SECRET_KEY', default='your-secret-key-here')
-DEBUG = config('DEBUG', default=False, cast=bool)
+DEBUG = config('DEBUG', default=True, cast=bool)
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=lambda v: [s.strip() for s in v.split(',')])
 
@@ -56,18 +56,12 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-CSRF_TRUSTED_ORIGINS = [
-    'http://localhost:8000',
-    'http://127.0.0.1:8000',
-]
-
-
 ROOT_URLCONF = 'ims.urls'
 
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -118,13 +112,20 @@ SIMPLE_JWT = {
 }
 AUTH_USER_MODEL = 'accounts.User'
 
-# CORS Configuration
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://localhost:5173",  # Vite default
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:5173",
-]
+# # CORS Configuration
+# CORS_ALLOWED_ORIGINS = [
+#     "http://localhost:5173",  # React dev server
+#     "http://localhost:8000",  # Django server
+#     "http://127.0.0.1:5173",
+#     "http://127.0.0.1:8000",
+# ]
+
+CSRF_TRUSTED_ORIGINS = ["http://localhost:8000", "http://localhost:5173"]
+CSRF_COOKIE_SECURE = False
+CORS_ALLOW_CREDENTIALS = True
+# For development only
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
 
 # Swagger Settings
 SWAGGER_SETTINGS = {
@@ -138,9 +139,6 @@ SWAGGER_SETTINGS = {
     'USE_SESSION_AUTH': False,
     'JSON_EDITOR': True,
 }
-
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_ALL_ORIGINS = DEBUG  # Only in development
 
 CELERY_BROKER_URL = 'redis://localhost:6379/0'
 CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'

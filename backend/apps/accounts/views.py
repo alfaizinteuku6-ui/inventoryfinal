@@ -7,8 +7,20 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import check_password
 from apps.vendors.models import Vendor
 from .serializers import UserSerializer, StaffSerializer, PasswordChangeSerializer
+from django.http import JsonResponse
+from django.middleware.csrf import get_token
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
 
 User = get_user_model()
+
+# backend/apps/auth/views.py
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_csrf_token(request):
+    token = get_token(request)
+    return JsonResponse({'csrfToken': token})
 
 class UserProfileViewSet(viewsets.ViewSet):
     """ViewSet for user profile management"""

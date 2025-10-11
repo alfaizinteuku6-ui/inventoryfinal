@@ -802,3 +802,25 @@ class SaleViewSet(viewsets.ModelViewSet):
             'payment_status': sale.payment_status,
             'sale': serializer.data
         }, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'])
+    def cancel_sale(self, request, pk=None):
+        """
+        Cancel a sale and restore stock.
+        For partially paid sales you must pass either ?refund=true or ?credit=true.
+        """
+        sale = self.get_object()
+
+        # Check flags from query params
+        refund_flag = str(request.query_params.get('refund', 'false')).lower() == 'true'
+        credit_flag = str(request.query_params.get('credit', 'false')).lower() == 'true'
+        
+        success, message = sale.cancel_sale(refund=refund_flag, credit=credit_flag)
+    
+        if not success:
+            return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({
+            'message': message,
+            'sale': self.get_serializer(sale).data
+        })

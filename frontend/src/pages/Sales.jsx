@@ -1,7 +1,7 @@
 import React from "react";
 import { Box } from "@mui/material";
 import { useNavigate } from "react-router-dom";
-import CustomSnackbar from "../components/CusromSnackbar";
+import CustomSnackbar from "../components/CustomSnackbar";
 import CancelSaleModal from "../components/Sale/CancelSaleModal";
 import PaginationComponent from "../components/Pagination";
 import SalesHeader from "../components/Sale/SalesHeader";
@@ -77,7 +77,7 @@ const Sales = () => {
         </>
       ) : (
         <EmptyState
-          icon={<ReceiptLong sx={{ fontSize: 40, color: "rgba(0,0,0,0.3)" }} />}
+          icon={<ReceiptLong sx={{ fontSize: 40 }} />}
           title="No Sales Found"
           description={
             salesState.searchTerm

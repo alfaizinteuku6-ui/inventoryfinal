@@ -18,6 +18,7 @@ venv/
 
 templates/
 static/
+staticfiles/
 
 # Celery
 celerybeat-schedule*

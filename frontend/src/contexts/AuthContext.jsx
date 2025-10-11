@@ -60,7 +60,6 @@ const AuthProvider = ({ children }) => {
   useEffect(() => {
     const initialize = () => {
       const token = localStorage.getItem(TOKEN_STORAGE_KEY);
-
       if (!token || isTokenExpired(token)) {
         clearTokens();
         setAuthState({
@@ -158,7 +157,7 @@ const AuthProvider = ({ children }) => {
 
       return response.data;
     } catch (error) {
-      const errorMessage = error.response?.data?.message || error.message || "Login failed";
+      const errorMessage = error.response?.data?.detail || error.message || "Login failed";
       setAuthState(prev => ({
         ...prev,
         isLoading: false,

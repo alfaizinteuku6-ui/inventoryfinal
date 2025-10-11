@@ -36,7 +36,7 @@ import { useProducts, useCustomers, useSale } from "../hooks/useSWR";
 import { sales } from "../services/api";
 import SaleItemRow from "../components/Sale/SaleItemRow ";
 import CustomerDialog from "../components/Customers/CustomerDailog";
-import CustomSnackbar from "../components/CusromSnackbar";
+import CustomSnackbar from "../components/CustomSnackbar";
 
 const CreateSale = () => {
   const theme = useTheme();

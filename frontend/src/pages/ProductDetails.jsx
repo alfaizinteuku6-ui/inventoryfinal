@@ -481,21 +481,20 @@ const StockHistoryTab = ({ productId }) => {
                       <TableCell>{formatDate(movement.created_at)}</TableCell>
                       <TableCell>
                         <Chip
-                          label={movement.movement_type === "in" ? "Stock In" : "Stock Out"}
+                          label={movement.movement_type}
                           size="small"
-                          color={movement.movement_type === "in" ? "success" : "error"}
+                          color={movement.movement_type !== "sale_cancellation" ? "success" : "error"}
                           variant="outlined"
                         />
                       </TableCell>
                       <TableCell
                         style={{
                           padding: "12px",
-                          color: movement.movement_type === "in" ? "#388e3c" : "#d32f2f",
+                          color: movement.movement_type !== "sale_cancellation"  ? "#388e3c" : "#d32f2f",
                           fontWeight: 600,
                         }}
                       >
-                        {movement.movement_type === "in" ? "+" : "-"}
-                        {Math.abs(movement.quantity)}
+                        {movement.quantity}
                       </TableCell>
                       <TableCell>{movement.reference || "-"}</TableCell>
                       <TableCell>{movement.notes || "-"}</TableCell>

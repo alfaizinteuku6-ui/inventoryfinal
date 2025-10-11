@@ -1,7 +1,7 @@
 // frontend/src/App.jsx
 import React, { Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider, CssBaseline, Box, CircularProgress, Typography, LinearProgress } from '@mui/material';
+import { CssBaseline, Box, CircularProgress, Typography, LinearProgress } from '@mui/material';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 

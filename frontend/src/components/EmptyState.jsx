@@ -29,15 +29,12 @@ const EmptyState = ({
         p: 8,
         textAlign: "center",
         borderRadius: 4,
-        border: "2px dashed rgba(0,0,0,0.1)",
-        bgcolor: "rgba(0,0,0,0.02)",
       }}
     >
       <Avatar
         sx={{
           width: 80,
           height: 80,
-          bgcolor: "rgba(0,0,0,0.04)",
           mx: "auto",
           mb: 3,
         }}
@@ -47,7 +44,7 @@ const EmptyState = ({
       <Typography
         variant="h5"
         fontWeight="600"
-        sx={{ mb: 1, color: "rgba(0,0,0,0.7)" }}
+        sx={{ mb: 1 }}
       >
         {title}
       </Typography>
