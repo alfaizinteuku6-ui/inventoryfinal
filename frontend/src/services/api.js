@@ -166,6 +166,36 @@ export const sales = {
   addPayment: (id, data) => api.post(`/sales/${id}/add_payment/`, data),
 };
 
+export const analytics = {
+  // Dashboard Summary
+  getDashboardSummary: (params) => 
+    api.get('/analytics/dashboard_summary/', { params }),
+  
+  // Sales Trend
+  getSalesTrend: (params) => 
+    api.get('/analytics/sales_trend/', { params }),
+  
+  // Top Products
+  getTopProducts: (params) => 
+    api.get('/top_products/', { params }),
+  
+  // Category Performance
+  getCategoryPerformance: (params) => 
+    api.get('/analytics/category_performance/', { params }),
+  
+  // Customer Analytics
+  getCustomerAnalytics: (params) => 
+    api.get('/analytics/customer_analytics/', { params }),
+  
+  // Inventory Insights
+  getInventoryInsights: (params) => 
+    api.get('/analytics/inventory_insights/', { params }),
+  
+  // Payment Analytics
+  getPaymentAnalytics: (params) => 
+    api.get('/analytics/payment_analytics/', { params }),
+};
+
 export const customers = {
   getAll: (params) => api.get('/customers/', { params }),
   getById: (id) => api.get(`/customers/${id}/`),

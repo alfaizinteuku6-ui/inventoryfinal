@@ -75,7 +75,7 @@ export default defineConfig({
           vendor: ['react', 'react-dom'],
           mui: ['@mui/material', '@mui/icons-material'],
           router: ['react-router-dom'],
-          charts: ['@mui/x-charts']
+          charts: ['@mui/x-charts', 'recharts']
         }
       }
     }

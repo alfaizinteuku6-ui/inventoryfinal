@@ -16,6 +16,8 @@ import {
 
 // Daily Breakdown Table Component
 const DailyBreakdownTable = ({ dailyData }) => {
+  console.log(dailyData);
+  
   return (
     <Card>
       <CardContent>

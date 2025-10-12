@@ -1,9 +1,19 @@
 import useSWR from 'swr';
-import { products, categories, sales, customers, vendors, stockMovements, accounts, notifications } from '../services/api';
+import {
+  products,
+  categories,
+  sales,
+  customers,
+  vendors,
+  stockMovements,
+  accounts,
+  notifications,
+  analytics,
+} from '../services/api';
 
 const fetcher = (url, params) => {
   const [endpoint, ...args] = url.split('|');
-  
+
   switch (endpoint) {
     case 'products':
       return products.getAll(params).then(res => res.data);
@@ -43,6 +53,23 @@ const fetcher = (url, params) => {
       return notifications.getStats().then(res => res.data);
     case 'notifications-recent':
       return notifications.getRecent().then(res => res.data);
+
+    // ✅ New Analytics Endpoints
+    case 'analytics-dashboard':
+      return analytics.getDashboardSummary(params).then(res => res.data);
+    case 'analytics-sales-trend':
+      return analytics.getSalesTrend(params).then(res => res.data);
+    case 'analytics-top-products':
+      return analytics.getTopProducts(params).then(res => res.data);
+    case 'analytics-category-performance':
+      return analytics.getCategoryPerformance(params).then(res => res.data);
+    case 'analytics-customer':
+      return analytics.getCustomerAnalytics(params).then(res => res.data);
+    case 'analytics-inventory':
+      return analytics.getInventoryInsights(params).then(res => res.data);
+    case 'analytics-payment':
+      return analytics.getPaymentAnalytics(params).then(res => res.data);
+
     default:
       throw new Error(`Unknown endpoint: ${endpoint}`);
   }
@@ -50,16 +77,35 @@ const fetcher = (url, params) => {
 
 export const useAuthUser = (shouldFetch = true) => {
   return useSWR(shouldFetch ? 'auth-user' : null, fetcher, {
-    shouldRetryOnError: (error) => {
-      // Don't retry on auth errors
-      return error?.response?.status !== 401 && error?.response?.status !== 403;
-    },
+    shouldRetryOnError: (error) => error?.response?.status !== 401 && error?.response?.status !== 403,
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
     errorRetryCount: 1,
     errorRetryInterval: 5000,
   });
 };
+
+// Analytics Hooks
+export const useDashboardSummary = (params = {}) =>
+  useSWR(['analytics-dashboard', params], ([url, params]) => fetcher(url, params));
+
+export const useSalesTrend = (params = {}) =>
+  useSWR(['analytics-sales-trend', params], ([url, params]) => fetcher(url, params));
+
+export const useTopProducts = (params = {}) =>
+  useSWR(['analytics-top-products', params], ([url, params]) => fetcher(url, params));
+
+export const useCategoryPerformance = (params = {}) =>
+  useSWR(['analytics-category-performance', params], ([url, params]) => fetcher(url, params));
+
+export const useCustomerAnalytics = (params = {}) =>
+  useSWR(['analytics-customer', params], ([url, params]) => fetcher(url, params));
+
+export const useInventoryInsights = (params = {}) =>
+  useSWR(['analytics-inventory', params], ([url, params]) => fetcher(url, params));
+
+export const usePaymentAnalytics = (params = {}) =>
+  useSWR(['analytics-payment', params], ([url, params]) => fetcher(url, params));
 
 export const useSalesDashboard = (params = {}) => {
   return useSWR(['sales-dashboard', params], ([url, params]) => fetcher(url, params));

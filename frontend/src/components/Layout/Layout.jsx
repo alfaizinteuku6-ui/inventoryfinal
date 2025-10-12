@@ -61,6 +61,7 @@ const menuItems = [
     path: "/customers",
     color: "#5e35b1",
   },
+  { text: "Analytics Dashboard", icon: <DashboardIcon />, path: "/analytics", color: "#1976d2" },
 ];
 
 const Layout = () => {
@@ -376,7 +377,7 @@ const Layout = () => {
         component="main"
         sx={{
           flexGrow: 1,
-          width: `calc(100vw - ${drawerWidth + 15}px)`,
+          width: `calc(100vw - ${drawerWidth + 19}px)`,
           minHeight: "100vh",
           backgroundColor: theme.palette.background.default,
         }}

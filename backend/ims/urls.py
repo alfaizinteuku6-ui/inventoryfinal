@@ -8,7 +8,8 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 # API Router
 from apps.inventory.views import CategoryViewSet, ProductViewSet, StockMovementViewSet
-from apps.sales.views import SaleViewSet
+from apps.sales.views.views import SaleViewSet
+from apps.sales.views.analytics import SalesAnalyticsViewSet
 from apps.customers.views import CustomerViewSet
 from apps.vendors.views import VendorViewSet
 from apps.notifications.views import NotificationViewSet
@@ -43,6 +44,7 @@ router.register('sales', SaleViewSet)
 router.register(r'customers', CustomerViewSet, basename='customer')
 router.register(r'vendors', VendorViewSet, basename='vendor')
 router.register(r'notifications', NotificationViewSet, basename='notification')
+router.register(r'analytics', SalesAnalyticsViewSet, basename='analytics')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
