@@ -10,7 +10,7 @@ const ProductsList = ({
   products,
   isLoading,
   currentPage,
-  onMenuOpen,
+  handleDeleteClick,
   debouncedSearchQuery,
   categoryFilter,
   onClearFilters,
@@ -50,7 +50,7 @@ const ProductsList = ({
           <ProductCard
             product={product}
             index={index}
-            onMenuOpen={onMenuOpen}
+            onDelete={handleDeleteClick}
           />
         </Grid>
       ))}

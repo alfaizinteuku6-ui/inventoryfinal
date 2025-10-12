@@ -177,7 +177,7 @@ export const analytics = {
   
   // Top Products
   getTopProducts: (params) => 
-    api.get('/top_products/', { params }),
+    api.get('/analytics/top_products/', { params }),
   
   // Category Performance
   getCategoryPerformance: (params) => 

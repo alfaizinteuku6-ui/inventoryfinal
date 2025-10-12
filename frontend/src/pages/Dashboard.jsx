@@ -1,543 +1,284 @@
-import React, { useState } from "react";
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   Box,
+  Container,
   Grid,
-  Card,
-  CardContent,
   Typography,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  Chip,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemIcon,
   IconButton,
-  Stack,
-  CircularProgress,
-  Avatar,
-  Tab,
-  Tabs,
-  Divider,
-} from "@mui/material";
+  LinearProgress,
+  useTheme,
+  alpha,
+  Button,
+  ButtonGroup,
+  Tooltip,
+} from '@mui/material';
 import {
   TrendingUp,
   AttachMoney,
   ShoppingCart,
-  Assessment,
   Refresh,
-  AccountBalance,
-  Star,
-  Timeline,
-  CheckCircle,
-  Receipt,
-  TrendingDown,
-} from "@mui/icons-material";
-import { useSalesDashboard, useSalesReport } from "../hooks/useSWR";
-import { LineChart } from "@mui/x-charts/LineChart";
-import { PieChart } from "@mui/x-charts/PieChart";
-import MetricCard from "../components/Dashboard/MetricCard";
-import PaymentStatusCard from "../components/Dashboard/PaymentStatusCard";
-import PerformanceIndicators from "../components/Dashboard/PerformanceIndicators";
-import DailyBreakdownTable from "../components/Dashboard/DailyBreakdownTable";
+  Timer,
+} from '@mui/icons-material';
+import {
+  useDashboardSummary,
+  useSalesTrend,
+  useTopProducts,
+  useCategoryPerformance,
+  useCustomerAnalytics,
+  useInventoryInsights,
+  usePaymentAnalytics,
+} from '../hooks/useSWR';
+import { formatCurrency, formatNumber } from '../utils/utilitys';
+import StatCard from '../components/Dashboard/StatCard';
+import SalesTrendChart from '../components/Dashboard/SalesTrendChart';
+import PaymentStatusChart from '../components/Dashboard/PaymentStatusChart';
+import TopProductsTable from '../components/Dashboard/TopProductsTable';
+import CategoryPerformanceChart from '../components/Dashboard/CategoryPerformanceChart';
+import InventoryAlerts from '../components/Dashboard/InventoryAlerts';
+import TopCustomers from '../components/Dashboard/TopCustomers';
+import PaymentAnalytics from '../components/Dashboard/PaymentAnalytics';
+import PaymentMethodsChart from '../components/Dashboard/PaymentMethodsChart';
 
-// Chart colors array (define this in your constants)
-const CHART_COLORS = ["#1976d2", "#dc004e", "#ed6c02", "#2e7d32", "#9c27b0"];
+const PERIOD_OPTIONS = ['day', 'week', 'month', 'year'];
 
-// Main Dashboard Component
+// ==================== MAIN DASHBOARD COMPONENT ====================
 const Dashboard = () => {
-  const [timeRange, setTimeRange] = useState("30");
-  const [activeTab, setActiveTab] = useState(0);
+  const theme = useTheme();
+  const [period, setPeriod] = useState('month');
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const endDate = new Date().toISOString().split("T")[0];
-  const startDate = new Date(Date.now() - timeRange * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .split("T")[0];
+  // SWR hooks for data fetching
+  const { data: dashboardData, isLoading: loadingDashboard, mutate: refetchDashboard } = useDashboardSummary({ period });
+  const { data: trendData, isLoading: loadingTrend, mutate: refetchTrend } = useSalesTrend({ period, group_by: 'day' });
+  const { data: topProducts, isLoading: loadingProducts, mutate: refetchProducts } = useTopProducts({ period, limit: 10 });
+  const { data: categoryData, isLoading: loadingCategory, mutate: refetchCategory } = useCategoryPerformance({ period });
+  const { data: customerData, isLoading: loadingCustomers, mutate: refetchCustomers } = useCustomerAnalytics({ period, limit: 10 });
+  const { data: inventoryData, isLoading: loadingInventory, mutate: refetchInventory } = useInventoryInsights();
+  const { data: paymentData, isLoading: loadingPayments, mutate: refetchPayments } = usePaymentAnalytics({ period });
 
-  const {
-    data: dashboardData,
-    isLoading: dashboardLoading,
-    error: dashboardError,
-    mutate: mutateDashboard,
-  } = useSalesDashboard({
-    start_date: startDate,
-    end_date: endDate,
-  });
+  const isLoading = loadingDashboard || loadingTrend || loadingProducts || loadingCategory || loadingCustomers || loadingInventory || loadingPayments;
 
-  const {
-    data: salesReport,
-    isLoading: reportsLoading,
-    error: reportsError,
-    mutate: mutateReports,
-  } = useSalesReport({
-    start_date: startDate,
-    end_date: endDate,
-  });
+  // Refresh all data
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await Promise.all([
+        refetchDashboard(),
+        refetchTrend(),
+        refetchProducts(),
+        refetchCategory(),
+        refetchCustomers(),
+        refetchInventory(),
+        refetchPayments(),
+      ]);
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 1000);
+    }
+  }, [refetchDashboard, refetchTrend, refetchProducts, refetchCategory, refetchCustomers, refetchInventory, refetchPayments]);
 
-  const loading = dashboardLoading || reportsLoading;
-
-  const handleRefresh = () => {
-    mutateDashboard();
-    mutateReports();
-  };
-
-  if (loading) {
-    return (
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        minHeight="60vh"
-      >
-        <Box textAlign="center">
-          <CircularProgress size={60} />
-          <Typography variant="h6" sx={{ mt: 2 }}>
-            Loading Analytics...
-          </Typography>
-        </Box>
-      </Box>
-    );
-  }
-
-  const periodData = dashboardData?.period || dashboardData?.monthly;
-  const todayData = dashboardData?.today;
+  const summary = useMemo(() => dashboardData?.summary || {}, [dashboardData]);
+  const trend = useMemo(() => summary.revenue_change_percent >= 0 ? 'up' : 'down', [summary.revenue_change_percent]);
 
   return (
-    <Box sx={{ flexGrow: 1, p: 3 }}>
-      {/* Header */}
-      <Box
-        display="flex"
-        justifyContent="space-between"
-        alignItems="center"
-        mb={4}
-      >
-        <Box>
-          <Typography variant="h4" component="h1" fontWeight="bold">
-            Sales Analytics Dashboard
-          </Typography>
-          <Typography variant="body1" color="text.secondary" sx={{ mt: 1 }}>
-            Real-time insights and performance metrics
-          </Typography>
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', py: 3 }}>
+      <Container maxWidth="xl">
+        {/* Header */}
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={4} flexWrap="wrap" gap={2}>
+          <Box>
+            <Typography variant="h3" fontWeight="bold" gutterBottom sx={{ 
+              background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+              backgroundClip: 'text',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+            }}>
+              Analytics Dashboard
+            </Typography>
+            <Typography variant="body1" color="text.secondary">
+              Real-time insights and performance metrics
+            </Typography>
+          </Box>
+          
+          <Box display="flex" gap={2} alignItems="center" flexWrap="wrap">
+            <ButtonGroup variant="outlined" size="medium">
+              {PERIOD_OPTIONS.map((p) => (
+                <Button
+                  key={p}
+                  onClick={() => setPeriod(p)}
+                  variant={period === p ? 'contained' : 'outlined'}
+                  sx={{ 
+                    textTransform: 'capitalize',
+                    minWidth: 80,
+                    fontWeight: 600
+                  }}
+                >
+                  {p}
+                </Button>
+              ))}
+            </ButtonGroup>
+            
+            <Tooltip title="Refresh Data">
+              <IconButton 
+                onClick={handleRefresh} 
+                disabled={isRefreshing}
+                sx={{ 
+                  bgcolor: 'background.paper',
+                  border: `2px solid ${theme.palette.primary.main}`,
+                  '&:hover': {
+                    bgcolor: alpha(theme.palette.primary.main, 0.1),
+                    transform: 'rotate(180deg)',
+                  },
+                  transition: 'all 0.5s ease'
+                }}
+              >
+                <Refresh className={isRefreshing ? 'spin' : ''} />
+              </IconButton>
+            </Tooltip>
+          </Box>
         </Box>
-        <Stack direction="row" spacing={2} alignItems="center">
-          <FormControl size="small" sx={{ minWidth: 120 }}>
-            <InputLabel>Time Range</InputLabel>
-            <Select
-              value={timeRange}
-              label="Time Range"
-              onChange={(e) => setTimeRange(e.target.value)}
-            >
-              <MenuItem value="1">Last 1 day</MenuItem>
-              <MenuItem value="7">Last 7 days</MenuItem>
-              <MenuItem value="30">Last 30 days</MenuItem>
-              <MenuItem value="90">Last 90 days</MenuItem>
-            </Select>
-          </FormControl>
-          <IconButton
-            onClick={handleRefresh}
-            color="primary"
-            sx={{
-              bgcolor: "primary.main",
-              color: "white",
-              "&:hover": { bgcolor: "primary.dark" },
-            }}
-          >
-            <Refresh />
-          </IconButton>
-        </Stack>
-      </Box>
 
-      {/* Tabs */}
-      <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }}>
-        <Tabs
-          value={activeTab}
-          onChange={(e, newValue) => setActiveTab(newValue)}
-        >
-          <Tab label="Overview" />
-          <Tab label="Detailed Analytics" />
-          <Tab label="Performance" />
-        </Tabs>
-      </Box>
+        {/* Loading bar */}
+        {isLoading && (
+          <Box mb={2}>
+            <LinearProgress />
+          </Box>
+        )}
 
-      {/* Tab Content */}
-      {activeTab === 0 && (
-        <>
-          {/* Key Metrics */}
-          <Grid container spacing={3} sx={{ mb: 4 }}>
-            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-              <MetricCard
-                title="Today's Revenue"
-                value={`₹${
-                  todayData?.revenue_metrics?.gross_revenue?.toLocaleString() ||
-                  "0"
-                }`}
-                change={todayData?.vs_yesterday?.changes?.revenue_change}
-                subtitle={`${todayData?.total_sales_count || 0} transactions`}
-                icon={AttachMoney}
-                color="success"
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-              <MetricCard
-                title="Period Revenue"
-                value={`₹${
-                  periodData?.revenue_metrics?.gross_revenue?.toLocaleString() ||
-                  "0"
-                }`}
-                change={periodData?.vs_previous_period?.changes?.revenue_change}
-                subtitle={`${periodData?.total_sales_count || 0} orders`}
-                icon={TrendingUp}
-                color="primary"
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-              <MetricCard
-                title="Average Order Value"
-                value={`₹${periodData?.average_sale_value?.toFixed(0) || "0"}`}
-                change={
-                  periodData?.vs_previous_period?.changes?.avg_sale_change
-                }
-                subtitle="Period average"
-                icon={Assessment}
-                color="info"
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-              <MetricCard
-                title="Total Items Sold"
-                value={periodData?.total_items_sold?.toLocaleString() || "0"}
-                subtitle="This period"
-                icon={ShoppingCart}
-                color="warning"
-              />
-            </Grid>
+        {/* Key Metrics */}
+        <Grid container spacing={3} mb={4}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <StatCard
+              title="Total Revenue"
+              value={formatCurrency(summary.total_revenue)}
+              subtitle={`${formatNumber(summary.total_sales)} sales`}
+              icon={AttachMoney}
+              trend={trend}
+              trendValue={`${Math.abs(summary.revenue_change_percent || 0)}%`}
+              color="primary"
+              loading={loadingDashboard}
+            />
           </Grid>
-
-          {/* Revenue Metrics */}
-          <Grid container spacing={3} sx={{ mb: 4 }}>
-            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-              <MetricCard
-                title="Effective Revenue"
-                value={`₹${
-                  periodData?.revenue_metrics?.effective_revenue?.toLocaleString() ||
-                  "0"
-                }`}
-                subtitle="Actual collected"
-                icon={CheckCircle}
-                color="success"
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-              <MetricCard
-                title="Total Paid"
-                value={`₹${
-                  periodData?.payment_metrics?.total_paid?.toLocaleString() ||
-                  "0"
-                }`}
-                subtitle={`${
-                  periodData?.payment_metrics?.collection_rate?.toFixed(1) || 0
-                }% collected`}
-                icon={Receipt}
-                color="primary"
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-              <MetricCard
-                title="Tax Collected"
-                value={`₹${
-                  periodData?.revenue_metrics?.total_tax_collected?.toLocaleString() ||
-                  "0"
-                }`}
-                subtitle="Total tax amount"
-                icon={AccountBalance}
-                color="info"
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-              <MetricCard
-                title="Discounts Given"
-                value={`₹${
-                  periodData?.revenue_metrics?.total_discount_given?.toLocaleString() ||
-                  "0"
-                }`}
-                subtitle="Total discounts"
-                icon={TrendingDown}
-                color="warning"
-              />
-            </Grid>
+          
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <StatCard
+              title="Total Profit"
+              value={formatCurrency(summary.total_profit)}
+              subtitle={`${summary.profit_margin}% margin`}
+              icon={TrendingUp}
+              color="success"
+              loading={loadingDashboard}
+            />
           </Grid>
-
-          {/* Charts Section */}
-          <Grid container spacing={3} sx={{ mb: 4 }}>
-            {/* Sales Trend Chart */}
-            <Grid size={{ xs: 12, lg: 8 }}>
-              <Card>
-                <CardContent>
-                  <Box
-                    display="flex"
-                    justifyContent="space-between"
-                    alignItems="center"
-                    mb={3}
-                  >
-                    <Typography variant="h6" fontWeight="bold">
-                      Sales Trend
-                    </Typography>
-                    <Timeline color="action" />
-                  </Box>
-                  <Box height={400}>
-                    <LineChart
-                      dataset={(
-                        periodData?.analytics?.period_daily_breakdown ||
-                        dashboardData?.monthly?.monthly_daily_breakdown ||
-                        []
-                      ).map((item) => ({
-                        ...item,
-                        day: new Date(item.day).getTime(), // Convert to timestamp
-                        gross_revenue: Number(item.gross_revenue) || 0, // Ensure numeric
-                      }))}
-                      xAxis={[
-                        {
-                          dataKey: "day",
-                          scaleType: "time",
-                          valueFormatter: (value) =>
-                            new Date(value).toLocaleDateString("en-IN", {
-                              month: "short",
-                              day: "numeric",
-                            }),
-                        },
-                      ]}
-                      yAxis={[
-                        {
-                          valueFormatter: (value) =>
-                            `₹${(value / 1000).toFixed(0)}K`,
-                        },
-                      ]}
-                      series={[
-                        {
-                          dataKey: "gross_revenue",
-                          label: "Revenue",
-                          color: "#1976d2",
-                          area: true,
-                          curve: "linear",
-                        },
-                      ]}
-                      height={400}
-                      margin={{ left: 25, right: 20, top: 20, bottom: 50 }}
-                      grid={{ horizontal: true, vertical: true }}
-                      slotProps={{
-                        tooltip: {
-                          formatter: (params) => {
-                            if (params && params.value !== undefined) {
-                              return `₹${Number(
-                                params.value
-                              ).toLocaleString()}`;
-                            }
-                            return "";
-                          },
-                        },
-                      }}
-                      sx={{
-                        "& .MuiAreaElement-root": {
-                          fillOpacity: 0.3,
-                        },
-                      }}
-                    />
-                  </Box>
-                </CardContent>
-              </Card>
-            </Grid>
-
-            {/* Payment Methods Breakdown */}
-            <Grid size={{ xs: 12, lg: 4 }}>
-              <Card sx={{ height: "100%" }}>
-                <CardContent>
-                  <Typography variant="h6" fontWeight="bold" gutterBottom>
-                    Payment Methods
-                  </Typography>
-                  <Box height={300}>
-                    <PieChart
-                      series={[
-                        {
-                          data: (
-                            periodData?.analytics?.period_payment_methods ||
-                            dashboardData?.monthly?.monthly_payment_methods ||
-                            []
-                          ).map((item, index) => ({
-                            id: index,
-                            value: item.revenue,
-                            label: item.payment_method?.toUpperCase(),
-                            color: CHART_COLORS[index % CHART_COLORS.length],
-                          })),
-                          innerRadius: 60,
-                          outerRadius: 100,
-                          paddingAngle: 5,
-                          cornerRadius: 0,
-                          highlightScope: {
-                            faded: "global",
-                            highlighted: "item",
-                          },
-                          faded: {
-                            innerRadius: 30,
-                            additionalRadius: -30,
-                            color: "gray",
-                          },
-                        },
-                      ]}
-                      width={undefined}
-                      height={300}
-                      tooltip={{
-                        formatter: (params) => {
-                          const value = params.value;
-                          return `₹${value?.toLocaleString()}`;
-                        },
-                      }}
-                      slotProps={{
-                        legend: {
-                          direction: "column",
-                          position: { vertical: "middle", horizontal: "right" },
-                          padding: 0,
-                        },
-                      }}
-                    />
-                  </Box>
-                </CardContent>
-              </Card>
-            </Grid>
+          
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <StatCard
+              title="Outstanding"
+              value={formatCurrency(summary.total_due)}
+              subtitle={`${paymentData?.outstanding?.count || 0} invoices`}
+              icon={Timer}
+              color="warning"
+              loading={loadingDashboard}
+            />
           </Grid>
-
-          {/* Top Products and Customers */}
-          <Grid container spacing={3}>
-            <Grid size={{ xs: 12, md: 6 }}>
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" fontWeight="bold" gutterBottom>
-                    Top Selling Products
-                  </Typography>
-                  <List>
-                    {dashboardData?.insights?.top_products
-                      ?.slice(0, 5)
-                      .map((product, index) => (
-                        <React.Fragment key={product.product__name}>
-                          <ListItem sx={{ px: 0 }}>
-                            <ListItemIcon>
-                              <Avatar
-                                sx={{
-                                  bgcolor: CHART_COLORS[index],
-                                  width: 32,
-                                  height: 32,
-                                }}
-                              >
-                                {index + 1}
-                              </Avatar>
-                            </ListItemIcon>
-                            <ListItemText
-                              primary={
-                                <Typography variant="body2" noWrap>
-                                  {product.product__name?.substring(0, 50)}...
-                                </Typography>
-                              }
-                              secondary={`${product.total_quantity} units • ${product.total_orders} orders`}
-                            />
-                            <Box textAlign="right">
-                              <Typography variant="body1" fontWeight="bold">
-                                ₹{product.total_revenue?.toLocaleString()}
-                              </Typography>
-                            </Box>
-                          </ListItem>
-                          {index < 4 && <Divider />}
-                        </React.Fragment>
-                      ))}
-                  </List>
-                </CardContent>
-              </Card>
-            </Grid>
-
-            <Grid size={{ xs: 12, md: 6 }}>
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" fontWeight="bold" gutterBottom>
-                    Top Customers
-                  </Typography>
-                  <List>
-                    {dashboardData?.insights?.top_customers
-                      ?.slice(0, 5)
-                      .map((customer, index) => (
-                        <React.Fragment key={customer.customer__name}>
-                          <ListItem sx={{ px: 0 }}>
-                            <ListItemIcon>
-                              <Avatar sx={{ bgcolor: "primary.main" }}>
-                                {customer.customer__name?.charAt(0)}
-                              </Avatar>
-                            </ListItemIcon>
-                            <ListItemText
-                              primary={customer.customer__name}
-                              secondary={`${customer.order_count} orders • ${customer.items_purchased} items`}
-                            />
-                            <Box textAlign="right">
-                              <Typography variant="body1" fontWeight="bold">
-                                ₹{customer.total_purchases?.toLocaleString()}
-                              </Typography>
-                              {index === 0 && (
-                                <Chip
-                                  label="VIP"
-                                  size="small"
-                                  color="warning"
-                                  icon={
-                                    <Star
-                                      sx={{ fontSize: "16px !important" }}
-                                    />
-                                  }
-                                />
-                              )}
-                            </Box>
-                          </ListItem>
-                          {index < 4 && <Divider />}
-                        </React.Fragment>
-                      ))}
-                  </List>
-                </CardContent>
-              </Card>
-            </Grid>
-          </Grid>
-        </>
-      )}
-
-      {activeTab === 1 && (
-        <>
-          {/* Payment Status Breakdown */}
-          <Grid container spacing={3} sx={{ mb: 4 }}>
-            <Grid size={{ xs: 12 }}>
-              <PaymentStatusCard paymentData={periodData?.payment_metrics} />
-            </Grid>
-          </Grid>
-
-          {/* Daily Breakdown Table */}
-          <Grid container spacing={3}>
-            <Grid size={{ xs: 12 }}>
-              <DailyBreakdownTable
-                dailyData={
-                  salesReport?.detailed_analytics?.report_daily_breakdown ||
-                  periodData?.analytics?.period_daily_breakdown ||
-                  dashboardData?.monthly?.monthly_daily_breakdown
-                }
-              />
-            </Grid>
-          </Grid>
-        </>
-      )}
-
-      {activeTab === 2 && (
-        <Grid container spacing={3}>
-          <Grid size={{ xs: 12 }}>
-            <PerformanceIndicators
-              performanceData={periodData?.performance_indicators}
-              alerts={dashboardData?.insights?.alerts}
+          
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <StatCard
+              title="Average Order"
+              value={formatCurrency(summary.average_order_value)}
+              subtitle="Per transaction"
+              icon={ShoppingCart}
+              color="info"
+              loading={loadingDashboard}
             />
           </Grid>
         </Grid>
-      )}
+
+        {/* Sales Trend & Payment Status */}
+        <Grid container spacing={3} mb={4}>
+          <Grid size={{ xs: 12, lg: 8 }}>
+            <SalesTrendChart 
+              data={trendData?.data} 
+              loading={loadingTrend} 
+              period={period} 
+            />
+          </Grid>
+          <Grid size={{ xs: 12, lg: 4 }}>
+            <PaymentStatusChart 
+              data={dashboardData?.payment_status} 
+              loading={loadingDashboard} 
+            />
+          </Grid>
+        </Grid>
+
+        {/* Top Products & Category Performance */}
+        <Grid container spacing={3} mb={4}>
+          <Grid size={{ xs: 12, lg: 6 }}>
+            <TopProductsTable 
+              products={topProducts} 
+              loading={loadingProducts} 
+            />
+          </Grid>
+          <Grid size={{ xs: 12, lg: 6 }}>
+            <CategoryPerformanceChart 
+              data={categoryData} 
+              loading={loadingCategory} 
+            />
+          </Grid>
+        </Grid>
+
+        {/* Inventory & Customers */}
+        <Grid container spacing={3} mb={4}>
+          <Grid size={{ xs: 12, lg: 6 }}>
+            <InventoryAlerts 
+              data={inventoryData} 
+              loading={loadingInventory} 
+            />
+          </Grid>
+          <Grid size={{ xs: 12, lg: 6 }}>
+            <TopCustomers 
+              data={customerData} 
+              loading={loadingCustomers} 
+            />
+          </Grid>
+        </Grid>
+
+        {/* Payment Analytics */}
+        <Grid container spacing={3} mb={4}>
+          <Grid size={{ xs: 12 }}>
+            <PaymentAnalytics 
+              data={paymentData} 
+              loading={loadingPayments} 
+            />
+          </Grid>
+        </Grid>
+
+        {/* Payment Methods Distribution */}
+        <Grid container spacing={3}>
+          <Grid size={{ xs: 12 }}>
+            <PaymentMethodsChart 
+              data={dashboardData?.payment_methods} 
+              loading={loadingDashboard} 
+            />
+          </Grid>
+        </Grid>
+
+      </Container>
+      
+      {/* Animations */}
+      <style>{`
+        .spin {
+          animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </Box>
   );
 };

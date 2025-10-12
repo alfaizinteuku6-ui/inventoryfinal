@@ -46,59 +46,6 @@ class ProductViewSet(viewsets.ModelViewSet):
         instance.is_active = False
         instance.save()
 
-    def list(self, request, *args, **kwargs):
-        """Enhanced list method with dashboard statistics"""
-        # Get the filtered queryset (respects filters, search, etc.)
-        queryset = self.filter_queryset(self.get_queryset())
-        
-        # Paginate the products
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            paginated_response = self.get_paginated_response(serializer.data)
-            
-            # Add dashboard statistics to paginated response
-            paginated_response.data['dashboard_stats'] = self._get_dashboard_stats()
-            return paginated_response
-
-        # If no pagination, return all products with stats
-        serializer = self.get_serializer(queryset, many=True)
-        return Response({
-            'results': serializer.data,
-            'dashboard_stats': self._get_dashboard_stats()
-        })
-
-    def _get_dashboard_stats(self):
-        """Calculate dashboard statistics"""
-        base_queryset = Product.objects.filter(is_active=True)
-        
-        # Calculate metrics using aggregation for better performance
-        stats = base_queryset.aggregate(
-            total_products=Count('id'),
-            total_inventory_value=Coalesce(
-                Sum(
-                    Cast(F('stock_quantity'), DecimalField(max_digits=10, decimal_places=2)) * F('cost_price'),
-                    output_field=DecimalField(max_digits=15, decimal_places=2)
-                ),
-                Value(0, output_field=DecimalField(max_digits=15, decimal_places=2)),
-                output_field=DecimalField(max_digits=15, decimal_places=2)
-            ),
-            low_stock_count=Count('id', filter=Q(stock_quantity__lte=F('min_stock_level'))),
-            out_of_stock_count=Count('id', filter=Q(stock_quantity=0))
-        )
-        
-        return {
-            'total_products': stats['total_products'],
-            'total_inventory_value': float(stats['total_inventory_value']),
-            'low_stock_alert': stats['low_stock_count'],
-            'out_of_stock': stats['out_of_stock_count']
-        }
-
-    @action(detail=False, methods=['get'])
-    def dashboard_stats(self, request):
-        """Get only dashboard statistics without products"""
-        return Response(self._get_dashboard_stats())
-
     @action(detail=False, methods=['get'])
     def low_stock(self, request):
         """Get products with low stock"""

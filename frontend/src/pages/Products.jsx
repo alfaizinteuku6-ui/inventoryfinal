@@ -17,10 +17,8 @@ import { products as productsApi } from "../services/api";
 // Component imports
 import HeaderCard from "../components/HeaderCard";
 import PaginationComponent from "../components/Pagination";
-import ProductsStats from "../components/Products/ProductsStats";
 import ProductFilters from "../components/Products/ProductFilters";
 import ProductsList from "../components/Products/ProductsList";
-import ProductContextMenu from "../components/Products/ProductContextMenu";
 import DeleteProductDialog from "../components/Products/DeleteProductDialog";
 import ProductsSpeedDial from "../components/Products/ProductsSpeedDial";
 
@@ -41,7 +39,6 @@ const Products = () => {
     categoryFilter,
     sortBy,
     sortOrder,
-    anchorEl,
     selectedProduct,
     deleteDialogOpen,
     snackbar,
@@ -54,8 +51,6 @@ const Products = () => {
     handleSortChange,
     handleSortOrderToggle,
     handleClearFilters,
-    handleMenuOpen,
-    handleMenuClose,
     handleDeleteClick,
     handleDeleteCancel,
     showSnackbar,
@@ -77,7 +72,6 @@ const Products = () => {
   const products = productsData?.results || [];
   const totalCount = productsData?.count || 0;
   const totalPages = Math.ceil(totalCount / itemsPerPage);
-  const dashboardStats = productsData?.dashboard_stats || {};
 
   // Delete handler
   const handleDeleteConfirm = async () => {
@@ -143,9 +137,6 @@ const Products = () => {
         }
       />
 
-      {/* Stats Cards */}
-      <ProductsStats dashboardStats={dashboardStats} />
-
       {/* Search, Filter and View Controls */}
       <ProductFilters
         searchQuery={searchQuery}
@@ -170,7 +161,7 @@ const Products = () => {
         products={products}
         isLoading={isLoading}
         currentPage={currentPage}
-        onMenuOpen={handleMenuOpen}
+        handleDeleteClick={handleDeleteClick}
         debouncedSearchQuery={debouncedSearchQuery}
         categoryFilter={categoryFilter}
         onClearFilters={handleClearFilters}
@@ -192,14 +183,6 @@ const Products = () => {
           />
         </Box>
       )}
-
-      {/* Context Menu */}
-      <ProductContextMenu
-        anchorEl={anchorEl}
-        selectedProduct={selectedProduct}
-        onClose={handleMenuClose}
-        onDeleteClick={handleDeleteClick}
-      />
 
       {/* Delete Confirmation Dialog */}
       <DeleteProductDialog

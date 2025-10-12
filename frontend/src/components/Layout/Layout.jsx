@@ -61,7 +61,6 @@ const menuItems = [
     path: "/customers",
     color: "#5e35b1",
   },
-  { text: "Analytics Dashboard", icon: <DashboardIcon />, path: "/analytics", color: "#1976d2" },
 ];
 
 const Layout = () => {

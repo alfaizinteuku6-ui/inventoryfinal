@@ -25,7 +25,6 @@ export const useProductsState = (initialConfig = {}) => {
   const [sortOrder, setSortOrder] = useState(defaultConfig.initialSortOrder);
 
   // UI state
-  const [anchorEl, setAnchorEl] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [snackbar, setSnackbar] = useState({
@@ -172,22 +171,12 @@ export const useProductsState = (initialConfig = {}) => {
     }
   }, [searchQuery, debouncedSearchQuery, categoryFilter, currentPage]);
 
-  // Menu handlers
-  const handleMenuOpen = useCallback((event, product) => {
-    setAnchorEl(event.currentTarget);
-    setSelectedProduct(product);
-  }, []);
-
-  const handleMenuClose = useCallback(() => {
-    setAnchorEl(null);
-    setSelectedProduct(null);
-  }, []);
-
   // Delete handlers
-  const handleDeleteClick = useCallback(() => {
+  const handleDeleteClick = useCallback((event, product) => {
+    console.log(event, product);
+    setSelectedProduct(product);
     setDeleteDialogOpen(true);
-    handleMenuClose();
-  }, [handleMenuClose]);
+  }, []);
 
   const handleDeleteCancel = useCallback(() => {
     setDeleteDialogOpen(false);
@@ -260,7 +249,6 @@ export const useProductsState = (initialConfig = {}) => {
     setCategoryFilter("all");
     setSortBy(defaultConfig.initialSortBy);
     setSortOrder(defaultConfig.initialSortOrder);
-    setAnchorEl(null);
     setSelectedProduct(null);
     setDeleteDialogOpen(false);
     setBulkActions({ selectedIds: [], isSelectAll: false });
@@ -279,8 +267,6 @@ export const useProductsState = (initialConfig = {}) => {
   const isFirstPage = currentPage === 1;
   const hasCategoryFilter = categoryFilter !== "all";
   const hasSelectedItems = bulkActions.selectedIds.length > 0;
-  const isMenuOpen = Boolean(anchorEl);
-
   // URL state management helpers
   const getUrlParams = useCallback(() => {
     const params = new URLSearchParams();
@@ -323,7 +309,6 @@ export const useProductsState = (initialConfig = {}) => {
     categoryFilter,
     sortBy,
     sortOrder,
-    anchorEl,
     selectedProduct,
     deleteDialogOpen,
     snackbar,
@@ -337,7 +322,6 @@ export const useProductsState = (initialConfig = {}) => {
     isFirstPage,
     hasCategoryFilter,
     hasSelectedItems,
-    isMenuOpen,
 
     // Pagination handlers
     handlePageChange,
@@ -354,10 +338,6 @@ export const useProductsState = (initialConfig = {}) => {
     // Sort handlers
     handleSortChange,
     handleSortOrderToggle,
-
-    // Menu handlers
-    handleMenuOpen,
-    handleMenuClose,
 
     // Delete handlers
     handleDeleteClick,
@@ -390,7 +370,6 @@ export const useProductsState = (initialConfig = {}) => {
     setSortOrder,
     setDeleteDialogOpen,
     setSelectedProduct,
-    setAnchorEl,
     setIsRefreshing,
   };
 };

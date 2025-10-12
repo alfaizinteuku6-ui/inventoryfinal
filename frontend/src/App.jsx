@@ -14,7 +14,6 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { ThemeContextProvider } from './contexts/ThemeContext';
 // Lazy load pages for better performance
 const Dashboard = React.lazy(() => import('./pages/Dashboard'));
-const AnalyticsDashboard = React.lazy(() => import('./pages/AnalyticsDashboard'));
 const Products = React.lazy(() => import('./pages/Products'));
 const ProductForm = React.lazy(() => import('./pages/ProductForm'));
 const Sales = React.lazy(() => import('./pages/Sales'));
@@ -111,7 +110,6 @@ const PublicRoute = ({ children }) => {
 // Routes configuration for better maintainability
 const routes = [
   { path: '/', element: Dashboard, index: true },
-  { path: '/analytics', element: AnalyticsDashboard },
   { path: '/products', element: Products },
   { path: '/products/new', element: ProductForm },
   { path: '/products/:id/edit', element: ProductForm },
