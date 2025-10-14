@@ -13,10 +13,10 @@ import {
   IconButton,
   Box,
   Tooltip,
-  Checkbox,
   CircularProgress,
   useTheme,
   useMediaQuery,
+  alpha,
 } from "@mui/material";
 import {
   Edit as EditIcon,
@@ -81,24 +81,18 @@ const CustomerTable = ({ customers, isLoading, onEdit, onDelete }) => {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell padding="checkbox">
-                <Checkbox />
-              </TableCell>
-              <TableCell>Customer</TableCell>
-              {!isMobile && <TableCell>Contact</TableCell>}
-              <TableCell>Type</TableCell>
-              {!isTablet && <TableCell>Location</TableCell>}
-              {!isMobile && <TableCell>Orders</TableCell>}
-              {!isMobile && <TableCell>Total Spent</TableCell>}
-              <TableCell align="center">Actions</TableCell>
+              <TableCell sx={{ fontWeight: 700, bgcolor: alpha(theme.palette.primary.main, 0.05) }}>Customer</TableCell>
+              {!isMobile && <TableCell sx={{ fontWeight: 700, bgcolor: alpha(theme.palette.primary.main, 0.05) }}>Contact</TableCell>}
+              <TableCell sx={{ fontWeight: 700, bgcolor: alpha(theme.palette.primary.main, 0.05) }}>Type</TableCell>
+              {!isTablet && <TableCell sx={{ fontWeight: 700, bgcolor: alpha(theme.palette.primary.main, 0.05) }}>Location</TableCell>}
+              {!isMobile && <TableCell sx={{ fontWeight: 700, bgcolor: alpha(theme.palette.primary.main, 0.05) }}>Orders</TableCell>}
+              {!isMobile && <TableCell sx={{ fontWeight: 700, bgcolor: alpha(theme.palette.primary.main, 0.05) }}>Total Spent</TableCell>}
+              <TableCell align="center" sx={{ fontWeight: 700, bgcolor: alpha(theme.palette.primary.main, 0.05) }}>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {customers.map((customer) => (
               <TableRow key={customer.id} hover>
-                <TableCell padding="checkbox">
-                  <Checkbox />
-                </TableCell>
                 <TableCell>
                   <Box display="flex" alignItems="center" gap={2}>
                     <Avatar sx={{ bgcolor: "primary.main" }}>

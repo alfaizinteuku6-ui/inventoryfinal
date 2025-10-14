@@ -45,8 +45,8 @@ const TopProductsTable = ({ products, loading }) => {
           </Box>
         </Box>
         
-        <TableContainer sx={{ maxHeight: 400 }}>
-          <Table size="small" stickyHeader>
+        <TableContainer>
+          <Table size="small" stickyHeader  sx={{ minWidth: 500 }}>
             <TableHead>
               <TableRow>
                 <TableCell sx={{ fontWeight: 700, bgcolor: alpha(theme.palette.primary.main, 0.05) }}>
@@ -78,11 +78,11 @@ const TopProductsTable = ({ products, loading }) => {
                     <Box display="flex" alignItems="center" gap={1}>
                       <Avatar 
                         sx={{ 
-                          width: 32, 
-                          height: 32, 
+                          width: 22, 
+                          height: 22, 
                           bgcolor: alpha(COLORS[index % COLORS.length], 0.2),
                           color: COLORS[index % COLORS.length],
-                          fontSize: 14,
+                          fontSize: 10,
                           fontWeight: 700
                         }}
                       >

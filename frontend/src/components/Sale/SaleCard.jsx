@@ -215,6 +215,23 @@ const SaleCard = ({
                   </Typography>
                 </Box>
               </Stack>
+              <Tooltip title="Delete Sale">
+                  <IconButton
+                    onClick={() => onDeleteSale(sale?.id)}
+                    size="small"
+                    sx={{
+                      borderRadius: 2,
+                      border: "1px solid rgba(0,0,0,0.12)",
+                      color: "error.main",
+                      "&:hover": {
+                        bgcolor: "rgba(211, 47, 47, 0.04)",
+                        borderColor: "error.main",
+                      },
+                    }}
+                  >
+                    <Delete fontSize="small" />
+                  </IconButton>
+                </Tooltip>
             </Stack>
 
             {/* Customer & Salesperson */}
@@ -438,24 +455,6 @@ const SaleCard = ({
                     Cancel
                   </Button>
                 )}
-
-                <Tooltip title="Delete Sale">
-                  <IconButton
-                    onClick={() => onDeleteSale(sale?.id)}
-                    size="small"
-                    sx={{
-                      borderRadius: 2,
-                      border: "1px solid rgba(0,0,0,0.12)",
-                      color: "error.main",
-                      "&:hover": {
-                        bgcolor: "rgba(211, 47, 47, 0.04)",
-                        borderColor: "error.main",
-                      },
-                    }}
-                  >
-                    <Delete fontSize="small" />
-                  </IconButton>
-                </Tooltip>
               </Stack>
             </Stack>
           </Stack>
