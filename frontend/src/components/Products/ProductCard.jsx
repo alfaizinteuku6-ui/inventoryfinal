@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Box,
   Button,
@@ -23,12 +23,54 @@ import {
   CheckCircle,
   TrendingUp,
   ContentCopy,
+  ChevronLeft,
+  ChevronRight,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 
 const ProductCard = ({ product, index, onDelete }) => {
   const navigate = useNavigate();
-  const [showActions, setShowActions] = React.useState(false);
+  const [showActions, setShowActions] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [imageErrors, setImageErrors] = useState({});
+
+  // Get all available images
+  const getImages = () => {
+    const images = [];
+
+    // Add images from the images array if it exists
+    if (product.images && Array.isArray(product.images)) {
+      images.push(...product.images.map((img) => img.image || img));
+    }
+
+    // Add single image if it exists and not already in array
+    if (product.image && !images.some((img) => img === product.image)) {
+      images.push(product.image);
+    }
+
+    return images.filter(Boolean); // Remove any null/undefined values
+  };
+
+  const images = getImages();
+  const hasMultipleImages = images.length > 1;
+  const currentImage = images[currentImageIndex];
+  const hasImages = images.length > 0;
+
+  const handleNext = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setCurrentImageIndex((prev) => (prev + 1) % images.length);
+  };
+
+  const handlePrev = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+  };
+
+  const handleImageError = (index) => {
+    setImageErrors((prev) => ({ ...prev, [index]: true }));
+  };
   const handleCopySKU = async () => {
     try {
       await navigator.clipboard.writeText(product.sku);
@@ -83,9 +125,9 @@ const ProductCard = ({ product, index, onDelete }) => {
 
   const stockUtilization = useMemo(() => {
     if (product.max_stock_level === 0) return 0;
-    return (
-      (product.stock_quantity / product.max_stock_level) * 100
-    ).toFixed(0);
+    return ((product.stock_quantity / product.max_stock_level) * 100).toFixed(
+      0
+    );
   }, [product.stock_quantity, product.max_stock_level]);
 
   const stockValue = useMemo(() => {
@@ -110,8 +152,14 @@ const ProductCard = ({ product, index, onDelete }) => {
           height: "100%",
           display: "flex",
           flexDirection: "column",
-          border: stockStatus.severity === "critical" ? "2px solid #d32f2f" : "1px solid rgba(0,0,0,0.06)",
-          boxShadow: stockStatus.severity === "critical" ? "0 4px 12px rgba(211, 47, 47, 0.15)" : "0 2px 8px rgba(0,0,0,0.08)",
+          border:
+            stockStatus.severity === "critical"
+              ? "2px solid #d32f2f"
+              : "1px solid rgba(0,0,0,0.06)",
+          boxShadow:
+            stockStatus.severity === "critical"
+              ? "0 4px 12px rgba(211, 47, 47, 0.15)"
+              : "0 2px 8px rgba(0,0,0,0.08)",
           "&:hover": {
             boxShadow: "0 8px 16px rgba(0,0,0,0.12)",
             transform: "translateY(-2px)",
@@ -121,11 +169,11 @@ const ProductCard = ({ product, index, onDelete }) => {
         {/* Image Container with Status Badges */}
         <Box sx={{ position: "relative", height: 160, overflow: "hidden" }}>
           {/* Product Image */}
-          {product.image ? (
+          {hasImages && !imageErrors[currentImageIndex] ? (
             <CardMedia
               component="img"
               height="160"
-              image={product.image}
+              image={currentImage}
               alt={product.name}
               sx={{
                 objectFit: "cover",
@@ -134,6 +182,7 @@ const ProductCard = ({ product, index, onDelete }) => {
                   transform: "scale(1.05)",
                 },
               }}
+              onError={() => handleImageError(currentImageIndex)}
             />
           ) : (
             <Box
@@ -144,6 +193,108 @@ const ProductCard = ({ product, index, onDelete }) => {
               sx={{ bgcolor: "#f5f5f5" }}
             >
               <Inventory2 sx={{ fontSize: 56, color: "rgba(0,0,0,0.2)" }} />
+            </Box>
+          )}
+
+          {/* Navigation Arrows - Only show on hover and if multiple images */}
+          {hasMultipleImages && !imageErrors[currentImageIndex] && (
+            <Box
+              className="image-navigation"
+              sx={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                opacity: 0,
+                transition: "opacity 0.2s ease",
+                "&:hover": {
+                  opacity: 1,
+                },
+                pointerEvents: "none",
+              }}
+            >
+              <IconButton
+                onClick={handlePrev}
+                size="small"
+                sx={{
+                  pointerEvents: "auto",
+                  ml: 0.5,
+                  width: 32,
+                  height: 32,
+                }}
+              >
+                <ChevronLeft fontSize="small" />
+              </IconButton>
+              <IconButton
+                onClick={handleNext}
+                size="small"
+                sx={{
+                  pointerEvents: "auto",
+                  mr: 0.5,
+                  width: 32,
+                  height: 32,
+                }}
+              >
+                <ChevronRight fontSize="small" />
+              </IconButton>
+            </Box>
+          )}
+
+          {/* Image Count Badge */}
+          {hasMultipleImages && (
+            <Box
+              sx={{
+                position: "absolute",
+                top: 8,
+                left: 8,
+                backgroundColor: "rgba(0, 0, 0, 0.7)",
+                color: "white",
+                px: 1,
+                py: 0.25,
+                borderRadius: 1,
+                fontSize: "0.75rem",
+                fontWeight: 500,
+                display: "flex",
+                alignItems: "center",
+                gap: 0.5,
+              }}
+            >
+              {currentImageIndex + 1}/{images.length}
+            </Box>
+          )}
+
+          {/* Dot Indicators */}
+          {hasMultipleImages && images.length <= 5 && (
+            <Box
+              sx={{
+                position: "absolute",
+                bottom: 8,
+                left: "50%",
+                transform: "translateX(-50%)",
+                display: "flex",
+                gap: 0.5,
+              }}
+            >
+              {images.map((_, index) => (
+                <Box
+                  key={index}
+                  sx={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    backgroundColor:
+                      currentImageIndex === index
+                        ? "white"
+                        : "rgba(255, 255, 255, 0.5)",
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.3)",
+                    transition: "all 0.2s ease",
+                  }}
+                />
+              ))}
             </Box>
           )}
 
@@ -206,7 +357,9 @@ const ProductCard = ({ product, index, onDelete }) => {
           )}
         </Box>
 
-        <CardContent sx={{ p: 2, flex: 1, display: "flex", flexDirection: "column" }}>
+        <CardContent
+          sx={{ p: 2, flex: 1, display: "flex", flexDirection: "column" }}
+        >
           <Stack spacing={1.5} sx={{ flex: 1 }}>
             {/* Product Name */}
             <Typography
@@ -225,7 +378,13 @@ const ProductCard = ({ product, index, onDelete }) => {
             </Typography>
 
             {/* SKU and Category */}
-            <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" gap={0.5}>
+            <Stack
+              direction="row"
+              spacing={0.75}
+              alignItems="center"
+              flexWrap="wrap"
+              gap={0.5}
+            >
               <Tooltip title="Product SKU">
                 <Chip
                   label={product.sku}
@@ -266,14 +425,20 @@ const ProductCard = ({ product, index, onDelete }) => {
                   fontWeight="800"
                   sx={{ fontSize: "1.1rem" }}
                 >
-                  ₹{parseFloat(product.selling_price).toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+                  ₹
+                  {parseFloat(product.selling_price).toLocaleString("en-IN", {
+                    maximumFractionDigits: 0,
+                  })}
                 </Typography>
                 <Typography
                   variant="caption"
                   color="text.secondary"
                   sx={{ fontSize: "0.7rem", textDecoration: "line-through" }}
                 >
-                  ₹{parseFloat(product.cost_price).toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+                  ₹
+                  {parseFloat(product.cost_price).toLocaleString("en-IN", {
+                    maximumFractionDigits: 0,
+                  })}
                 </Typography>
               </Box>
               <Typography
@@ -281,14 +446,27 @@ const ProductCard = ({ product, index, onDelete }) => {
                 color="text.secondary"
                 sx={{ fontSize: "0.7rem" }}
               >
-                Profit/unit: ₹{(product.selling_price - product.cost_price).toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+                Profit/unit: ₹
+                {(product.selling_price - product.cost_price).toLocaleString(
+                  "en-IN",
+                  { maximumFractionDigits: 0 }
+                )}
               </Typography>
             </Stack>
 
             {/* Stock Level with Progress Bar */}
             <Box>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
-                <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.7rem", fontWeight: 600 }}>
+              <Stack
+                direction="row"
+                justifyContent="space-between"
+                alignItems="center"
+                sx={{ mb: 0.5 }}
+              >
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontSize: "0.7rem", fontWeight: 600 }}
+                >
                   Stock Level
                 </Typography>
                 <Stack direction="row" spacing={0.5} alignItems="center">
@@ -333,11 +511,22 @@ const ProductCard = ({ product, index, onDelete }) => {
 
             {/* Stock Value */}
             <Box sx={{ bgcolor: "rgba(0,0,0,0.04)", p: 1, borderRadius: 1.5 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.7rem" }}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ fontSize: "0.7rem" }}
+              >
                 Stock Value
               </Typography>
-              <Typography variant="subtitle2" fontWeight="700" sx={{ fontSize: "0.85rem" }}>
-                ₹{stockValue.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+              <Typography
+                variant="subtitle2"
+                fontWeight="700"
+                sx={{ fontSize: "0.85rem" }}
+              >
+                ₹
+                {stockValue.toLocaleString("en-IN", {
+                  maximumFractionDigits: 0,
+                })}
               </Typography>
             </Box>
 
@@ -406,7 +595,7 @@ const ProductCard = ({ product, index, onDelete }) => {
             </Tooltip>
             <Tooltip title="Delete Product">
               <IconButton
-                onClick={(e)=>onDelete(e, product)}
+                onClick={(e) => onDelete(e, product)}
                 size="small"
                 sx={{
                   border: "1px solid #ffcdd2",

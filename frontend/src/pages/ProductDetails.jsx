@@ -32,6 +32,7 @@ import {
   TableRow,
   TableCell,
   TableBody,
+  Avatar,
 } from "@mui/material";
 import {
   ArrowBack,
@@ -57,6 +58,8 @@ import {
   LocalOffer,
   Category,
   ImageNotSupported,
+  ChevronLeft,
+  ChevronRight,
 } from "@mui/icons-material";
 import { useNavigate, useParams } from "react-router-dom";
 import { useProduct, useStockMovements } from "../hooks/useSWR";
@@ -79,54 +82,242 @@ const formatDate = (dateString) => {
 };
 
 // ============ PRODUCT IMAGE COMPONENT ============
-const ProductImage = ({ product, imageError, setImageError, isBookmarked, setIsBookmarked }) => {
+const ProductImage = ({
+  product,
+  imageError,
+  setImageError,
+  isBookmarked,
+  setIsBookmarked,
+}) => {
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [imageErrors, setImageErrors] = useState({});
+
+  // Get all available images (both single image and images array)
+  const getImages = () => {
+    const images = [];
+
+    // Add images from the images array if it exists
+    if (product.images && Array.isArray(product.images)) {
+      images.push(...product.images.map((img) => img.image || img));
+    }
+
+    // Add single image if it exists and not already in array
+    if (product.image && !images.includes(product.image)) {
+      images.push(product.image);
+    }
+
+    return images;
+  };
+
+  const images = getImages();
+  const hasMultipleImages = images.length > 1;
+  const currentImage = images[currentImageIndex];
+
+  const handleNext = (e) => {
+    e.stopPropagation();
+    setCurrentImageIndex((prev) => (prev + 1) % images.length);
+  };
+
+  const handlePrev = (e) => {
+    e.stopPropagation();
+    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+  };
+
+  const handleImageError = (index) => {
+    setImageErrors((prev) => ({ ...prev, [index]: true }));
+  };
+
+  const handleThumbnailClick = (index) => {
+    setCurrentImageIndex(index);
+  };
+
   return (
-    <Box sx={{ position: "relative", height: 350 }}>
-      {!imageError && product.image ? (
-        <img
-          src={product.image}
-          alt={product.name}
-          style={{
-            width: "100%",
-            height: "100%",
-            objectFit: "contain",
-            padding: "16px",
-          }}
-          onError={() => setImageError(true)}
-        />
-      ) : (
+    <Box
+      sx={{
+        position: "relative",
+        height: 350,
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      {/* Main Image Display */}
+      <Box sx={{ position: "relative", flex: 1, overflow: "hidden" }}>
+        {!imageErrors[currentImageIndex] && currentImage ? (
+          <img
+            src={currentImage}
+            alt={`${product.name} - Image ${currentImageIndex + 1}`}
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "contain",
+              padding: "16px",
+            }}
+            onError={() => handleImageError(currentImageIndex)}
+          />
+        ) : (
+          <Box
+            sx={{
+              width: "100%",
+              height: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexDirection: "column",
+              gap: 1,
+              color: "text.secondary",
+            }}
+          >
+            <ImageNotSupported sx={{ fontSize: 64 }} />
+            <Typography variant="body2">No image available</Typography>
+          </Box>
+        )}
+
+        {/* Navigation Arrows - Only show if multiple images */}
+        {hasMultipleImages &&
+          !imageErrors[currentImageIndex] &&
+          currentImage && (
+            <>
+              <IconButton
+                onClick={handlePrev}
+                sx={{
+                  position: "absolute",
+                  left: 8,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  boxShadow: 2,
+                }}
+              >
+                <ChevronLeft />
+              </IconButton>
+              <IconButton
+                onClick={handleNext}
+                sx={{
+                  position: "absolute",
+                  right: 8,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  boxShadow: 2,
+                }}
+              >
+                <ChevronRight />
+              </IconButton>
+            </>
+          )}
+
+        {/* Image Counter */}
+        {hasMultipleImages && (
+          <Box
+            sx={{
+              position: "absolute",
+              bottom: 16,
+              left: "50%",
+              transform: "translateX(-50%)",
+              backgroundColor: "rgba(0, 0, 0, 0.6)",
+              color: "white",
+              px: 2,
+              py: 0.5,
+              borderRadius: 2,
+              fontSize: "0.875rem",
+            }}
+          >
+            {currentImageIndex + 1} / {images.length}
+          </Box>
+        )}
+
+        {/* Action Buttons */}
         <Box
           sx={{
-            width: "100%",
-            height: "100%",
+            position: "absolute",
+            top: 16,
+            right: 16,
             display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexDirection: "column",
             gap: 1,
-            color: "text.secondary",
           }}
         >
-          <ImageNotSupported sx={{ fontSize: 64 }} />
-          <Typography variant="body2">No image available</Typography>
+          <IconButton onClick={() => setIsBookmarked(!isBookmarked)}>
+            {isBookmarked ? <Bookmark color="primary" /> : <BookmarkBorder />}
+          </IconButton>
+          <IconButton>
+            <QrCode />
+          </IconButton>
+        </Box>
+      </Box>
+
+      {/* Thumbnail Strip - Only show if multiple images */}
+      {hasMultipleImages && (
+        <Box
+          sx={{
+            display: "flex",
+            gap: 1,
+            px: 2,
+            pb: 2,
+            pt: 1,
+            overflowX: "auto",
+            "&::-webkit-scrollbar": {
+              height: 6,
+            },
+            "&::-webkit-scrollbar-thumb": {
+              backgroundColor: "rgba(0,0,0,0.2)",
+              borderRadius: 3,
+            },
+          }}
+        >
+          {images.map((img, index) => (
+            <Box
+              key={index}
+              onClick={() => handleThumbnailClick(index)}
+              sx={{
+                minWidth: 60,
+                width: 60,
+                height: 60,
+                border:
+                  currentImageIndex === index
+                    ? "2px solid"
+                    : "2px solid transparent",
+                borderColor:
+                  currentImageIndex === index ? "primary.main" : "transparent",
+                borderRadius: 1,
+                overflow: "hidden",
+                cursor: "pointer",
+                transition: "all 0.2s",
+                opacity: currentImageIndex === index ? 1 : 0.6,
+                "&:hover": {
+                  opacity: 1,
+                  transform: "scale(1.05)",
+                },
+              }}
+            >
+              {!imageErrors[index] ? (
+                <img
+                  src={img}
+                  alt={`Thumbnail ${index + 1}`}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                  }}
+                  onError={() => handleImageError(index)}
+                />
+              ) : (
+                <Box
+                  sx={{
+                    width: "100%",
+                    height: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: "#f5f5f5",
+                  }}
+                >
+                  <ImageNotSupported
+                    sx={{ fontSize: 24, color: "text.disabled" }}
+                  />
+                </Box>
+              )}
+            </Box>
+          ))}
         </Box>
       )}
-      <Box
-        sx={{
-          position: "absolute",
-          top: 16,
-          right: 16,
-          display: "flex",
-          gap: 1,
-        }}
-      >
-        <IconButton onClick={() => setIsBookmarked(!isBookmarked)}>
-          {isBookmarked ? <Bookmark color="primary" /> : <BookmarkBorder />}
-        </IconButton>
-        <IconButton>
-          <QrCode />
-        </IconButton>
-      </Box>
     </Box>
   );
 };
@@ -175,7 +366,13 @@ const QuickActions = ({ productId, navigate }) => {
 };
 
 // ============ PRODUCT HEADER COMPONENT ============
-const ProductHeader = ({ product, stockStatus, isMobile, navigate, handleCopy }) => {
+const ProductHeader = ({
+  product,
+  stockStatus,
+  isMobile,
+  navigate,
+  handleCopy,
+}) => {
   return (
     <Paper elevation={0} sx={{ p: 3, borderRadius: 3 }}>
       <Stack spacing={2}>
@@ -418,10 +615,14 @@ const StockHistoryTab = ({ productId }) => {
   const [page, setPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  const { data: stockMovements, isLoading, error } = useStockMovements({ 
+  const {
+    data: stockMovements,
+    isLoading,
+    error,
+  } = useStockMovements({
     product: productId,
     page: page,
-    page_size: itemsPerPage
+    page_size: itemsPerPage,
   });
 
   const movements = stockMovements?.results || [];
@@ -483,14 +684,21 @@ const StockHistoryTab = ({ productId }) => {
                         <Chip
                           label={movement.movement_type}
                           size="small"
-                          color={movement.movement_type !== "sale_cancellation" ? "success" : "error"}
+                          color={
+                            movement.movement_type !== "sale_cancellation"
+                              ? "success"
+                              : "error"
+                          }
                           variant="outlined"
                         />
                       </TableCell>
                       <TableCell
                         style={{
                           padding: "12px",
-                          color: movement.movement_type !== "sale_cancellation"  ? "#388e3c" : "#d32f2f",
+                          color:
+                            movement.movement_type !== "sale_cancellation"
+                              ? "#388e3c"
+                              : "#d32f2f",
                           fontWeight: 600,
                         }}
                       >
@@ -507,7 +715,7 @@ const StockHistoryTab = ({ productId }) => {
           </Paper>
 
           {/* Pagination */}
-          {totalCount > 0  && (
+          {totalCount > 0 && (
             <Box sx={{ mt: 2 }}>
               <Pagination
                 currentPage={page}
@@ -529,7 +737,13 @@ const StockHistoryTab = ({ productId }) => {
 };
 
 // ============ PRODUCT DETAILS TAB COMPONENT ============
-const ProductDetailsTab = ({ product, profitMargin, isMobile, getProfitPerUnit, getStockValue }) => {
+const ProductDetailsTab = ({
+  product,
+  profitMargin,
+  isMobile,
+  getProfitPerUnit,
+  getStockValue,
+}) => {
   return (
     <Grid container spacing={3} px={3}>
       <Grid size={{ xs: 12, md: 6 }}>
@@ -653,7 +867,14 @@ const ProductDetailsTab = ({ product, profitMargin, isMobile, getProfitPerUnit, 
 };
 
 // ============ STOCK UPDATE DIALOG COMPONENT ============
-const StockUpdateDialog = ({ stockDialog, setStockDialog, stockAmount, setStockAmount, product, handleStockUpdate }) => {
+const StockUpdateDialog = ({
+  stockDialog,
+  setStockDialog,
+  stockAmount,
+  setStockAmount,
+  product,
+  handleStockUpdate,
+}) => {
   return (
     <Dialog
       open={stockDialog.open}
@@ -680,12 +901,10 @@ const StockUpdateDialog = ({ stockDialog, setStockDialog, stockAmount, setStockA
           value={stockAmount}
           onChange={(e) => setStockAmount(e.target.value)}
           error={
-            stockAmount &&
-            (isNaN(stockAmount) || parseFloat(stockAmount) <= 0)
+            stockAmount && (isNaN(stockAmount) || parseFloat(stockAmount) <= 0)
           }
           helperText={
-            stockAmount &&
-            (isNaN(stockAmount) || parseFloat(stockAmount) <= 0)
+            stockAmount && (isNaN(stockAmount) || parseFloat(stockAmount) <= 0)
               ? "Please enter a valid quantity"
               : stockDialog.type === "remove" &&
                 stockAmount &&
@@ -816,7 +1035,8 @@ const ProductDetails = () => {
           Failed to load product
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          {productError.message || "An error occurred while loading the product"}
+          {productError.message ||
+            "An error occurred while loading the product"}
         </Typography>
         <Button
           variant="contained"
@@ -831,7 +1051,14 @@ const ProductDetails = () => {
 
   if (isLoading || !product) {
     return (
-      <Box sx={{ width: "100%", minHeight: "100vh", bgcolor: "#f8fafc", p: { xs: 2, sm: 3 } }}>
+      <Box
+        sx={{
+          width: "100%",
+          minHeight: "100vh",
+          bgcolor: "#f8fafc",
+          p: { xs: 2, sm: 3 },
+        }}
+      >
         <Skeleton variant="text" width={200} height={32} sx={{ mb: 3 }} />
         <Grid container spacing={3}>
           <Grid size={{ xs: 12, md: 5 }}>
@@ -844,11 +1071,19 @@ const ProductDetails = () => {
           </Grid>
           <Grid size={{ xs: 12, md: 7 }}>
             <Stack spacing={3}>
-              <Skeleton variant="rectangular" height={150} sx={{ borderRadius: 3 }} />
+              <Skeleton
+                variant="rectangular"
+                height={150}
+                sx={{ borderRadius: 3 }}
+              />
               <Grid container spacing={2}>
                 {[1, 2, 3, 4].map((i) => (
                   <Grid key={i} size={{ xs: 6, sm: 3 }}>
-                    <Skeleton variant="rectangular" height={120} sx={{ borderRadius: 3 }} />
+                    <Skeleton
+                      variant="rectangular"
+                      height={120}
+                      sx={{ borderRadius: 3 }}
+                    />
                   </Grid>
                 ))}
               </Grid>
@@ -871,13 +1106,20 @@ const ProductDetails = () => {
             e.preventDefault();
             navigate("/products");
           }}
-          sx={{ display: "flex", alignItems: "center", gap: 1, cursor: "pointer" }}
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            cursor: "pointer",
+          }}
         >
           <Inventory2 fontSize="small" />
           Products
         </Link>
         <Typography color="text.primary" fontWeight="600">
-          {product.name.length > 50 ? `${product.name.substring(0, 50)}...` : product.name}
+          {product.name.length > 50
+            ? `${product.name.substring(0, 50)}...`
+            : product.name}
         </Typography>
       </Breadcrumbs>
 
@@ -921,7 +1163,14 @@ const ProductDetails = () => {
       </Grid>
 
       {/* Tabs */}
-      <Paper elevation={0} sx={{ borderRadius: 4, border: "1px solid rgba(0,0,0,0.06)", overflow: "hidden" }}>
+      <Paper
+        elevation={0}
+        sx={{
+          borderRadius: 4,
+          border: "1px solid rgba(0,0,0,0.06)",
+          overflow: "hidden",
+        }}
+      >
         <Tabs
           value={tabValue}
           onChange={(e, newValue) => setTabValue(newValue)}
@@ -929,7 +1178,11 @@ const ProductDetails = () => {
           scrollButtons="auto"
           sx={{
             borderBottom: "1px solid rgba(0,0,0,0.06)",
-            "& .MuiTab-root": { textTransform: "none", fontWeight: 600, minWidth: 120 },
+            "& .MuiTab-root": {
+              textTransform: "none",
+              fontWeight: 600,
+              minWidth: 120,
+            },
           }}
         >
           <Tab label="Details" icon={<Analytics />} iconPosition="start" />

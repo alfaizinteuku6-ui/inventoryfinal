@@ -16,6 +16,9 @@ import {
   IconButton,
   Fade,
   Tooltip,
+  ImageList,
+  ImageListItem,
+  ImageListItemBar,
 } from "@mui/material";
 import {
   Add as AddIcon,
@@ -28,12 +31,15 @@ import {
   Scale as WeightIcon,
   Category as CategoryIcon,
   Info as InfoIcon,
+  Close as CloseIcon,
 } from "@mui/icons-material";
 import { useNavigate, useParams } from "react-router-dom";
 import { products } from "../services/api";
 import { useCategories, useProduct } from "../hooks/useSWR";
 import CategoryDialog from "../components/CategoryDialog";
 import HeaderCard from "../components/HeaderCard";
+import CustomSnackbar from "../components/CustomSnackbar";
+
 const ProductForm = () => {
   const { id } = useParams();
   const { data: product, mutate: productMutate, isLoading } = useProduct(id);
@@ -50,11 +56,12 @@ const ProductForm = () => {
     min_stock_level: 0,
     weight: "0.00",
     category: "",
-    image: null,
     is_active: true,
   });
 
-  const [imagePreview, setImagePreview] = useState(null);
+  const [selectedImages, setSelectedImages] = useState([]);
+  const [imagePreviews, setImagePreviews] = useState([]);
+  const [existingImages, setExistingImages] = useState([]);
   const [error, setError] = useState(null);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
 
@@ -66,17 +73,43 @@ const ProductForm = () => {
     });
   };
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setFormData({ ...formData, image: file });
-      setImagePreview(URL.createObjectURL(file));
+  const handleImagesChange = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length > 0) {
+      setSelectedImages([...selectedImages, ...files]);
+      
+      // Create preview URLs for new images
+      const newPreviews = files.map(file => ({
+        url: URL.createObjectURL(file),
+        isNew: true,
+        file: file
+      }));
+      setImagePreviews([...imagePreviews, ...newPreviews]);
     }
   };
 
-  const handleRemoveImage = () => {
-    setFormData({ ...formData, image: null });
-    setImagePreview(null);
+  const handleRemoveImage = (index) => {
+    const newSelectedImages = selectedImages.filter((_, i) => i !== index);
+    const newPreviews = imagePreviews.filter((_, i) => i !== index);
+    
+    // Revoke object URL to prevent memory leak
+    URL.revokeObjectURL(imagePreviews[index].url);
+    
+    setSelectedImages(newSelectedImages);
+    setImagePreviews(newPreviews);
+  };
+
+  const handleRemoveExistingImage = async (imageId, index) => {
+    if (id) {
+      try {
+        await products.deleteImage(id, imageId);
+        const newExistingImages = existingImages.filter((_, i) => i !== index);
+        setExistingImages(newExistingImages);
+      } catch (error) {
+        console.error("Error deleting image:", error);
+        setError("Failed to delete image");
+      }
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -84,11 +117,6 @@ const ProductForm = () => {
     setError(null);
     try {
       const formDataToSend = new FormData();
-
-      // Handle file upload
-      if (formData.image instanceof File) {
-        formDataToSend.append("image", formData.image);
-      }
 
       // Handle numeric fields
       const numericFields = {
@@ -101,8 +129,6 @@ const ProductForm = () => {
       };
 
       Object.keys(formData).forEach((key) => {
-        if (key === "image") return; // Skip image as it's handled above
-
         if (key in numericFields) {
           const value = numericFields[key](formData[key]) || 0;
           formDataToSend.append(key, value.toString());
@@ -111,11 +137,17 @@ const ProductForm = () => {
         }
       });
 
+      // Append multiple images
+      selectedImages.forEach((image) => {
+        formDataToSend.append("images", image);
+      });
+
       if (id) {
         await products.update(id, formDataToSend);
       } else {
         await products.create(formDataToSend);
       }
+      
       productMutate();
       navigate("/products");
     } catch (error) {
@@ -130,15 +162,37 @@ const ProductForm = () => {
   };
 
   useEffect(() => {
-    setFormData({
-      ...product,
-      selling_price: parseFloat(product?.selling_price).toFixed(2),
-      cost_price: parseFloat(product?.cost_price).toFixed(2),
-    });
-    if (product?.image) {
-      setImagePreview(product.image);
+    if (product) {
+      setFormData({
+        name: product.name || "",
+        description: product.description || "",
+        stock_quantity: product.stock_quantity || 0,
+        selling_price: parseFloat(product.selling_price || 0).toFixed(2),
+        cost_price: parseFloat(product.cost_price || 0).toFixed(2),
+        max_stock_level: product.max_stock_level || 0,
+        min_stock_level: product.min_stock_level || 0,
+        weight: product.weight || "0.00",
+        category: product.category || "",
+        is_active: product.is_active !== undefined ? product.is_active : true,
+      });
+
+      // Load existing images if editing
+      if (id && product.images) {
+        setExistingImages(product.images);
+      }
     }
-  }, [product]);
+  }, [product, id]);
+
+  // Cleanup preview URLs on unmount
+  useEffect(() => {
+    return () => {
+      imagePreviews.forEach(preview => {
+        if (preview.isNew) {
+          URL.revokeObjectURL(preview.url);
+        }
+      });
+    };
+  }, []);
 
   const profitMargin =
     formData.selling_price && formData.cost_price
@@ -149,8 +203,20 @@ const ProductForm = () => {
         ).toFixed(1)
       : 0;
 
+  const allImages = [
+    ...existingImages.map(img => ({ url: img.image, isNew: false, id: img.id })),
+    ...imagePreviews
+  ];
+
   return (
     <Box sx={{ maxWidth: 1200, mx: "auto", p: 3 }}>
+      <CustomSnackbar
+        open={Boolean(error)}
+        severity="error"
+        message={error}
+        onClose={() => setError(null)}
+      />
+      
       {/* Header Section */}
       <HeaderCard
         icon={<InventoryIcon fontSize="large" />}
@@ -158,23 +224,11 @@ const ProductForm = () => {
         subtitle="Create and manage your inventory items"
       />
 
-      {error && (
-        <Fade in={Boolean(error)}>
-          <Alert
-            severity="error"
-            sx={{ mb: 3, borderRadius: 2 }}
-            onClose={() => setError(null)}
-          >
-            {error}
-          </Alert>
-        </Fade>
-      )}
-
       <form onSubmit={handleSubmit}>
         <Grid container spacing={3}>
-          {/* Product Image Section */}
-          <Grid size={{ xs: 12, md: 4 }}>
-            <Card sx={{ height: "fit-content", borderRadius: 2 }}>
+          {/* Product Images Section */}
+          <Grid size={{ xs: 12 }}>
+            <Card sx={{ borderRadius: 2 }}>
               <CardContent>
                 <Typography
                   variant="h6"
@@ -183,7 +237,7 @@ const ProductForm = () => {
                   alignItems="center"
                   gap={1}
                 >
-                  <UploadIcon /> Product Image
+                  <UploadIcon /> Product Images
                 </Typography>
 
                 <Box
@@ -192,93 +246,114 @@ const ProductForm = () => {
                     borderRadius: 2,
                     p: 3,
                     textAlign: "center",
-                    backgroundColor: imagePreview ? "transparent" : "#f8fafc",
-                    position: "relative",
-                    minHeight: 200,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexDirection: "column",
+                    backgroundColor: "#f8fafc",
                     cursor: "pointer",
                     transition: "all 0.3s ease",
                     "&:hover": {
                       borderColor: "#667eea",
-                      backgroundColor: imagePreview ? "transparent" : "#f1f5f9",
+                      backgroundColor: "#f1f5f9",
                     },
                   }}
                   onClick={() =>
-                    !imagePreview &&
-                    document.getElementById("product-image").click()
+                    document.getElementById("product-images").click()
                   }
                 >
-                  {imagePreview ? (
-                    <Box sx={{ position: "relative", width: "100%" }}>
-                      <img
-                        src={imagePreview}
-                        alt="Product preview"
-                        style={{
-                          width: "100%",
-                          height: "200px",
-                          objectFit: "cover",
-                          borderRadius: 8,
-                        }}
-                      />
-                      <IconButton
-                        onClick={handleRemoveImage}
-                        sx={{
-                          position: "absolute",
-                          top: 8,
-                          right: 8,
-                          backgroundColor: "rgba(255,255,255,0.9)",
-                          "&:hover": { backgroundColor: "rgba(255,255,255,1)" },
-                        }}
-                        size="small"
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </Box>
-                  ) : (
-                    <>
-                      <UploadIcon
-                        sx={{ fontSize: 48, color: "#94a3b8", mb: 1 }}
-                      />
-                      <Typography variant="body1" color="textSecondary">
-                        Click to upload image
-                      </Typography>
-                      <Typography variant="body2" color="textSecondary">
-                        PNG, JPG up to 5MB
-                      </Typography>
-                    </>
-                  )}
+                  <UploadIcon sx={{ fontSize: 48, color: "#94a3b8", mb: 1 }} />
+                  <Typography variant="body1" color="textSecondary">
+                    Click to upload images or drag and drop
+                  </Typography>
+                  <Typography variant="body2" color="textSecondary">
+                    PNG, JPG up to 5MB each (Multiple images allowed)
+                  </Typography>
                 </Box>
 
                 <input
                   accept="image/*"
                   style={{ display: "none" }}
-                  id="product-image"
+                  id="product-images"
                   type="file"
-                  onChange={handleImageChange}
+                  multiple
+                  onChange={handleImagesChange}
                 />
 
-                {!imagePreview && (
-                  <Button
-                    variant="outlined"
-                    fullWidth
-                    startIcon={<UploadIcon />}
-                    onClick={() =>
-                      document.getElementById("product-image").click()
-                    }
-                    sx={{ mt: 2, borderRadius: 2 }}
-                  >
-                    Choose Image
-                  </Button>
+                <Button
+                  variant="outlined"
+                  fullWidth
+                  startIcon={<UploadIcon />}
+                  onClick={() =>
+                    document.getElementById("product-images").click()
+                  }
+                  sx={{ mt: 2, borderRadius: 2 }}
+                >
+                  Add More Images
+                </Button>
+
+                {allImages.length > 0 && (
+                  <Box sx={{ mt: 3 }}>
+                    <ImageList cols={4} gap={16}>
+                      {allImages.map((img, index) => (
+                        <ImageListItem key={index} sx={{ position: "relative" }}>
+                          <img
+                            src={img.url}
+                            alt={`Product ${index + 1}`}
+                            loading="lazy"
+                            style={{
+                              height: 200,
+                              objectFit: "cover",
+                              borderRadius: 8,
+                            }}
+                          />
+                          <ImageListItemBar
+                            sx={{
+                              background:
+                                "linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 70%, rgba(0,0,0,0) 100%)",
+                            }}
+                            position="top"
+                            actionIcon={
+                              <IconButton
+                                sx={{ color: "white" }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (img.isNew) {
+                                    const newImageIndex = imagePreviews.findIndex(
+                                      p => p.url === img.url
+                                    );
+                                    handleRemoveImage(newImageIndex);
+                                  } else {
+                                    const existingImageIndex = existingImages.findIndex(
+                                      ei => ei.id === img.id
+                                    );
+                                    handleRemoveExistingImage(img.id, existingImageIndex);
+                                  }
+                                }}
+                              >
+                                <CloseIcon />
+                              </IconButton>
+                            }
+                          />
+                          {img.isNew && (
+                            <Chip
+                              label="New"
+                              size="small"
+                              color="primary"
+                              sx={{
+                                position: "absolute",
+                                bottom: 8,
+                                left: 8,
+                              }}
+                            />
+                          )}
+                        </ImageListItem>
+                      ))}
+                    </ImageList>
+                  </Box>
                 )}
               </CardContent>
             </Card>
           </Grid>
 
           {/* Product Details Section */}
-          <Grid size={{ xs: 12, md: 8 }}>
+          <Grid size={{ xs: 12 }}>
             <Card sx={{ borderRadius: 2 }}>
               <CardContent>
                 <Typography
@@ -292,7 +367,7 @@ const ProductForm = () => {
                 </Typography>
 
                 <Grid container spacing={2}>
-                  <Grid size={{ xs: 12, md: 12 }}>
+                  <Grid size={{ xs: 12 }}>
                     <TextField
                       label="Product Name"
                       fullWidth
@@ -606,6 +681,7 @@ const ProductForm = () => {
                   variant="outlined"
                   size="large"
                   startIcon={<CancelIcon />}
+                  onClick={() => navigate("/products")}
                   sx={{
                     borderRadius: 2,
                     px: 4,

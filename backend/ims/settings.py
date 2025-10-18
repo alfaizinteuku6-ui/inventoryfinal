@@ -7,7 +7,7 @@ import dj_database_url
 from django.core.serializers.json import DjangoJSONEncoder
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-MEDIA_BASE_DIR = Path(__file__).resolve().parent
+MEDIA_BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.append(os.path.join(BASE_DIR, 'apps'))
 SECRET_KEY = config('SECRET_KEY', default='your-secret-key-here')
 DEBUG = config('DEBUG', default=True, cast=bool)

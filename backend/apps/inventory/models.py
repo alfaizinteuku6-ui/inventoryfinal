@@ -1,9 +1,12 @@
 # backend/apps/inventory/models.py
+import os
+import random
 from django.db import models, transaction
 from django.core.validators import MinValueValidator
 from apps.core.models import TimestampedModel
 import uuid
 from django.utils.timezone import now
+from django.core.exceptions import ValidationError
 
 def generate_barcode():
     return str(uuid.uuid4())[:12]
@@ -20,6 +23,28 @@ class Category(TimestampedModel):
     def __str__(self):
         return self.name
 
+def product_image_upload_path(instance, filename):
+    """
+    Generate path like:
+    products/<product_id>/<index>_<timestamp>_<filename>
+    Example: products/42/1_20251018_193512_flower.jpg
+    """
+    base, ext = os.path.splitext(filename)
+    timestamp = now().strftime("%Y%m%d_%H%M%S")
+
+    # handle case when product not yet saved
+    product_id = instance.product.id if instance.product and instance.product.id else "temp"
+
+    # get count or index for product's existing images
+    index = (
+        instance.product.images.count() + 1
+        if instance.product and instance.product.id
+        else random.randint(1, 999)
+    )
+
+    safe_name = base.replace(" ", "_")[:40]
+    unique_filename = f"{index}_{timestamp}_{safe_name}{ext.lower()}"
+    return os.path.join("products", str(product_id), unique_filename)
 
 class Product(TimestampedModel):
     name = models.CharField(max_length=200)
@@ -40,7 +65,7 @@ class Product(TimestampedModel):
     # Additional fields
     weight = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
     dimensions = models.CharField(max_length=100, blank=True)  # L x W x H
-    image = models.ImageField(upload_to='products/', blank=True)
+
     tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
 
     class Meta:
@@ -100,8 +125,18 @@ class Product(TimestampedModel):
         import random
         random_suffix = random.randint(1000, 9999)
         return f"{prefix}-{counter:03d}-{year}-{random_suffix}"
+    
+    def clean(self):
+        """Validate that min_stock_level < max_stock_level."""
+        if self.min_stock_level >= self.max_stock_level:
+            raise ValidationError({
+                "min_stock_level": "Minimum stock level must be less than maximum stock level."
+            })
 
     def save(self, *args, **kwargs):
+        
+        self.full_clean()
+        
         if not self.sku:
             with transaction.atomic():
                 # Generate SKU within transaction for thread-safety
@@ -117,6 +152,25 @@ class Product(TimestampedModel):
             self.barcode = generate_barcode()
         print(self.is_active)
         super().save(*args, **kwargs)
+        
+class ProductImage(TimestampedModel):
+    """Stores multiple images per product."""
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="images"
+    )
+    image = models.ImageField(upload_to=product_image_upload_path)
+
+    def __str__(self):
+        return f"Image for {self.product.name} - {self.id}"
+
+    def delete(self, *args, **kwargs):
+        # Optionally delete the file from storage
+        storage = self.image.storage
+        if storage.exists(self.image.name):
+            storage.delete(self.image.name)
+        super().delete(*args, **kwargs)
 
 class StockMovement(TimestampedModel):
     MOVEMENT_TYPES = [

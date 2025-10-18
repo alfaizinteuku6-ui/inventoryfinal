@@ -5,6 +5,18 @@ import { useTheme } from '@mui/material/styles';
 const CustomSnackbar = ({ open, severity, message, onClose, autoHideDuration = 4000 }) => {
   const theme = useTheme();
 
+  // Convert message to string if it's an object
+  const getMessage = (msg) => {
+    if (!msg) return "";
+    if (typeof msg === "string") return msg;
+    if (msg.message) return msg.message; // common for Error objects
+    try {
+      return JSON.stringify(msg);
+    } catch {
+      return "An error occurred";
+    }
+  };
+
   return (
     <Snackbar
       open={open}
@@ -20,7 +32,7 @@ const CustomSnackbar = ({ open, severity, message, onClose, autoHideDuration = 4
         }}
         onClose={onClose}
       >
-        {message}
+        {getMessage(message)}
       </Alert>
     </Snackbar>
   );

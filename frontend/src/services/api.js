@@ -137,7 +137,13 @@ export const products = {
   update: (id, data) => api.put(`/products/${id}/`, data),
   delete: (id) => api.delete(`/products/${id}/`),
   getLowStock: () => api.get('/products/low_stock/'),
+  getOutOfStock: () => api.get('/products/out_of_stock/'),
   searchByBarcode: (barcode) => api.get(`/products/search_by_barcode/?barcode=${barcode}`),
+  
+  // Image management endpoints
+  getImages: (id) => api.get(`/products/${id}/images/`),
+  uploadImages: (id, formData) => api.post(`/products/${id}/upload_images/`, formData),
+  deleteImage: (productId, imageId) => api.delete(`/products/${productId}/images/${imageId}/`),
 };
 
 export const stockMovements = {
