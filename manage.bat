@@ -161,7 +161,7 @@ if errorlevel 1 (
 echo.
 
 %ps_echo% "[8/8] Building frontend..." -ForegroundColor %GREEN%
-call npm run build
+call npm run build:production
 if errorlevel 1 (
     %ps_echo% "Error: Frontend build failed!" -ForegroundColor %RED%
     cd ..
@@ -240,7 +240,7 @@ echo.
 
 %ps_echo% "[1/3] Building frontend..." -ForegroundColor %GREEN%
 cd frontend
-call npm run build
+call npm run build:production
 if errorlevel 1 (
     %ps_echo% "Error: Frontend build failed!" -ForegroundColor %RED%
     cd ..

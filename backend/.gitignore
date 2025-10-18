@@ -24,3 +24,6 @@ staticfiles/
 celerybeat-schedule*
 celerybeat.pid
 celerybeat.db
+
+backups/
+logs/

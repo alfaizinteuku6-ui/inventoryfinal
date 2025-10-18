@@ -44,6 +44,22 @@ app.conf.beat_schedule = {
         "task": "apps.notifications.tasks.cleanup_old_notifications",
         "schedule": crontab(hour=2, minute=0, day_of_week=0),
     },
+    
+    'backup-database-every-10-minutes': {
+        'task': 'apps.core.tasks.backup_database_task',
+        'schedule': 600.0,  # 600 seconds = 10 minutes
+        'args': (50,),  # Keep 50 most recent backups
+    },
+    # Optional: Daily cleanup at 3 AM
+    'cleanup-old-backups-daily': {
+        'task': 'apps.core.tasks.cleanup_old_backups_task',
+        'schedule': crontab(hour=3, minute=0),
+        'args': (50,),
+    },
 }
 
 app.conf.timezone = "Asia/Kolkata"
+
+@app.task(bind=True)
+def debug_task(self):
+    print(f'Request: {self.request!r}')
