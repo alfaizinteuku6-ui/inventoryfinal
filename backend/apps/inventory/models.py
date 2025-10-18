@@ -1,5 +1,5 @@
 # backend/apps/inventory/models.py
-from django.db import models
+from django.db import models, transaction
 from django.core.validators import MinValueValidator
 from apps.core.models import TimestampedModel
 import uuid
@@ -66,21 +66,53 @@ class Product(TimestampedModel):
     
     def generate_sku(self):
         """
-        SKU Format: CAT-XXX-YYYY
+        Generate a unique SKU with format: CAT-XXX-YYYY
         Example: ELE-005-2025
+        
+        Uses transaction to ensure thread-safety and handles race conditions.
         """
         if not self.category:
             prefix = "GEN"  # Generic if no category
         else:
-            prefix = self.category.name[:3].upper()
+            # Get first 3 letters of category name, remove spaces
+            prefix = self.category.name.replace(" ", "")[:3].upper()
 
         year = now().year
-        count = Product.objects.filter(category=self.category).count() + 1
-        return f"{prefix}-{count:03d}-{year}"
+        
+        # Start with the count of products in this category + 1
+        counter = Product.objects.filter(
+            sku__startswith=f"{prefix}-",
+            sku__contains=f"-{year}"
+        ).count() + 1
+        
+        # Keep trying until we find a unique SKU
+        max_attempts = 10000  # Prevent infinite loop
+        for attempt in range(max_attempts):
+            sku = f"{prefix}-{counter:03d}-{year}"
+            
+            # Check if this SKU already exists
+            if not Product.objects.filter(sku=sku).exists():
+                return sku
+            
+            counter += 1
+        
+        # Fallback: add random component if we somehow exhaust attempts
+        import random
+        random_suffix = random.randint(1000, 9999)
+        return f"{prefix}-{counter:03d}-{year}-{random_suffix}"
 
     def save(self, *args, **kwargs):
         if not self.sku:
-            self.sku = self.generate_sku()
+            with transaction.atomic():
+                # Generate SKU within transaction for thread-safety
+                self.sku = self.generate_sku()
+                
+                # Double-check uniqueness before saving
+                retry_count = 0
+                while Product.objects.filter(sku=self.sku).exists() and retry_count < 5:
+                    self.sku = self.generate_sku()
+                    retry_count += 1
+                    
         if not self.barcode:
             self.barcode = generate_barcode()
         print(self.is_active)

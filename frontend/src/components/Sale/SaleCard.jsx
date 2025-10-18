@@ -1,5 +1,5 @@
 // Sales/components/SaleCard.js
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Box,
   Button,
@@ -15,6 +15,7 @@ import {
   Tooltip,
   LinearProgress,
   Alert,
+  Collapse,
 } from "@mui/material";
 import {
   ReceiptLong,
@@ -32,6 +33,9 @@ import {
   TrendingDown,
   MoreTime,
   Block,
+  ExpandMore,
+  ExpandLess,
+  StickyNote2,
 } from "@mui/icons-material";
 import generateInvoicePDF from "../../utils/invoice";
 
@@ -44,6 +48,10 @@ const SaleCard = ({
   onCancelSale,
   onDeleteSale,
 }) => {
+  // Collapsible state
+  const [showAmountBreakdown, setShowAmountBreakdown] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
+
   // Calculate balance due
   const balanceDue = useMemo(() => {
     return parseFloat(sale.total_amount) - parseFloat(sale.paid_amount);
@@ -61,6 +69,11 @@ const SaleCard = ({
     }
     return new Date(sale.due_date) < new Date();
   }, [sale.due_date, sale.payment_status]);
+
+  // Check if there are additional details to show
+  const hasAmountBreakdown = useMemo(() => {
+    return sale.discount_amount > 0 || sale.tax_amount > 0;
+  }, [sale.discount_amount, sale.tax_amount]);
 
   const getStatusConfig = (status) => {
     const configs = {
@@ -146,6 +159,9 @@ const SaleCard = ({
           borderRadius: 3,
           transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
           overflow: "hidden",
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
         }}
       >
         {/* Status Color Bar */}
@@ -158,7 +174,7 @@ const SaleCard = ({
           }}
         />
 
-        <CardContent sx={{ p: 2.5 }}>
+        <CardContent sx={{ p: 2.5, flex: 1, display: "flex", flexDirection: "column" }}>
           <Stack spacing={2}>
             {/* Overdue Alert */}
             {isOverdue && sale.payment_status !== "paid" && (
@@ -168,7 +184,6 @@ const SaleCard = ({
                 </Typography>
               </Alert>
             )}
-
             {/* Header Section */}
             <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
               <Stack direction="row" alignItems="center" spacing={1.5} flex={1}>
@@ -253,51 +268,65 @@ const SaleCard = ({
 
             <Divider sx={{ my: 0.5 }} />
 
-            {/* Amount Summary */}
-            <Stack spacing={1.5}>
-              <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Typography variant="body2" color="text.secondary">
-                  Subtotal
-                </Typography>
-                <Typography variant="body2" fontWeight="600">
-                  ₹{parseFloat(sale.subtotal).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
-                </Typography>
-              </Stack>
-
-              {sale.discount_amount > 0 && (
-                <Stack direction="row" justifyContent="space-between" alignItems="center">
-                  <Typography variant="body2" color="text.secondary">
-                    Discount
+            {/* Amount Summary - Collapsible */}
+            <Box>
+              <Stack 
+                direction="row" 
+                justifyContent="space-between" 
+                alignItems="center"
+                sx={{ cursor: hasAmountBreakdown ? "pointer" : "default" }}
+                onClick={() => hasAmountBreakdown && setShowAmountBreakdown(!showAmountBreakdown)}
+              >
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  <Typography variant="h6" fontWeight="700">
+                    Total
                   </Typography>
-                  <Typography variant="body2" fontWeight="600" color="success.main">
-                    -₹{parseFloat(sale.discount_amount).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
-                  </Typography>
+                  {hasAmountBreakdown && (
+                    <IconButton size="small" sx={{ p: 0 }}>
+                      {showAmountBreakdown ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+                    </IconButton>
+                  )}
                 </Stack>
-              )}
-
-              {sale.tax_amount > 0 && (
-                <Stack direction="row" justifyContent="space-between" alignItems="center">
-                  <Typography variant="body2" color="text.secondary">
-                    Tax
-                  </Typography>
-                  <Typography variant="body2" fontWeight="600">
-                    ₹{parseFloat(sale.tax_amount).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
-                  </Typography>
-                </Stack>
-              )}
-
-              <Divider sx={{ my: 0.5 }} />
-
-              {/* Total Amount */}
-              <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Typography variant="h6" fontWeight="700">
-                  Total
-                </Typography>
                 <Typography variant="h5" fontWeight="700" color="primary.main">
                   ₹{parseFloat(sale.total_amount).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
                 </Typography>
               </Stack>
-            </Stack>
+
+              <Collapse in={showAmountBreakdown} timeout="auto">
+                <Stack spacing={1.5} sx={{ mt: 2, pt: 2, borderTop: "1px dashed rgba(0,0,0,0.12)" }}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center">
+                    <Typography variant="body2" color="text.secondary">
+                      Subtotal
+                    </Typography>
+                    <Typography variant="body2" fontWeight="600">
+                      ₹{parseFloat(sale.subtotal).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                    </Typography>
+                  </Stack>
+
+                  {sale.discount_amount > 0 && (
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                      <Typography variant="body2" color="text.secondary">
+                        Discount
+                      </Typography>
+                      <Typography variant="body2" fontWeight="600" color="success.main">
+                        -₹{parseFloat(sale.discount_amount).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                      </Typography>
+                    </Stack>
+                  )}
+
+                  {sale.tax_amount > 0 && (
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                      <Typography variant="body2" color="text.secondary">
+                        Tax
+                      </Typography>
+                      <Typography variant="body2" fontWeight="600">
+                        ₹{parseFloat(sale.tax_amount).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                      </Typography>
+                    </Stack>
+                  )}
+                </Stack>
+              </Collapse>
+            </Box>
 
             {/* Payment Status Section */}
             {showPaymentSection && sale.payment_status !== "cancelled" && (
@@ -384,18 +413,37 @@ const SaleCard = ({
                   sx={{ fontWeight: 600, borderRadius: 2 }}
                 />
               )}
+              {sale.notes && (
+                <Tooltip title={showNotes ? "Hide notes" : "Show notes"}>
+                  <IconButton
+                    size="small"
+                    onClick={() => setShowNotes(!showNotes)}
+                    sx={{
+                      border: "1px solid rgba(0,0,0,0.12)",
+                      borderRadius: 2,
+                    }}
+                  >
+                    <StickyNote2 fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
             </Stack>
 
+            {/* Collapsible Notes */}
             {sale.notes && (
-              <Box sx={{ p: 1.5, borderRadius: 2, border: "1px solid #f8bbd0" }}>
-                <Typography variant="caption" color="text.secondary" fontWeight="600">
-                  Notes
-                </Typography>
-                <Typography variant="body2" color="text.primary" sx={{ mt: 0.5 }}>
-                  {sale.notes}
-                </Typography>
-              </Box>
+              <Collapse in={showNotes} timeout="auto">
+                <Box sx={{ p: 1.5, borderRadius: 2, border: "1px solid #f8bbd0" }}>
+                  <Typography variant="caption" color="text.secondary" fontWeight="600">
+                    Notes
+                  </Typography>
+                  <Typography variant="body2" color="text.primary" sx={{ mt: 0.5 }}>
+                    {sale.notes}
+                  </Typography>
+                </Box>
+              </Collapse>
             )}
+
+            <Box sx={{ flexGrow: 1 }} />
 
             <Divider sx={{ my: 0.5 }} />
 
@@ -427,35 +475,35 @@ const SaleCard = ({
               </Stack>
 
               {/* Secondary Actions */}
-              <Stack direction="row" spacing={1}>
-                {canAddPayment && (
-                  <Button
-                    variant="contained"
-                    color="success"
-                    startIcon={<Payment />}
-                    onClick={() => onAddPayment(sale)}
-                    size="small"
-                    fullWidth
-                    sx={{ borderRadius: 2, textTransform: "none", fontWeight: 600 }}
-                  >
-                    Add Payment
-                  </Button>
-                )}
+              {(canAddPayment || canCancel) && (
+                <Stack direction="row" spacing={1}>
+                  {canAddPayment && (
+                    <Button
+                      variant="contained"
+                      color="success"
+                      startIcon={<Payment />}
+                      onClick={() => onAddPayment(sale)}
+                      size="small"
+                      sx={{ borderRadius: 2, textTransform: "none", fontWeight: 600, width: canCancel ? '70%' : '100%' }}
+                    >
+                      Add Payment
+                    </Button>
+                  )}
 
-                {canCancel && (
-                  <Button
-                    variant="outlined"
-                    color="warning"
-                    startIcon={<Cancel />}
-                    onClick={() => onCancelSale(sale)}
-                    size="small"
-                    fullWidth
-                    sx={{ borderRadius: 2, fontWeight: 600 }}
-                  >
-                    Cancel
-                  </Button>
-                )}
-              </Stack>
+                  {canCancel && (
+                    <Button
+                      variant="outlined"
+                      color="warning"
+                      startIcon={<Cancel />}
+                      onClick={() => onCancelSale(sale)}
+                      size="small"
+                      sx={{ borderRadius: 2, fontWeight: 600, width: canAddPayment ? '30%' : '100%' }}
+                    >
+                      Cancel
+                    </Button>
+                  )}
+                </Stack>
+              )}
             </Stack>
           </Stack>
         </CardContent>

@@ -1,4 +1,4 @@
-# backend/ims/settings/base.py
+# backend/ims/settings.py
 import os
 import sys
 from pathlib import Path
@@ -7,6 +7,7 @@ import dj_database_url
 from django.core.serializers.json import DjangoJSONEncoder
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+MEDIA_BASE_DIR = Path(__file__).resolve().parent
 sys.path.append(os.path.join(BASE_DIR, 'apps'))
 SECRET_KEY = config('SECRET_KEY', default='your-secret-key-here')
 DEBUG = config('DEBUG', default=True, cast=bool)
@@ -160,7 +161,7 @@ STATICFILES_DIRS = [
 
 # Media files
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT = os.path.join(MEDIA_BASE_DIR, 'media')
 
 # Internationalization
 LANGUAGE_CODE = 'en-us'

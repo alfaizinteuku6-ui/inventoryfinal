@@ -11,6 +11,9 @@ import {
   Button,
   ButtonGroup,
   Tooltip,
+  Tabs,
+  Tab,
+  Paper,
 } from '@mui/material';
 import {
   TrendingUp,
@@ -18,6 +21,9 @@ import {
   ShoppingCart,
   Refresh,
   Timer,
+  ShowChart,
+  Inventory,
+  Payment,
 } from '@mui/icons-material';
 import {
   useDashboardSummary,
@@ -41,11 +47,27 @@ import PaymentMethodsChart from '../components/Dashboard/PaymentMethodsChart';
 
 const PERIOD_OPTIONS = ['day', 'week', 'month', 'year'];
 
+// Tab Panel Component
+function TabPanel({ children, value, index, ...other }) {
+  return (
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`dashboard-tabpanel-${index}`}
+      aria-labelledby={`dashboard-tab-${index}`}
+      {...other}
+    >
+      {value === index && <Box sx={{ py: 3 }}>{children}</Box>}
+    </div>
+  );
+}
+
 // ==================== MAIN DASHBOARD COMPONENT ====================
 const Dashboard = () => {
   const theme = useTheme();
   const [period, setPeriod] = useState('month');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState(0);
 
   // SWR hooks for data fetching
   const { data: dashboardData, isLoading: loadingDashboard, mutate: refetchDashboard } = useDashboardSummary({ period });
@@ -79,13 +101,17 @@ const Dashboard = () => {
   const summary = useMemo(() => dashboardData?.summary || {}, [dashboardData]);
   const trend = useMemo(() => summary.revenue_change_percent >= 0 ? 'up' : 'down', [summary.revenue_change_percent]);
 
+  const handleTabChange = (event, newValue) => {
+    setActiveTab(newValue);
+  };
+
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', py: 3 }}>
       <Container maxWidth="xl">
         {/* Header */}
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={4} flexWrap="wrap" gap={2}>
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
           <Box>
-            <Typography variant="h3" fontWeight="bold" gutterBottom sx={{ 
+            <Typography variant="h4" fontWeight="bold" gutterBottom sx={{ 
               background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
               backgroundClip: 'text',
               WebkitBackgroundClip: 'text',
@@ -93,13 +119,13 @@ const Dashboard = () => {
             }}>
               Analytics Dashboard
             </Typography>
-            <Typography variant="body1" color="text.secondary">
+            <Typography variant="body2" color="text.secondary">
               Real-time insights and performance metrics
             </Typography>
           </Box>
           
           <Box display="flex" gap={2} alignItems="center" flexWrap="wrap">
-            <ButtonGroup variant="outlined" size="medium">
+            <ButtonGroup variant="outlined" size="small">
               {PERIOD_OPTIONS.map((p) => (
                 <Button
                   key={p}
@@ -107,7 +133,7 @@ const Dashboard = () => {
                   variant={period === p ? 'contained' : 'outlined'}
                   sx={{ 
                     textTransform: 'capitalize',
-                    minWidth: 80,
+                    minWidth: 70,
                     fontWeight: 600
                   }}
                 >
@@ -120,6 +146,7 @@ const Dashboard = () => {
               <IconButton 
                 onClick={handleRefresh} 
                 disabled={isRefreshing}
+                size="small"
                 sx={{ 
                   bgcolor: 'background.paper',
                   border: `2px solid ${theme.palette.primary.main}`,
@@ -143,8 +170,8 @@ const Dashboard = () => {
           </Box>
         )}
 
-        {/* Key Metrics */}
-        <Grid container spacing={3} mb={4}>
+        {/* Key Metrics - Always Visible */}
+        <Grid container spacing={2} mb={3}>
           <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <StatCard
               title="Total Revenue"
@@ -192,74 +219,104 @@ const Dashboard = () => {
           </Grid>
         </Grid>
 
-        {/* Sales Trend & Payment Status */}
-        <Grid container spacing={3} mb={4}>
-          <Grid size={{ xs: 12, lg: 8 }}>
-            <SalesTrendChart 
-              data={trendData?.data} 
-              loading={loadingTrend} 
-              period={period} 
+        {/* Tabs Navigation */}
+        <Paper sx={{ mb: 3 }}>
+          <Tabs 
+            value={activeTab} 
+            onChange={handleTabChange}
+            variant="fullWidth"
+            sx={{
+              '& .MuiTab-root': {
+                minHeight: 64,
+                fontWeight: 600,
+                fontSize: '0.95rem',
+              },
+            }}
+          >
+            <Tab 
+              icon={<ShowChart />} 
+              label="Sales & Trends" 
+              iconPosition="start"
             />
-          </Grid>
-          <Grid size={{ xs: 12, lg: 4 }}>
-            <PaymentStatusChart 
-              data={dashboardData?.payment_status} 
-              loading={loadingDashboard} 
+            <Tab 
+              icon={<Inventory />} 
+              label="Products & Inventory" 
+              iconPosition="start"
             />
-          </Grid>
-        </Grid>
+            <Tab 
+              icon={<Payment />} 
+              label="Payments & Customers" 
+              iconPosition="start"
+            />
+          </Tabs>
+        </Paper>
 
-        {/* Top Products & Category Performance */}
-        <Grid container spacing={3} mb={4}>
-          <Grid size={{ xs: 12, lg: 6 }}>
-            <TopProductsTable 
-              products={topProducts} 
-              loading={loadingProducts} 
-            />
+        {/* Tab 1: Sales & Trends */}
+        <TabPanel value={activeTab} index={0}>
+          <Grid container spacing={3}>
+            <Grid size={{ xs: 12, lg: 8 }}>
+              <SalesTrendChart 
+                data={trendData?.data} 
+                loading={loadingTrend} 
+                period={period} 
+              />
+            </Grid>
+            <Grid size={{ xs: 12, lg: 4 }}>
+              <PaymentStatusChart 
+                data={dashboardData?.payment_status} 
+                loading={loadingDashboard} 
+              />
+            </Grid>
+            <Grid size={{ xs: 12 }}>
+              <CategoryPerformanceChart 
+                data={categoryData} 
+                loading={loadingCategory} 
+              />
+            </Grid>
           </Grid>
-          <Grid size={{ xs: 12, lg: 6 }}>
-            <CategoryPerformanceChart 
-              data={categoryData} 
-              loading={loadingCategory} 
-            />
-          </Grid>
-        </Grid>
+        </TabPanel>
 
-        {/* Inventory & Customers */}
-        <Grid container spacing={3} mb={4}>
-          <Grid size={{ xs: 12, lg: 6 }}>
-            <InventoryAlerts 
-              data={inventoryData} 
-              loading={loadingInventory} 
-            />
+        {/* Tab 2: Products & Inventory */}
+        <TabPanel value={activeTab} index={1}>
+          <Grid container spacing={3}>
+            <Grid size={{ xs: 12, lg: 6 }}>
+              <TopProductsTable 
+                products={topProducts} 
+                loading={loadingProducts} 
+              />
+            </Grid>
+            <Grid size={{ xs: 12, lg: 6 }}>
+              <InventoryAlerts 
+                data={inventoryData} 
+                loading={loadingInventory} 
+              />
+            </Grid>
           </Grid>
-          <Grid size={{ xs: 12, lg: 6 }}>
-            <TopCustomers 
-              data={customerData} 
-              loading={loadingCustomers} 
-            />
-          </Grid>
-        </Grid>
+        </TabPanel>
 
-        {/* Payment Analytics */}
-        <Grid container spacing={3} mb={4}>
-          <Grid size={{ xs: 12 }}>
-            <PaymentAnalytics 
-              data={paymentData} 
-              loading={loadingPayments} 
-            />
+        {/* Tab 3: Payments & Customers */}
+        <TabPanel value={activeTab} index={2}>
+          <Grid container spacing={3}>
+            <Grid size={{ xs: 12, lg: 4 }}>
+              <TopCustomers 
+                data={customerData} 
+                loading={loadingCustomers} 
+              />
+            </Grid>
+            <Grid size={{ xs: 12, lg: 8 }}>
+              <PaymentMethodsChart 
+                data={dashboardData?.payment_methods} 
+                loading={loadingDashboard} 
+              />
+            </Grid>
+            <Grid size={{ xs: 12 }}>
+              <PaymentAnalytics 
+                data={paymentData} 
+                loading={loadingPayments} 
+              />
+            </Grid>
           </Grid>
-        </Grid>
-
-        {/* Payment Methods Distribution */}
-        <Grid container spacing={3}>
-          <Grid size={{ xs: 12 }}>
-            <PaymentMethodsChart 
-              data={dashboardData?.payment_methods} 
-              loading={loadingDashboard} 
-            />
-          </Grid>
-        </Grid>
+        </TabPanel>
 
       </Container>
       
@@ -272,11 +329,6 @@ const Dashboard = () => {
         @keyframes spin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
-        }
-        
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
     </Box>

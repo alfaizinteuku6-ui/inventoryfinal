@@ -134,6 +134,21 @@ export const lightTheme = createTheme({
           },
         },
       },
+      MuiTooltip: {
+        styleOverrides: {
+          tooltip: {
+            backgroundColor: "rgba(0, 0, 0, 0.8)",
+            color: "#fff",
+            fontSize: "0.8rem",
+            borderRadius: 6,
+            padding: "6px 10px",
+            boxShadow: "0px 0px 10px rgba(0,0,0,0.1)",
+          },
+          arrow: {
+            color: "rgba(0, 0, 0, 0.8)",
+          },
+        },
+      },
       MuiTextField: {
         styleOverrides: {
           root: {
@@ -323,6 +338,21 @@ export const lightTheme = createTheme({
               boxShadow: '0 4px 12px rgba(0,0,0,0.6)',
               borderColor: 'rgba(148, 163, 184, 0.2)',
             },
+          },
+        },
+      },
+      MuiTooltip: {
+        styleOverrides: {
+          tooltip: {
+            backgroundColor: "rgba(255, 255, 255, 0.9)",
+            color: "#000",
+            fontSize: "0.8rem",
+            borderRadius: 6,
+            padding: "6px 10px",
+            boxShadow: "0px 0px 10px rgba(255,255,255,0.1)",
+          },
+          arrow: {
+            color: "rgba(255, 255, 255, 0.9)",
           },
         },
       },

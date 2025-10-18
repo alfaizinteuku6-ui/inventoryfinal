@@ -22,6 +22,7 @@ import {
   Receipt as ReceiptIcon,
   Person as PersonIcon,
 } from "@mui/icons-material";
+import EllipsisTooltipTypography from "../EllipsisTooltipTypography";
 import { useNotifications } from "../../hooks/useSWR";
 import { notifications as notificationsApi } from "../../services/api";
 import { mutate } from "swr";
@@ -29,14 +30,21 @@ import { mutate } from "swr";
 const NotificationMenu = ({ anchorEl, onClose, mutateStats }) => {
   const theme = useTheme();
   const [filter, setFilter] = useState("all");
-  const { data: notificationsData, error, isLoading } = useNotifications({
+  const {
+    data: notificationsData,
+    error,
+    isLoading,
+  } = useNotifications({
     is_read: filter === "unread" ? false : undefined,
   });
 
   const handleMarkAsRead = async (id) => {
     try {
       await notificationsApi.markAsRead(id);
-      mutate(["notifications", { is_read: filter === "unread" ? false : undefined }]);
+      mutate([
+        "notifications",
+        { is_read: filter === "unread" ? false : undefined },
+      ]);
       mutateStats();
     } catch (error) {
       console.error("Error marking notification as read:", error);
@@ -46,7 +54,10 @@ const NotificationMenu = ({ anchorEl, onClose, mutateStats }) => {
   const handleMarkAllRead = async () => {
     try {
       await notificationsApi.markAllRead();
-      mutate(["notifications", { is_read: filter === "unread" ? false : undefined }]);
+      mutate([
+        "notifications",
+        { is_read: filter === "unread" ? false : undefined },
+      ]);
       mutateStats();
     } catch (error) {
       console.error("Error marking all as read:", error);
@@ -56,7 +67,10 @@ const NotificationMenu = ({ anchorEl, onClose, mutateStats }) => {
   const handleDismiss = async (id) => {
     try {
       await notificationsApi.dismiss(id);
-      mutate(["notifications", { is_read: filter === "unread" ? false : undefined }]);
+      mutate([
+        "notifications",
+        { is_read: filter === "unread" ? false : undefined },
+      ]);
       mutateStats();
     } catch (error) {
       console.error("Error dismissing notification:", error);
@@ -143,7 +157,14 @@ const NotificationMenu = ({ anchorEl, onClose, mutateStats }) => {
           zIndex: 1,
         }}
       >
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            mb: 1,
+          }}
+        >
           <Typography variant="h6" fontWeight="600">
             Notifications
           </Typography>
@@ -218,13 +239,23 @@ const NotificationMenu = ({ anchorEl, onClose, mutateStats }) => {
                   },
                   display: "block",
                 }}
-                onClick={() => !notification.is_read && handleMarkAsRead(notification.id)}
+                onClick={() =>
+                  !notification.is_read && handleMarkAsRead(notification.id)
+                }
               >
-                <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    mb: 0.5,
+                  }}
+                >
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                     <Box
                       sx={{
-                        color: theme.palette[getPriorityColor(notification.priority)]?.main,
+                        color:
+                          theme.palette[getPriorityColor(notification.priority)]
+                            ?.main,
                         display: "flex",
                         alignItems: "center",
                       }}
@@ -252,17 +283,21 @@ const NotificationMenu = ({ anchorEl, onClose, mutateStats }) => {
                   </Box>
                 </Box>
 
-                <Typography
+                <EllipsisTooltipTypography
                   variant="body2"
                   fontWeight={!notification.is_read ? 600 : 500}
-                  sx={{ mb: 0.5 }}
+                  sx={{ mb: 0.5, maxWidth: 400 }} // Adjust width as needed
                 >
                   {notification.title}
-                </Typography>
+                </EllipsisTooltipTypography>
 
-                <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                <EllipsisTooltipTypography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ maxWidth: 400 }}
+                >
                   {notification.message}
-                </Typography>
+                </EllipsisTooltipTypography>
 
                 {/* Additional Info */}
                 {notification.product && (
@@ -274,11 +309,20 @@ const NotificationMenu = ({ anchorEl, onClose, mutateStats }) => {
                       borderRadius: 1,
                     }}
                   >
-                    <Typography variant="caption" fontWeight="600">
+                    <EllipsisTooltipTypography
+                      variant="caption"
+                      fontWeight="600"
+                      sx={{ maxWidth: 400 }}
+                    >
                       {notification.product.name}
-                    </Typography>
-                    <Typography variant="caption" display="block" color="text.secondary">
-                      Stock: {notification.product.stock_quantity} / Min: {notification.product.min_stock_level}
+                    </EllipsisTooltipTypography>
+                    <Typography
+                      variant="caption"
+                      display="block"
+                      color="text.secondary"
+                    >
+                      Stock: {notification.product.stock_quantity} / Min:{" "}
+                      {notification.product.min_stock_level}
                     </Typography>
                   </Box>
                 )}
@@ -293,14 +337,22 @@ const NotificationMenu = ({ anchorEl, onClose, mutateStats }) => {
                     <Chip
                       label={notification.sale.payment_status}
                       size="small"
-                      color={notification.sale.payment_status === "paid" ? "success" : "warning"}
+                      color={
+                        notification.sale.payment_status === "paid"
+                          ? "success"
+                          : "warning"
+                      }
                       sx={{ fontSize: "0.7rem", height: 20 }}
                     />
                   </Box>
                 )}
 
                 {notification.customer && (
-                  <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
+                  <Typography
+                    variant="caption"
+                    display="block"
+                    sx={{ mt: 0.5 }}
+                  >
                     Customer: {notification.customer.name}
                   </Typography>
                 )}

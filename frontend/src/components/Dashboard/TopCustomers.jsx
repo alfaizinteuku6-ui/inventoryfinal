@@ -45,7 +45,7 @@ const TopCustomers = ({ data, loading }) => {
           <Grid size={{ xs: 6 }}>
             <Box 
               textAlign="center" 
-              p={2.5} 
+              p={1} 
               bgcolor={alpha(theme.palette.primary.main, 0.1)} 
               borderRadius={2}
               sx={{
@@ -67,7 +67,7 @@ const TopCustomers = ({ data, loading }) => {
           <Grid size={{ xs: 6 }}>
             <Box 
               textAlign="center" 
-              p={2.5} 
+              p={1} 
               bgcolor={alpha(theme.palette.success.main, 0.1)} 
               borderRadius={2}
               sx={{
@@ -93,7 +93,7 @@ const TopCustomers = ({ data, loading }) => {
         <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
           🌟 Top Spenders
         </Typography>
-        <Box sx={{ maxHeight: 200, overflow: 'auto' }}>
+        <Box sx={{ maxHeight: 150, overflow: 'auto' }}>
           {(data?.top_customers || []).slice(0, 5).map((customer, index) => (
             <Box 
               key={customer.customer_id} 

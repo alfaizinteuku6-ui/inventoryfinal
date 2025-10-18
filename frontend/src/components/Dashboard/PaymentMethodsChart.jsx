@@ -53,7 +53,7 @@ const PaymentMethodsChart = ({ data, loading }) => {
         
         <Grid container spacing={3}>
           <Grid size={{ xs: 12, md: 6 }}>
-            <ResponsiveContainer width="100%" height={280}>
+            <ResponsiveContainer width="100%" height={290}>
               <BarChart data={data || []} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
                 <XAxis 
