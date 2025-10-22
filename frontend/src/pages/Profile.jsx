@@ -69,7 +69,11 @@ function Profile() {
 
   const handleUpdateVendor = async (vendorData) => {
     try {
-      await vendors.update(vendorData?.id, vendorData);
+      const formVendordata = new FormData();
+      for (const key in vendorData) {
+        formVendordata.append(key, vendorData[key]);
+      }
+      await vendors.update(vendorData?.id, formVendordata);
       showSnackbar("Business details updated successfully");
       vendorRefresh();
     } catch (error) {

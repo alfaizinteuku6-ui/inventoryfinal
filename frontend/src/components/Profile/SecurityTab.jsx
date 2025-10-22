@@ -53,7 +53,7 @@ function SecurityTab({ onPasswordChange, loading }) {
   };
 
   return (
-    <Grid container spacing={4}>
+    <Grid container spacing={4} justifyContent={'center'}>
       <Grid size={{ xs: 12, md: 6 }}>
         <Card>
           <CardContent sx={{ p: 4 }}>
@@ -171,7 +171,7 @@ function SecurityTab({ onPasswordChange, loading }) {
         </Card>
       </Grid>
 
-      <Grid size={{ xs: 12, md: 6 }}>
+      {/* <Grid size={{ xs: 12, md: 6 }}>
         <Card>
           <CardContent sx={{ p: 4 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
@@ -213,7 +213,7 @@ function SecurityTab({ onPasswordChange, loading }) {
             </Stack>
           </CardContent>
         </Card>
-      </Grid>
+      </Grid> */}
     </Grid>
   );
 }

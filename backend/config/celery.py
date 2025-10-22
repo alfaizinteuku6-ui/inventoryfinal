@@ -48,7 +48,7 @@ app.conf.beat_schedule = {
     'backup-database-every-10-minutes': {
         'task': 'apps.core.tasks.backup_database_task',
         'schedule': 600.0,  # 600 seconds = 10 minutes
-        'args': (50,),  # Keep 50 most recent backups
+        'args': (30,),  # Keep 30 most recent backups
     },
     # Optional: Daily cleanup at 3 AM
     'cleanup-old-backups-daily': {

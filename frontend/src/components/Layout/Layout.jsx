@@ -114,17 +114,93 @@ const Layout = () => {
           p: 3,
           background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
           color: "white",
+          position: "relative",
+          overflow: "hidden",
+          "&::before": {
+            content: '""',
+            position: "absolute",
+            top: 0,
+            right: 0,
+            width: "150px",
+            height: "150px",
+            background: "rgba(255, 255, 255, 0.05)",
+            borderRadius: "50%",
+            transform: "translate(30%, -30%)",
+          },
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-          <StoreIcon sx={{ fontSize: 32 }} />
-          <Typography variant="h5" fontWeight="bold">
-            {vendorData?.name}
-          </Typography>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 1.5, position: "relative", zIndex: 1 }}>
+          {vendorData?.logo ? (
+            <Box
+              sx={{
+                width: 48,
+                height: 48,
+                borderRadius: 2,
+                overflow: "hidden",
+                backgroundColor: "rgba(255, 255, 255, 0.15)",
+                backdropFilter: "blur(10px)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                border: "2px solid rgba(255, 255, 255, 0.2)",
+              }}
+            >
+              <img
+                src={vendorData.logo}
+                alt={vendorData.name}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                }}
+                onError={(e) => {
+                  e.target.style.display = "none";
+                  e.target.parentElement.innerHTML = `<svg style="width: 28px; height: 28px; color: white;"><use href="#store-icon" /></svg>`;
+                }}
+              />
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                width: 48,
+                height: 48,
+                borderRadius: 2,
+                backgroundColor: "rgba(255, 255, 255, 0.15)",
+                backdropFilter: "blur(10px)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                border: "2px solid rgba(255, 255, 255, 0.2)",
+              }}
+            >
+              <StoreIcon sx={{ fontSize: 28 }} />
+            </Box>
+          )}
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography 
+              variant="h5" 
+              fontWeight="700"
+              sx={{
+                letterSpacing: "-0.5px",
+                textShadow: "0 2px 4px rgba(0,0,0,0.1)",
+              }}
+            >
+              {vendorData?.name}
+            </Typography>
+            {vendorData?.tagline && (
+              <Typography 
+                variant="body2" 
+                sx={{ 
+                  opacity: 0.9,
+                  mt: 0.5,
+                  fontWeight: 400,
+                }}
+              >
+                {vendorData.tagline}
+              </Typography>
+            )}
+          </Box>
         </Box>
-        <Typography variant="body2" sx={{ opacity: 0.8 }}>
-          {vendorData?.tagline}
-        </Typography>
       </Box>
 
       <Box sx={{ flex: 1, overflow: "auto", px: 1 }}>
