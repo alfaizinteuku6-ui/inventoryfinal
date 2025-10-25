@@ -103,7 +103,7 @@ class StaffViewSet(viewsets.ModelViewSet):
     
     def list(self, request):
         """List staff members"""
-        if request.user.role not in ['admin', 'manager']:
+        if request.user.role not in ['admin', 'manager', 'owner']:
             return Response(
                 {'error': 'Permission denied. Only admins and managers can view staff.'}, 
                 status=status.HTTP_403_FORBIDDEN
@@ -115,7 +115,7 @@ class StaffViewSet(viewsets.ModelViewSet):
     
     def create(self, request):
         """Create new staff member"""
-        if request.user.role not in ['admin', 'manager']:
+        if request.user.role not in ['admin', 'manager', 'owner']:
             return Response(
                 {'error': 'Permission denied. Only admins and managers can add staff.'}, 
                 status=status.HTTP_403_FORBIDDEN

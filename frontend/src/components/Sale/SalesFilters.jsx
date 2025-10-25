@@ -7,13 +7,10 @@ import {
   InputAdornment,
   IconButton,
   Tooltip,
+  ToggleButtonGroup,
+  ToggleButton,
 } from "@mui/material";
-import {
-  Search,
-  FilterList,
-  GridView,
-  ViewList,
-} from "@mui/icons-material";
+import { Search, FilterList, GridView, ViewList } from "@mui/icons-material";
 
 const SalesFilters = ({
   searchTerm,
@@ -67,18 +64,37 @@ const SalesFilters = ({
               <FilterList />
             </IconButton>
           </Tooltip>
-          <Tooltip title={viewMode === "grid" ? "List View" : "Grid View"}>
-            <IconButton
-              onClick={onViewModeChange}
-              sx={{
-                bgcolor: "rgba(0,0,0,0.04)",
+          <ToggleButtonGroup
+            value={viewMode}
+            exclusive
+            onChange={(e, newView) => {
+              if (newView !== null) {
+                onViewModeChange(newView);
+              }
+            }}
+            size="small"
+            sx={{
+              height: 40,
+              "& .MuiToggleButton-root": {
                 borderRadius: 2,
-                "&:hover": { bgcolor: "rgba(0,0,0,0.08)" },
-              }}
-            >
-              {viewMode === "grid" ? <ViewList /> : <GridView />}
-            </IconButton>
-          </Tooltip>
+                border: "1px solid rgba(0,0,0,0.12)",
+                "&.Mui-selected": {
+                  bgcolor: "primary.main",
+                  color: "white",
+                  "&:hover": {
+                    bgcolor: "primary.dark",
+                  },
+                },
+              },
+            }}
+          >
+            <ToggleButton sx={{width: 50}} value="grid" aria-label="Grid View">
+              <GridView fontSize="small" />
+            </ToggleButton>
+            <ToggleButton sx={{width: 50}} value="table" aria-label="List View">
+              <ViewList fontSize="small" />
+            </ToggleButton>
+          </ToggleButtonGroup>
         </Stack>
       </Stack>
     </Paper>

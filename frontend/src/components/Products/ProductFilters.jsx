@@ -11,8 +11,10 @@ import {
   InputAdornment,
   Paper,
   CircularProgress,
+  ToggleButtonGroup,
+  ToggleButton,
 } from "@mui/material";
-import { Search, Clear } from "@mui/icons-material";
+import { Search, Clear, GridView, ViewList } from "@mui/icons-material";
 
 const ProductFilters = ({
   searchQuery,
@@ -30,6 +32,8 @@ const ProductFilters = ({
   isLoading,
   currentPage,
   onClearFilters,
+  viewMode = "grid",
+  onViewModeChange,
 }) => {
   return (
     <Paper
@@ -78,7 +82,7 @@ const ProductFilters = ({
         </Grid>
 
         {/* Category Filter */}
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 2.5 }}>
           <TextField
             select
             label="Category"
@@ -87,6 +91,11 @@ const ProductFilters = ({
             fullWidth
             size="small"
             SelectProps={{ native: true }}
+            sx={{
+              "& .MuiOutlinedInput-root": {
+                borderRadius: 2,
+              },
+            }}
           >
             <option value="all">All Categories</option>
             {categories?.map((category) => (
@@ -107,6 +116,11 @@ const ProductFilters = ({
             fullWidth
             size="small"
             SelectProps={{ native: true }}
+            sx={{
+              "& .MuiOutlinedInput-root": {
+                borderRadius: 2,
+              },
+            }}
           >
             <option value="name">Name</option>
             <option value="selling_price">Price</option>
@@ -116,7 +130,7 @@ const ProductFilters = ({
         </Grid>
 
         {/* Sort Order Toggle */}
-        <Grid size={{ xs: 12, sm: 6, md: 2 }}>
+        <Grid size={{ xs: 6, sm: 4, md: 1.25 }}>
           <Button
             variant="outlined"
             onClick={onSortOrderToggle}
@@ -125,10 +139,47 @@ const ProductFilters = ({
               borderRadius: 2,
               textTransform: "none",
               fontWeight: 600,
+              height: 40,
             }}
           >
             {sortOrder === "asc" ? "A-Z" : "Z-A"}
           </Button>
+        </Grid>
+
+        {/* View Mode Toggle */}
+        <Grid size={{ xs: 6, sm: 4, md: 1.25 }}>
+          <ToggleButtonGroup
+            value={viewMode}
+            exclusive
+            onChange={(e, newView) => {
+              if (newView !== null) {
+                onViewModeChange(newView);
+              }
+            }}
+            fullWidth
+            size="small"
+            sx={{
+              height: 40,
+              "& .MuiToggleButton-root": {
+                borderRadius: 2,
+                border: "1px solid rgba(0,0,0,0.12)",
+                "&.Mui-selected": {
+                  bgcolor: "primary.main",
+                  color: "white",
+                  "&:hover": {
+                    bgcolor: "primary.dark",
+                  },
+                },
+              },
+            }}
+          >
+            <ToggleButton value="grid" aria-label="grid view">
+              <GridView fontSize="small" />
+            </ToggleButton>
+            <ToggleButton value="table" aria-label="table view">
+              <ViewList fontSize="small" />
+            </ToggleButton>
+          </ToggleButtonGroup>
         </Grid>
       </Grid>
 

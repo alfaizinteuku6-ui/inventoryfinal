@@ -19,6 +19,7 @@ import {
   ImageList,
   ImageListItem,
   ImageListItemBar,
+  useTheme,
 } from "@mui/material";
 import {
   Add as AddIcon,
@@ -42,6 +43,7 @@ import CustomSnackbar from "../components/CustomSnackbar";
 
 const ProductForm = () => {
   const { id } = useParams();
+  const theme = useTheme();
   const { data: product, mutate: productMutate, isLoading } = useProduct(id);
 
   const { data: categories, mutate } = useCategories();
@@ -242,17 +244,15 @@ const ProductForm = () => {
 
                 <Box
                   sx={{
-                    border: "2px dashed #e0e7ff",
+                    border: `2px dashed ${theme.palette.divider}`,
                     borderRadius: 2,
                     p: 3,
                     textAlign: "center",
-                    backgroundColor: "#f8fafc",
                     cursor: "pointer",
                     transition: "all 0.3s ease",
                     "&:hover": {
-                      borderColor: "#667eea",
-                      backgroundColor: "#f1f5f9",
-                    },
+                      borderColor: theme.palette.primary.main,
+                    }
                   }}
                   onClick={() =>
                     document.getElementById("product-images").click()

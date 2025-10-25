@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import {
   Box,
@@ -38,6 +38,8 @@ import { useAuth } from "../../hooks/useAuth";
 import { ThemeToggleButton } from "../ThemeToggleButton";
 import { useVendors, useNotificationStats } from "../../hooks/useSWR";
 import NotificationMenu from "./NotificationMenu";
+import CustomSnackbar from "../CustomSnackbar";
+import VendorCreateDialog from "../VendorCreateDialog";
 
 const drawerWidth = 280;
 
@@ -66,10 +68,49 @@ const menuItems = [
 const Layout = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
+  const [vendorDialogOpen, setVendorDialogOpen] = useState(false);
   const [notificationAnchor, setNotificationAnchor] = useState(null);
-  const { data: vendorData, isLoading } = useVendors();
-  const { data: notificationStats, mutate: statsMutate } = useNotificationStats();
+  const {
+    data: vendorData,
+    isLoading,
+    error: vendorError,
+    mutate: vendorRefresh,
+  } = useVendors();
+  const {
+    data: notificationStats,
+    mutate: statsMutate,
+    error: notificationError,
+  } = useNotificationStats();
   const { user, logout } = useAuth();
+
+  const [error, setError] = useState(null);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
+
+  const canManageVendor = user?.role === "owner" || user?.role === "admin";
+
+  useEffect(() => {
+    const errors = [];
+    if (vendorError?.response?.data?.error)
+      errors.push(vendorError?.response?.data?.error);
+    if (
+      vendorError?.response?.data?.error ===
+      "No vendor associated with this user"
+    ) {
+      setVendorDialogOpen(true);
+    }
+    if (notificationError?.response?.data?.error)
+      errors.push(notificationError?.response?.data?.error);
+
+    if (errors.length > 0) {
+      setError(errors.join("\n"));
+    } else {
+      setError(null);
+    }
+  }, [vendorError, notificationError]);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -106,9 +147,23 @@ const Layout = () => {
   };
 
   const unreadCount = notificationStats?.unread || 0;
-  
+
   const drawer = (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+      <CustomSnackbar
+        open={Boolean(error)}
+        severity="error"
+        message={error}
+        onClose={() => setError(null)}
+      />
+      <VendorCreateDialog
+        open={vendorDialogOpen}
+        onClose={() => setVendorDialogOpen(false)}
+        canManageVendor={canManageVendor}
+        vendorDetails={vendorData}
+        mutate={vendorRefresh}
+        setSnackbar={setSnackbar}
+      />
       <Box
         sx={{
           p: 3,
@@ -129,7 +184,16 @@ const Layout = () => {
           },
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 1.5, position: "relative", zIndex: 1 }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 2,
+            mb: 1.5,
+            position: "relative",
+            zIndex: 1,
+          }}
+        >
           {vendorData?.logo ? (
             <Box
               sx={{
@@ -177,26 +241,26 @@ const Layout = () => {
             </Box>
           )}
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography 
-              variant="h5" 
+            <Typography
+              variant="h5"
               fontWeight="700"
               sx={{
                 letterSpacing: "-0.5px",
                 textShadow: "0 2px 4px rgba(0,0,0,0.1)",
               }}
             >
-              {vendorData?.name}
+              {vendorData?.name || "Your Business"}
             </Typography>
             {vendorData?.tagline && (
-              <Typography 
-                variant="body2" 
-                sx={{ 
+              <Typography
+                variant="body2"
+                sx={{
                   opacity: 0.9,
                   mt: 0.5,
                   fontWeight: 400,
                 }}
               >
-                {vendorData.tagline}
+                {vendorData?.tagline || "Manage your store efficiently"}
               </Typography>
             )}
           </Box>

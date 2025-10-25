@@ -4,8 +4,10 @@ from .models import Customer
 from django.db.models import Sum, Count, Q, Case, When, DecimalField
 from .serializers import CustomerSerializer
 from config.pagination import StandardResultsSetPagination
+from rest_framework.permissions import IsAuthenticated
 
 class CustomerViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     serializer_class = CustomerSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['customer_type', 'city', 'state']

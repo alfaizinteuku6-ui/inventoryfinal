@@ -42,7 +42,7 @@ class User(AbstractUser):
     )
     
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['username', 'first_name', 'last_name']
+    REQUIRED_FIELDS = ['username']
 
     def can_manage_vendor(self):
         """Check if user can manage vendor details"""

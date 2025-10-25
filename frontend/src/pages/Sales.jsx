@@ -5,9 +5,9 @@ import CustomSnackbar from "../components/CustomSnackbar";
 import CancelSaleModal from "../components/Sale/CancelSaleModal";
 import PaginationComponent from "../components/Pagination";
 import SalesHeader from "../components/Sale/SalesHeader";
-// import SalesStats from "../components/Sale/SalesStats";
 import SalesFilters from "../components/Sale/SalesFilters";
 import SalesGrid from "../components/Sale/SalesGrid";
+import SalesTable from "../components/Sale/SalesTable";
 import PaymentModal from "../components/Sale/PaymentModal";
 import EmptyState from "../components/EmptyState";
 
@@ -17,6 +17,18 @@ import { ReceiptLong } from "@mui/icons-material";
 const Sales = () => {
   const navigate = useNavigate();
   const salesState = useSalesState();
+
+  React.useEffect(() => {
+    const savedViewMode = localStorage.getItem("salesViewMode");
+    console.log("Saved View Mode:", savedViewMode);
+    
+    if (
+      savedViewMode &&
+      (savedViewMode === "grid" || savedViewMode === "table")
+    ) {
+      salesState.setViewMode(savedViewMode);
+    }
+  }, []);
 
   return (
     <Box sx={{ width: "100%", minHeight: "100vh", p: { xs: 2, sm: 3 } }}>
@@ -37,7 +49,6 @@ const Sales = () => {
       />
 
       <SalesHeader navigate={navigate} />
-      {/* <SalesStats summary={salesState?.salesSummary} /> */}
 
       <SalesFilters
         searchTerm={salesState.searchTerm}
@@ -48,19 +59,35 @@ const Sales = () => {
 
       {salesState.salesResults.length ? (
         <>
-          <SalesGrid
-            sales={salesState.salesResults}
-            loading={salesState.loading}
-            itemsPerPage={salesState.itemsPerPage}
-            companyInfo={salesState.companyInfo}
-            navigate={navigate}
-            onAddPayment={salesState.handleAddPayment}
-            onCancelSale={(sale) => {
-              salesState.setSelectedSale(sale);
-              salesState.setCancelOpen(true);
-            }}
-            onDeleteSale={salesState.handleDeleteSale}
-          />
+          {salesState.viewMode === "grid" ? (
+            <SalesGrid
+              sales={salesState.salesResults}
+              loading={salesState.loading}
+              itemsPerPage={salesState.itemsPerPage}
+              companyInfo={salesState.companyInfo}
+              navigate={navigate}
+              onAddPayment={salesState.handleAddPayment}
+              onCancelSale={(sale) => {
+                salesState.setSelectedSale(sale);
+                salesState.setCancelOpen(true);
+              }}
+              onDeleteSale={salesState.handleDeleteSale}
+            />
+          ) : (
+            <SalesTable
+              sales={salesState.salesResults}
+              loading={salesState.loading}
+              itemsPerPage={salesState.itemsPerPage}
+              companyInfo={salesState.companyInfo}
+              navigate={navigate}
+              onAddPayment={salesState.handleAddPayment}
+              onCancelSale={(sale) => {
+                salesState.setSelectedSale(sale);
+                salesState.setCancelOpen(true);
+              }}
+              onDeleteSale={salesState.handleDeleteSale}
+            />
+          )}
 
           <PaginationComponent
             currentPage={salesState.currentPage}

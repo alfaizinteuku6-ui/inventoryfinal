@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Box,
   Button,
@@ -29,6 +29,9 @@ const Products = () => {
   const theme = useTheme();
   const navigate = useNavigate();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+
+  // View mode state (grid or table)
+  const [viewMode, setViewMode] = useState("grid");
 
   // Use custom hook for state management
   const {
@@ -72,6 +75,21 @@ const Products = () => {
   const products = productsData?.results || [];
   const totalCount = productsData?.count || 0;
   const totalPages = Math.ceil(totalCount / itemsPerPage);
+
+  // View mode change handler
+  const handleViewModeChange = (newViewMode) => {
+    setViewMode(newViewMode);
+    // Optional: Save to localStorage for persistence
+    localStorage.setItem("productsViewMode", newViewMode);
+  };
+
+  // Load saved view mode on mount
+  React.useEffect(() => {
+    const savedViewMode = localStorage.getItem("productsViewMode");
+    if (savedViewMode && (savedViewMode === "grid" || savedViewMode === "table")) {
+      setViewMode(savedViewMode);
+    }
+  }, []);
 
   // Delete handler
   const handleDeleteConfirm = async () => {
@@ -154,6 +172,8 @@ const Products = () => {
         isLoading={isLoading}
         currentPage={currentPage}
         onClearFilters={handleClearFilters}
+        viewMode={viewMode}
+        onViewModeChange={handleViewModeChange}
       />
 
       {/* Products Grid/List */}
@@ -165,6 +185,7 @@ const Products = () => {
         debouncedSearchQuery={debouncedSearchQuery}
         categoryFilter={categoryFilter}
         onClearFilters={handleClearFilters}
+        viewMode={viewMode}
       />
 
       {/* Pagination */}
@@ -208,7 +229,7 @@ const Products = () => {
       </Snackbar>
 
       {/* Floating Speed Dial */}
-      <ProductsSpeedDial onRefresh={() => mutate()} />
+      {/* <ProductsSpeedDial onRefresh={() => mutate()} /> */}
     </Box>
   );
 };

@@ -63,15 +63,6 @@ const CustomerFilters = ({
               </Select>
             </FormControl>
           </Grid>
-          <Grid size={{ xs: 12, sm: 4, md: 2 }}>
-            <Box display="flex" justifyContent="flex-end" gap={1}>
-              <Tooltip title="Export">
-                <IconButton>
-                  <DownloadIcon />
-                </IconButton>
-              </Tooltip>
-            </Box>
-          </Grid>
         </Grid>
       </CardContent>
     </Card>

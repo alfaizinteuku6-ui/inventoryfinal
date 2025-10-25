@@ -3,6 +3,7 @@ import { Grid } from "@mui/material";
 import { Inventory2 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import ProductCard from "./ProductCard";
+import ProductsTable from "./ProductsTable";
 import LoadingSkeleton from "../LoadingSkeleton";
 import EmptyState from "../EmptyState";
 
@@ -14,11 +15,12 @@ const ProductsList = ({
   debouncedSearchQuery,
   categoryFilter,
   onClearFilters,
+  viewMode = "grid", // Passed from parent
 }) => {
   const navigate = useNavigate();
   const hasFilter = Boolean(debouncedSearchQuery || categoryFilter !== "all");
-  // Empty state
 
+  // Empty state
   if (isLoading && currentPage === 1) {
     return <LoadingSkeleton />;
   }
@@ -43,6 +45,14 @@ const ProductsList = ({
     );
   }
 
+  // Table View
+  if (viewMode === "table") {
+    return (
+      <ProductsTable products={products} handleDeleteClick={handleDeleteClick} />
+    );
+  }
+
+  // Grid View (Default)
   return (
     <Grid container spacing={3}>
       {products.map((product, index) => (

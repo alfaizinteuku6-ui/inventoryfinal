@@ -21,6 +21,7 @@ import {
   Inventory as InventoryIcon,
   Receipt as ReceiptIcon,
   Person as PersonIcon,
+  ClearAll as ClearAllIcon,
 } from "@mui/icons-material";
 import EllipsisTooltipTypography from "../EllipsisTooltipTypography";
 import { useNotifications } from "../../hooks/useSWR";
@@ -29,7 +30,7 @@ import { mutate } from "swr";
 
 const NotificationMenu = ({ anchorEl, onClose, mutateStats }) => {
   const theme = useTheme();
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState("unread");
   const {
     data: notificationsData,
     error,
@@ -74,6 +75,20 @@ const NotificationMenu = ({ anchorEl, onClose, mutateStats }) => {
       mutateStats();
     } catch (error) {
       console.error("Error dismissing notification:", error);
+    }
+  };
+
+  const handleDismissAll = async () => {
+    try {
+      // Assuming you need to add this API method
+      await notificationsApi.cleanup();
+      mutate([
+        "notifications",
+        { is_read: filter === "unread" ? false : undefined },
+      ]);
+      mutateStats();
+    } catch (error) {
+      console.error("Error dismissing all notifications:", error);
     }
   };
 
@@ -196,14 +211,20 @@ const NotificationMenu = ({ anchorEl, onClose, mutateStats }) => {
           />
         </Box>
 
-        {unreadCount > 0 && (
-          <Button
-            size="small"
-            onClick={handleMarkAllRead}
-            sx={{ mt: 1, fontSize: "0.75rem" }}
-          >
-            Mark all as read
-          </Button>
+        {/* Action Buttons */}
+        {notifications.length > 0 && (
+          <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
+            {unreadCount > 0 && (
+              <Button
+                size="small"
+                onClick={handleMarkAllRead}
+                startIcon={<CheckCircleIcon />}
+                sx={{ fontSize: "0.75rem", flex: 1 }}
+              >
+                Mark all read
+              </Button>
+            )}
+          </Box>
         )}
       </Box>
 
@@ -286,7 +307,7 @@ const NotificationMenu = ({ anchorEl, onClose, mutateStats }) => {
                 <EllipsisTooltipTypography
                   variant="body2"
                   fontWeight={!notification.is_read ? 600 : 500}
-                  sx={{ mb: 0.5, maxWidth: 400 }} // Adjust width as needed
+                  sx={{ mb: 0.5, maxWidth: 400 }}
                 >
                   {notification.title}
                 </EllipsisTooltipTypography>

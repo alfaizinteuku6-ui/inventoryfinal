@@ -14,8 +14,10 @@ from rest_framework.filters import OrderingFilter
 from django_filters import rest_framework as fieldfilters
 from django_filters.rest_framework import DjangoFilterBackend
 from config.pagination import StandardResultsSetPagination
+from rest_framework.permissions import IsAuthenticated
 
 class CategoryViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     queryset = Category.objects.filter(is_active=True)
     serializer_class = CategorySerializer
     filter_backends = [filters.SearchFilter]
@@ -28,6 +30,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
         instance.save()
 
 class ProductViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     queryset = Product.objects.select_related('category').filter(is_active=True)
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['category']
@@ -167,6 +170,7 @@ class StockMovementFilter(fieldfilters.FilterSet):
 
 # Then in views.py:
 class StockMovementViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [IsAuthenticated]
     queryset = StockMovement.objects.select_related('product', 'user')
     serializer_class = StockMovementSerializer
     filter_backends = [DjangoFilterBackend, OrderingFilter]  # mix of django-filter + DRF ordering

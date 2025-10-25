@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSales, useVendors } from "./useSWR";
 import { sales as SalesApi } from "../services/api";
 import generateInvoicePDF from "../utils/invoice";
@@ -57,8 +57,11 @@ export const useSalesState = () => {
     setCurrentPage(1);
   };
 
-  const handleViewModeChange = () =>
-    setViewMode(viewMode === "grid" ? "list" : "grid");
+  const handleViewModeChange = () => {
+    const newMode = viewMode === "grid" ? "table" : "grid";
+    setViewMode(newMode);
+    localStorage.setItem("salesViewMode", newMode);
+  };
 
   const handleChoice = (choice) => {
     handleCancelSale(selectedSale.id, choice);
@@ -150,7 +153,6 @@ export const useSalesState = () => {
     generateInvoicePDF(sale, companyInfo);
   };
 
-
   return {
     // state
     searchTerm,
@@ -176,6 +178,7 @@ export const useSalesState = () => {
     setPaymentOption,
     setCustomAmount,
     setSnackbar,
+    setViewMode,
 
     // handlers
     handlePageChange,

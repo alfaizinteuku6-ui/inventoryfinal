@@ -8,6 +8,29 @@ class VendorViewSet(viewsets.ViewSet):
     """ViewSet for vendor details management"""
     permission_classes = [IsAuthenticated]
     
+    def create(self, request):
+        """Create a new vendor and associate with the current user"""
+        user = request.user
+        
+        # Check if user already has a vendor
+        if hasattr(user, 'vendor') and user.vendor:
+            return Response(
+                {'error': 'User already has an associated vendor'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        serializer = VendorSerializer(data=request.data)
+        if serializer.is_valid():
+            # Create vendor
+            vendor = serializer.save()
+            
+            # Associate vendor with user (User has ForeignKey to Vendor)
+            user.vendor = vendor
+            user.save()
+            
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
     def list(self, request):
         """Get vendor details"""
         if not hasattr(request.user, 'vendor') or not request.user.vendor:
@@ -23,7 +46,7 @@ class VendorViewSet(viewsets.ViewSet):
         """Update vendor details (only for admin/manager)"""
         user = request.user
         
-        if user.role not in ['admin', 'manager']:
+        if user.role not in ['admin', 'manager', 'owner']:
             return Response(
                 {'error': 'Permission denied. Only admins and managers can update vendor details.'}, 
                 status=status.HTTP_403_FORBIDDEN
