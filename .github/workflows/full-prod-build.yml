@@ -38,7 +38,7 @@ jobs:
           call .venv\Scripts\activate.bat
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install nuitka
+          pip install nuitka ordered-set zstandard
 
       # ---------------------- NODE SETUP ----------------------
       - name: Set up Node.js
@@ -91,7 +91,7 @@ jobs:
         shell: cmd
         run: |
           call .venv\Scripts\activate.bat
-          python -m nuitka --standalone --follow-imports --enable-plugin=anti-bloat --enable-plugin=pylint-warnings --module-parameter=django-settings-module=ims.settings --include-data-dir=templates=templates --include-data-dir=static=static --output-dir=build_output run_app.py
+          python -m nuitka --standalone --follow-imports --nofollow-import-to=idlelib --nofollow-import-to=pydoc --nofollow-import-to=test --nofollow-import-to=unittest --nofollow-import-to=setuptools --module-parameter=django-settings-module=ims.settings --include-module=ims.asgi --include-module=ims.wsgi --include-module=ims.settings --include-package=ims --include-data-dir=templates=templates --include-data-dir=static=static --output-dir=build_output run_app.py
 
       # ---------------------- PACKAGE FINAL ARTIFACT ----------------------
       - name: Package build output
