@@ -91,7 +91,7 @@ jobs:
         shell: cmd
         run: |
           call .venv\Scripts\activate.bat
-          python -m nuitka --standalone --follow-imports --include-data-dir=templates=templates --include-data-dir=static=static --output-dir=build_output run_app.py
+          python -m nuitka --standalone --follow-imports --enable-plugin=anti-bloat --enable-plugin=pylint-warnings --module-parameter=django-settings-module=ims.settings --include-data-dir=templates=templates --include-data-dir=static=static --output-dir=build_output run_app.py
 
       # ---------------------- PACKAGE FINAL ARTIFACT ----------------------
       - name: Package build output
