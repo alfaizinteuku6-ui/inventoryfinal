@@ -32,9 +32,10 @@ jobs:
 
       - name: Install Python dependencies
         working-directory: backend
+        shell: cmd
         run: |
           python -m venv .venv
-          .venv\Scripts\activate
+          call .venv\Scripts\activate.bat
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install nuitka
@@ -79,22 +80,18 @@ jobs:
       # ---------------------- DJANGO STATIC COLLECTION ----------------------
       - name: Collect Django static files
         working-directory: backend
+        shell: cmd
         run: |
-          .venv\Scripts\activate
+          call .venv\Scripts\activate.bat
           python manage.py collectstatic --noinput --clear
 
       # ---------------------- BUILD BACKEND WITH NUITKA ----------------------
       - name: Build Django backend executable
         working-directory: backend
+        shell: cmd
         run: |
-          .venv\Scripts\activate
-          python -m nuitka ^
-            --standalone ^
-            --follow-imports ^
-            --include-data-dir=templates=templates ^
-            --include-data-dir=static=static ^
-            --output-dir=build_output ^
-            run_app.py
+          call .venv\Scripts\activate.bat
+          python -m nuitka --standalone --follow-imports --include-data-dir=templates=templates --include-data-dir=static=static --output-dir=build_output run_app.py
 
       # ---------------------- PACKAGE FINAL ARTIFACT ----------------------
       - name: Package build output
