@@ -26,8 +26,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ~/.cache/pip
-            backend/.venv
+            ~\AppData\Local\pip\Cache
+            backend\.venv
           key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
 
       - name: Install Python dependencies
@@ -63,11 +63,18 @@ jobs:
         run: npm run build:production
 
       - name: Copy frontend build to backend
+        shell: pwsh
         run: |
-          mkdir -p backend/templates
-          mkdir -p backend/static/assets
-          if exist frontend/dist\index.html copy /Y frontend\dist\index.html backend\templates\
-          if exist frontend/dist\assets xcopy /E /Y /I /Q frontend\dist\assets backend\static\assets
+          New-Item -ItemType Directory -Force -Path backend/templates
+          New-Item -ItemType Directory -Force -Path backend/static/assets
+          
+          if (Test-Path frontend/dist/index.html) {
+            Copy-Item -Path frontend/dist/index.html -Destination backend/templates/ -Force
+          }
+          
+          if (Test-Path frontend/dist/assets) {
+            Copy-Item -Path frontend/dist/assets/* -Destination backend/static/assets/ -Recurse -Force
+          }
 
       # ---------------------- DJANGO STATIC COLLECTION ----------------------
       - name: Collect Django static files
@@ -82,7 +89,7 @@ jobs:
         run: |
           .venv\Scripts\activate
           python -m nuitka ^
-            --mode=standalone ^
+            --standalone ^
             --follow-imports ^
             --include-data-dir=templates=templates ^
             --include-data-dir=static=static ^
@@ -91,8 +98,9 @@ jobs:
 
       # ---------------------- PACKAGE FINAL ARTIFACT ----------------------
       - name: Package build output
+        shell: pwsh
         run: |
-          powershell Compress-Archive -Path backend\build_output\run_app.dist -DestinationPath fullstack_build.zip
+          Compress-Archive -Path backend/build_output/run_app.dist -DestinationPath fullstack_build.zip
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
