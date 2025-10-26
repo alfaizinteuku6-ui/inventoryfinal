@@ -1,0 +1,101 @@
+name: Django + React Full Production Build
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Fullstack App
+    runs-on: windows-latest
+
+    steps:
+      # ---------------------- CHECKOUT ----------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ---------------------- PYTHON SETUP ----------------------
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            backend/.venv
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+
+      - name: Install Python dependencies
+        working-directory: backend
+        run: |
+          python -m venv .venv
+          .venv\Scripts\activate
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install nuitka
+
+      # ---------------------- NODE SETUP ----------------------
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Cache npm modules
+        uses: actions/cache@v4
+        with:
+          path: frontend/node_modules
+          key: ${{ runner.os }}-npm-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
+      - name: Install Node dependencies
+        working-directory: frontend
+        run: npm ci
+
+      # ---------------------- FRONTEND BUILD ----------------------
+      - name: Build React frontend
+        working-directory: frontend
+        run: npm run build:production
+
+      - name: Copy frontend build to backend
+        run: |
+          mkdir -p backend/templates
+          mkdir -p backend/static/assets
+          if exist frontend/dist\index.html copy /Y frontend\dist\index.html backend\templates\
+          if exist frontend/dist\assets xcopy /E /Y /I /Q frontend\dist\assets backend\static\assets
+
+      # ---------------------- DJANGO STATIC COLLECTION ----------------------
+      - name: Collect Django static files
+        working-directory: backend
+        run: |
+          .venv\Scripts\activate
+          python manage.py collectstatic --noinput --clear
+
+      # ---------------------- BUILD BACKEND WITH NUITKA ----------------------
+      - name: Build Django backend executable
+        working-directory: backend
+        run: |
+          .venv\Scripts\activate
+          python -m nuitka ^
+            --mode=standalone ^
+            --follow-imports ^
+            --include-data-dir=templates=templates ^
+            --include-data-dir=static=static ^
+            --output-dir=build_output ^
+            run_app.py
+
+      # ---------------------- PACKAGE FINAL ARTIFACT ----------------------
+      - name: Package build output
+        run: |
+          powershell Compress-Archive -Path backend\build_output\run_app.dist -DestinationPath fullstack_build.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Fullstack-Build
+          path: fullstack_build.zip

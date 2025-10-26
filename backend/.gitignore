@@ -16,6 +16,8 @@ db.sqlite3
 media
 
 venv/
+venv312/
+build_output/
 .inventoryEnv/
 
 templates/
