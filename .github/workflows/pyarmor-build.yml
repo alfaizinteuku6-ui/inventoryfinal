@@ -125,86 +125,86 @@ jobs:
           
           # Create a Python script to handle obfuscation
           @'
-import os
-import sys
-from pathlib import Path
-import shutil
+          import os
+          import sys
+          from pathlib import Path
+          import shutil
 
-try:
-    # Try PyArmor 8.x first
-    from pyarmor.cli.__main__ import main_entry
+          try:
+              # Try PyArmor 8.x first
+              from pyarmor.cli.__main__ import main_entry
+              
+              print("Using PyArmor 8.x")
+              
+              # Prepare arguments for PyArmor gen command
+              args = [
+                  'gen',
+                  '--output', 'dist_protected',
+                  '--platform', 'windows.x86_64',
+                  '--exclude', '*/migrations/*',
+                  '--exclude', '*/__pycache__/*', 
+                  '--exclude', '*/tests/*',
+                  '--exclude', '*.pyc',
+                  '--exclude', '.venv/*',
+                  '--exclude', 'venv/*',
+                  '--recursive',
+                  '.'
+              ]
+              
+              sys.argv = ['pyarmor'] + args
+              main_entry()
     
-    print("Using PyArmor 8.x")
-    
-    # Prepare arguments for PyArmor gen command
-    args = [
-        'gen',
-        '--output', 'dist_protected',
-        '--platform', 'windows.x86_64',
-        '--exclude', '*/migrations/*',
-        '--exclude', '*/__pycache__/*', 
-        '--exclude', '*/tests/*',
-        '--exclude', '*.pyc',
-        '--exclude', '.venv/*',
-        '--exclude', 'venv/*',
-        '--recursive',
-        '.'
-    ]
-    
-    sys.argv = ['pyarmor'] + args
-    main_entry()
-    
-except ImportError:
-    try:
-        # Fall back to PyArmor 7.x
-        from pyarmor import main as pyarmor_main
-        
-        print("Using PyArmor 7.x")
-        
-        # For PyArmor 7.x, use obfuscate command
-        args = [
-            'obfuscate',
-            '--output', 'dist_protected',
-            '--platform', 'windows.x86_64',
-            '--exclude', 'migrations',
-            '--exclude', '__pycache__',
-            '--exclude', 'tests',
-            '--exclude', '.venv',
-            '--exclude', 'venv',
-            '--recursive',
-            '--no-cross-protection',
-            '.'
-        ]
-        
-        sys.argv = ['pyarmor'] + args
-        pyarmor_main()
-        
-    except Exception as e:
-        print(f"Error with PyArmor 7.x: {e}")
-        
-        # Last resort: manual file copy and simple obfuscation
-        print("\nFalling back to basic obfuscation...")
-        
-        dist_dir = Path('dist_protected')
-        dist_dir.mkdir(exist_ok=True)
-        
-        # Copy all Python files
-        for py_file in Path('.').rglob('*.py'):
-            if any(x in str(py_file) for x in ['migrations', '__pycache__', 'tests', '.venv', 'venv']):
-                continue
-            
-            rel_path = py_file.relative_to('.')
-            dest_file = dist_dir / rel_path
-            dest_file.parent.mkdir(parents=True, exist_ok=True)
-            
-            shutil.copy2(py_file, dest_file)
-            print(f"Copied: {rel_path}")
-        
-        print("\nWarning: Using unobfuscated files. Install PyArmor properly for protection.")
-        sys.exit(0)
+          except ImportError:
+              try:
+                  # Fall back to PyArmor 7.x
+                  from pyarmor import main as pyarmor_main
+                  
+                  print("Using PyArmor 7.x")
+                  
+                  # For PyArmor 7.x, use obfuscate command
+                  args = [
+                      'obfuscate',
+                      '--output', 'dist_protected',
+                      '--platform', 'windows.x86_64',
+                      '--exclude', 'migrations',
+                      '--exclude', '__pycache__',
+                      '--exclude', 'tests',
+                      '--exclude', '.venv',
+                      '--exclude', 'venv',
+                      '--recursive',
+                      '--no-cross-protection',
+                      '.'
+                  ]
+                  
+                  sys.argv = ['pyarmor'] + args
+                  pyarmor_main()
+                  
+              except Exception as e:
+                  print(f"Error with PyArmor 7.x: {e}")
+                  
+                  # Last resort: manual file copy and simple obfuscation
+                  print("\nFalling back to basic obfuscation...")
+                  
+                  dist_dir = Path('dist_protected')
+                  dist_dir.mkdir(exist_ok=True)
+                  
+                  # Copy all Python files
+                  for py_file in Path('.').rglob('*.py'):
+                      if any(x in str(py_file) for x in ['migrations', '__pycache__', 'tests', '.venv', 'venv']):
+                          continue
+                      
+                      rel_path = py_file.relative_to('.')
+                      dest_file = dist_dir / rel_path
+                      dest_file.parent.mkdir(parents=True, exist_ok=True)
+                      
+                      shutil.copy2(py_file, dest_file)
+                      print(f"Copied: {rel_path}")
+                  
+                  print("\nWarning: Using unobfuscated files. Install PyArmor properly for protection.")
+                  sys.exit(0)
 
-print("\n✓ PyArmor obfuscation completed successfully!")
-'@ | Out-File -FilePath obfuscate_script.py -Encoding UTF8
+          print("\n✓ PyArmor obfuscation completed successfully!")
+          '@ | Out-File -FilePath obfuscate_script.py -Encoding UTF8
           
           # Run the obfuscation script
           python obfuscate_script.py
