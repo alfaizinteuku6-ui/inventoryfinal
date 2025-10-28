@@ -163,13 +163,7 @@ jobs:
           echo "🔒 Using STANDARD protection mode (works on any machine)"
           
           # Standard protection - works on any machine, good security
-          pyarmor gen \
-            --output protected_build \
-            --recursive \
-            --enable-jit \
-            --obf-code 2 \
-            --obf-module 1 \
-            .
+          pyarmor gen --output protected_build -r .
           
           echo "✅ Protection complete!"
 
