@@ -63,7 +63,7 @@ def get_extensions():
     """Collect all Python files to compile"""
     extensions = []
     
-    print("\n🔍 Scanning for files to compile...")
+    print("\n Scanning for files to compile...")
     
     # Compile project-level files
     project_dir = PROJECT_NAME
@@ -92,7 +92,7 @@ def get_extensions():
                             extensions.append(Extension(module_name, [filepath]))
                             print(f"   ✓ {filepath}")
     
-    print(f"\n📊 Total files to compile: {len(extensions)}\n")
+    print(f"\n Total files to compile: {len(extensions)}\n")
     return extensions
 
 # ===== SETUP CONFIGURATION =====
@@ -101,7 +101,7 @@ if __name__ == "__main__":
     extensions = get_extensions()
     
     if not extensions:
-        print("⚠️  No files found to compile. Check your configuration.")
+        print(" No files found to compile. Check your configuration.")
         print(f"   PROJECT_NAME: {PROJECT_NAME}")
         print(f"   APPS_TO_PROTECT: {APPS_TO_PROTECT}")
         sys.exit(1)

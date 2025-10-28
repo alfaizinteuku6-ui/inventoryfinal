@@ -20,7 +20,7 @@ class DjangoProtectedBuilder:
         
     def clean(self):
         """Clean previous builds"""
-        print("🧹 Cleaning previous builds...")
+        print(" Cleaning previous builds...")
         
         # Directories to clean
         dirs_to_clean = [
@@ -46,11 +46,11 @@ class DjangoProtectedBuilder:
                 except:
                     pass
         
-        print("✅ Cleanup completed\n")
+        print(" Cleanup completed\n")
     
     def build_extensions(self):
         """Build Cython extensions"""
-        print("🔨 Building Cython extensions...")
+        print(" Building Cython extensions...")
         
         result = subprocess.run(
             [sys.executable, "setup.py", "build_ext", "--inplace"],
@@ -60,7 +60,7 @@ class DjangoProtectedBuilder:
         )
         
         if result.returncode != 0:
-            print("❌ Build failed:")
+            print(" Build failed:")
             print(result.stdout)
             print(result.stderr)
             return False
@@ -71,18 +71,18 @@ class DjangoProtectedBuilder:
                 if 'compiling' in line.lower() or 'creating' in line.lower():
                     print(f"   {line}")
         
-        print("✅ Cython compilation successful\n")
+        print(" Cython compilation successful\n")
         return True
     
     def create_dist_structure(self):
         """Create distribution directory structure"""
-        print("📁 Creating distribution structure...")
+        print(" Creating distribution structure...")
         self.dist_dir.mkdir(exist_ok=True)
         print(f"   Created: {self.dist_dir}\n")
     
     def copy_compiled_extensions(self):
         """Copy .pyd files to distribution"""
-        print("📦 Copying compiled extensions...")
+        print(" Copying compiled extensions...")
         
         # Find all .pyd files (Windows) and .so files (if any)
         extensions = list(self.project_root.glob("**/*.pyd")) + \
@@ -107,7 +107,7 @@ class DjangoProtectedBuilder:
     
     def copy_essential_files(self):
         """Copy files that cannot be compiled"""
-        print("📄 Copying essential files...")
+        print(" Copying essential files...")
         
         # Single files to copy
         essential_files = [
@@ -133,7 +133,7 @@ class DjangoProtectedBuilder:
     
     def copy_directories(self):
         """Copy directories that shouldn't be compiled"""
-        print("📁 Copying resource directories...")
+        print(" Copying resource directories...")
         
         # Directories to copy entirely
         dirs_to_copy = [
@@ -161,7 +161,7 @@ class DjangoProtectedBuilder:
     
     def copy_migrations(self):
         """Copy migration files (must remain as .py)"""
-        print("🔄 Copying migration files...")
+        print(" Copying migration files...")
         
         migration_files = list(self.project_root.glob("**/migrations/*.py"))
         count = 0
@@ -183,7 +183,7 @@ class DjangoProtectedBuilder:
     
     def copy_init_files(self):
         """Copy __init__.py files (needed for Python packages)"""
-        print("📝 Copying __init__.py files...")
+        print(" Copying __init__.py files...")
         
         init_files = list(self.project_root.glob("**/__init__.py"))
         count = 0
@@ -207,7 +207,7 @@ class DjangoProtectedBuilder:
     
     def copy_special_files(self):
         """Copy files that need special handling"""
-        print("⚙️  Copying configuration files...")
+        print(" Copying configuration files...")
         
         # Files that should remain as .py
         special_patterns = [
@@ -236,7 +236,7 @@ class DjangoProtectedBuilder:
     
     def create_deployment_docs(self):
         """Create deployment documentation"""
-        print("📝 Creating deployment documentation...")
+        print("Creating deployment documentation...")
         
         readme_content = """# Protected Django Application
 
@@ -389,7 +389,7 @@ EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
     
     def generate_build_info(self):
         """Generate build information file"""
-        print("ℹ️  Generating build information...")
+        print(" Generating build information...")
         
         import datetime
         import platform
@@ -422,13 +422,13 @@ For deployment instructions, see DEPLOYMENT.md
     
     def verify_build(self):
         """Verify the build output"""
-        print("✅ Verifying build...")
+        print(" Verifying build...")
         
         # Check for .pyd files
         pyd_files = list(self.dist_dir.glob("**/*.pyd"))
         
         if not pyd_files:
-            print("   ⚠️  Warning: No compiled extensions found!")
+            print("   Warning: No compiled extensions found!")
             return False
         
         print(f"   ✓ Found {len(pyd_files)} compiled extensions (.pyd)")
@@ -439,4 +439,4 @@ For deployment instructions, see DEPLOYMENT.md
             if (self.dist_dir / filename).exists():
                 print(f"   ✓ {filename} present")
             else:
-                print(f"   ⚠️  {filename} missing")
+                print(f"  {filename} missing")
