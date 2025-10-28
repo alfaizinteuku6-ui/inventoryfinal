@@ -223,44 +223,68 @@ jobs:
       - name: Copy Essential Files
         working-directory: ./backend
         run: |
+          set -e
+          echo "📦 Copying essential files..."
+
+          # Ensure target directory exists
+          mkdir -p protected_build
+
           # Copy manage.py (must be unprotected)
-          cp manage.py protected_build/
-          
+          if [ -f "manage.py" ]; then
+            cp manage.py protected_build/
+            echo "✅ Copied manage.py"
+          else
+            echo "⚠️ manage.py not found!"
+          fi
+
           # Copy all __init__.py files (needed for Python packages)
           find . -name "__init__.py" \
             -not -path "./venv/*" \
             -not -path "./.venv/*" \
             -not -path "./protected_build/*" \
-            -exec sh -c 'mkdir -p "protected_build/$(dirname "{}")" && cp "{}" "protected_build/{}"' \;
-          
+            -exec sh -c '
+              dest="protected_build/$(dirname "{}")"
+              mkdir -p "$dest"
+              cp "{}" "$dest/"
+            ' \;
+
           # Copy requirements
-          cp requirements.txt protected_build/
-          
-          # Copy static files
+          [ -f requirements.txt ] && cp requirements.txt protected_build/ && echo "✅ Copied requirements.txt"
+
+          # Copy static files safely
           if [ -d "staticfiles" ]; then
-            cp -r staticfiles protected_build/
+            mkdir -p protected_build/staticfiles
+            cp -r staticfiles/* protected_build/staticfiles/ 2>/dev/null || true
           fi
           if [ -d "static" ]; then
+            mkdir -p protected_build/static
             cp -r static/* protected_build/static/ 2>/dev/null || true
           fi
-          
-          # Copy templates
+
+          # Copy templates safely
           if [ -d "templates" ]; then
+            mkdir -p protected_build/templates
             cp -r templates/* protected_build/templates/ 2>/dev/null || true
           fi
-          
+
           # Copy migrations (must be unprotected)
           find . -type d -name "migrations" \
             -not -path "./venv/*" \
             -not -path "./.venv/*" \
             -not -path "./protected_build/*" \
-            -exec sh -c 'mkdir -p "protected_build/$(dirname "{}")" && cp -r "{}" "protected_build/$(dirname "{}")/"' \;
-          
-          # Copy config files
+            -exec sh -c '
+              dest="protected_build/$(dirname "{}")"
+              mkdir -p "$dest"
+              cp -r "{}" "$dest/"
+            ' \;
+
+          # Copy config files if they exist
           for file in .env.example runtime.txt Procfile; do
             [ -f "$file" ] && cp "$file" protected_build/
           done
 
+          echo "✅ Essential file copy complete."
+          
       - name: Create Backend Build Info
         working-directory: ./backend/protected_build
         run: |
