@@ -1,0 +1,544 @@
+name: Protected Production Build
+
+on:
+  push:
+    branches: [main, production]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment Environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+env:
+  PYTHON_VERSION: '3.12'
+  NODE_VERSION: '22'
+  BUILD_VERSION: ${{ github.run_number }}
+
+jobs:
+  # Job 1: Build and Protect Frontend
+  build-frontend:
+    name: Build Protected Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Frontend Dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Build Production Frontend
+        working-directory: ./frontend
+        run: npm run build:production
+        env:
+          NODE_ENV: production
+
+      - name: Install JavaScript Obfuscator
+        run: npm install -g javascript-obfuscator
+
+      - name: Obfuscate JavaScript Files
+        working-directory: ./frontend/dist/assets
+        run: |
+          for file in *.js; do
+            if [ -f "$file" ]; then
+              javascript-obfuscator "$file" \
+                --output "$file" \
+                --compact true \
+                --control-flow-flattening true \
+                --control-flow-flattening-threshold 0.75 \
+                --dead-code-injection true \
+                --dead-code-injection-threshold 0.4 \
+                --debug-protection false \
+                --disable-console-output true \
+                --identifier-names-generator hexadecimal \
+                --log false \
+                --rename-globals false \
+                --self-defending true \
+                --string-array true \
+                --string-array-encoding 'base64' \
+                --string-array-threshold 0.75 \
+                --unicode-escape-sequence false
+              echo "Obfuscated: $file"
+            fi
+          done
+
+      - name: Create Frontend Build Info
+        working-directory: ./frontend/dist
+        run: |
+          echo "{
+            \"version\": \"${{ env.BUILD_VERSION }}\",
+            \"commit\": \"${{ github.sha }}\",
+            \"branch\": \"${{ github.ref_name }}\",
+            \"buildDate\": \"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\"
+          }" > build-info.json
+
+      - name: Upload Frontend Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/dist/
+          retention-days: 30
+          compression-level: 9
+
+  # Job 2: Build and Protect Backend
+  build-backend:
+    name: Build Protected Backend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install Backend Dependencies
+        working-directory: ./backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyarmor
+
+      - name: Run Django Checks
+        working-directory: ./backend
+        run: |
+          python manage.py check --deploy
+        continue-on-error: true
+
+      - name: Collect Static Files
+        working-directory: ./backend
+        run: |
+          python manage.py collectstatic --noinput --clear
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings
+          SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY || 'temporary-secret-key-for-build' }}
+
+      - name: Create Protection Directories
+        working-directory: ./backend
+        run: |
+          mkdir -p protected_build
+          mkdir -p protected_build/static
+          mkdir -p protected_build/templates
+
+      - name: Protect Python Files with PyArmor
+        working-directory: ./backend
+        run: |
+          # Create list of Python files to protect
+          find . -name "*.py" \
+            -not -path "./venv/*" \
+            -not -path "./.venv/*" \
+            -not -path "./protected_build/*" \
+            -not -path "./migrations/*" \
+            -not -name "manage.py" \
+            -not -name "__init__.py" > files_to_protect.txt
+          
+          # Protect files
+          pyarmor gen \
+            --output protected_build \
+            --recursive \
+            --enable-jit \
+            --private \
+            --restrict \
+            --obf-code 2 \
+            --obf-module 1 \
+            .
+          
+          # Copy manage.py without protection
+          cp manage.py protected_build/
+          
+          # Copy __init__.py files
+          find . -name "__init__.py" \
+            -not -path "./venv/*" \
+            -not -path "./.venv/*" \
+            -not -path "./protected_build/*" \
+            -exec cp --parents {} protected_build/ \;
+
+      - name: Copy Additional Files
+        working-directory: ./backend
+        run: |
+          # Copy requirements
+          cp requirements.txt protected_build/
+          
+          # Copy static files
+          if [ -d "static" ]; then
+            cp -r static/* protected_build/static/
+          fi
+          
+          # Copy templates
+          if [ -d "templates" ]; then
+            cp -r templates/* protected_build/templates/
+          fi
+          
+          # Copy migrations
+          find . -path "*/migrations/*.py" -exec cp --parents {} protected_build/ \;
+          
+          # Copy other config files
+          if [ -f ".env.example" ]; then cp .env.example protected_build/; fi
+          if [ -f "runtime.txt" ]; then cp runtime.txt protected_build/; fi
+          if [ -f "Procfile" ]; then cp Procfile protected_build/; fi
+
+      - name: Create Backend Build Info
+        working-directory: ./backend/protected_build
+        run: |
+          echo "{
+            \"version\": \"${{ env.BUILD_VERSION }}\",
+            \"commit\": \"${{ github.sha }}\",
+            \"branch\": \"${{ github.ref_name }}\",
+            \"buildDate\": \"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\",
+            \"protected\": true,
+            \"pythonVersion\": \"${{ env.PYTHON_VERSION }}\"
+          }" > build-info.json
+
+      - name: Upload Backend Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-build
+          path: backend/protected_build/
+          retention-days: 30
+          compression-level: 9
+
+  # Job 3: Create Deployment Package
+  create-deployment-package:
+    name: Create Deployment Package
+    needs: [build-frontend, build-backend]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code (for docs)
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            README.md
+            LICENSE
+          sparse-checkout-cone-mode: false
+
+      - name: Download Frontend Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: deployment/frontend/dist
+
+      - name: Download Backend Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-build
+          path: deployment/backend
+
+      - name: Merge Frontend into Backend
+        run: |
+          # Copy frontend build to backend
+          mkdir -p deployment/backend/templates
+          mkdir -p deployment/backend/static/assets
+          
+          cp deployment/frontend/dist/index.html deployment/backend/templates/
+          cp -r deployment/frontend/dist/assets/* deployment/backend/static/assets/
+
+      - name: Create Deployment Script
+        run: |
+          cat > deployment/DEPLOY.sh << 'EOF'
+          #!/bin/bash
+          set -e
+          
+          echo "========================================="
+          echo "  Django + React Deployment Script"
+          echo "========================================="
+          echo ""
+          
+          # Colors
+          RED='\033[0;31m'
+          GREEN='\033[0;32m'
+          YELLOW='\033[1;33m'
+          NC='\033[0m'
+          
+          # Check Python
+          if ! command -v python3 &> /dev/null; then
+              echo -e "${RED}Python 3 is not installed${NC}"
+              exit 1
+          fi
+          
+          echo -e "${GREEN}[1/6] Creating virtual environment...${NC}"
+          cd backend
+          python3 -m venv venv
+          source venv/bin/activate
+          
+          echo -e "${GREEN}[2/6] Installing dependencies...${NC}"
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          
+          echo -e "${GREEN}[3/6] Running migrations...${NC}"
+          python manage.py migrate
+          
+          echo -e "${GREEN}[4/6] Collecting static files...${NC}"
+          python manage.py collectstatic --noinput
+          
+          echo -e "${GREEN}[5/6] Creating superuser (optional)...${NC}"
+          python manage.py createsuperuser --noinput || true
+          
+          echo -e "${GREEN}[6/6] Deployment complete!${NC}"
+          echo ""
+          echo -e "${YELLOW}To start the server:${NC}"
+          echo "  cd backend && source venv/bin/activate"
+          echo "  python manage.py runserver 0.0.0.0:8000"
+          echo ""
+          EOF
+          
+          chmod +x deployment/DEPLOY.sh
+
+      - name: Create Windows Deployment Script
+        run: |
+          cat > deployment/DEPLOY.bat << 'EOF'
+          @echo off
+          setlocal enabledelayedexpansion
+          title Django + React Deployment
+          
+          echo =========================================
+          echo   Django + React Deployment Script
+          echo =========================================
+          echo.
+          
+          echo [1/6] Creating virtual environment...
+          cd backend
+          python -m venv venv
+          call venv\Scripts\activate.bat
+          
+          echo [2/6] Installing dependencies...
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          
+          echo [3/6] Running migrations...
+          python manage.py migrate
+          
+          echo [4/6] Collecting static files...
+          python manage.py collectstatic --noinput
+          
+          echo [5/6] Creating superuser (optional)...
+          python manage.py createsuperuser --noinput
+          
+          echo [6/6] Deployment complete!
+          echo.
+          echo To start the server:
+          echo   cd backend ^&^& venv\Scripts\activate ^&^& python manage.py runserver 0.0.0.0:8000
+          echo.
+          pause
+          EOF
+
+      - name: Create README
+        run: |
+          cat > deployment/DEPLOYMENT_README.md << 'EOF'
+          # Protected Production Build
+          
+          ## Build Information
+          - **Version**: ${{ env.BUILD_VERSION }}
+          - **Commit**: ${{ github.sha }}
+          - **Branch**: ${{ github.ref_name }}
+          - **Build Date**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          
+          ## ⚠️ Security Notice
+          This is a PROTECTED build with obfuscated code. Do not attempt to:
+          - Decompile or reverse engineer the code
+          - Modify protected Python files
+          - Share this build without authorization
+          
+          ## 📦 Deployment Instructions
+          
+          ### Linux/macOS
+          ```bash
+          bash DEPLOY.sh
+          ```
+          
+          ### Windows
+          ```cmd
+          DEPLOY.bat
+          ```
+          
+          ### Manual Deployment
+          1. Navigate to `backend` directory
+          2. Create virtual environment: `python -m venv venv`
+          3. Activate: `source venv/bin/activate` (Linux) or `venv\Scripts\activate` (Windows)
+          4. Install dependencies: `pip install -r requirements.txt`
+          5. Run migrations: `python manage.py migrate`
+          6. Collect static: `python manage.py collectstatic --noinput`
+          7. Start server: `python manage.py runserver 0.0.0.0:8000`
+          
+          ## 🔐 Environment Variables
+          Create a `.env` file in the backend directory:
+          ```
+          SECRET_KEY=your-secret-key-here
+          DEBUG=False
+          ALLOWED_HOSTS=your-domain.com,localhost
+          DATABASE_URL=your-database-url
+          ```
+          
+          ## 📝 Production Checklist
+          - [ ] Set strong SECRET_KEY
+          - [ ] Set DEBUG=False
+          - [ ] Configure ALLOWED_HOSTS
+          - [ ] Setup production database
+          - [ ] Configure CORS settings
+          - [ ] Setup reverse proxy (Nginx/Apache)
+          - [ ] Enable HTTPS
+          - [ ] Configure firewall
+          - [ ] Setup monitoring
+          - [ ] Configure backups
+          
+          ## 🚀 Starting the Application
+          ```bash
+          cd backend
+          source venv/bin/activate  # or venv\Scripts\activate on Windows
+          python manage.py runserver 0.0.0.0:8000
+          ```
+          
+          For production, use a WSGI server:
+          ```bash
+          gunicorn config.wsgi:application --bind 0.0.0.0:8000
+          ```
+          
+          ## 📞 Support
+          For issues or questions, contact: [Your Contact Info]
+          EOF
+
+      - name: Create Archive
+        run: |
+          cd deployment
+          tar -czf ../django-react-protected-v${{ env.BUILD_VERSION }}.tar.gz .
+          cd ..
+          zip -r django-react-protected-v${{ env.BUILD_VERSION }}.zip deployment/
+
+      - name: Upload Complete Package (TAR.GZ)
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-package-tar
+          path: django-react-protected-v${{ env.BUILD_VERSION }}.tar.gz
+          retention-days: 90
+
+      - name: Upload Complete Package (ZIP)
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-package-zip
+          path: django-react-protected-v${{ env.BUILD_VERSION }}.zip
+          retention-days: 90
+
+      - name: Generate Build Report
+        run: |
+          cat > build-report.md << EOF
+          # Build Report
+          
+          ## Build Details
+          - **Build Number**: ${{ env.BUILD_VERSION }}
+          - **Commit SHA**: ${{ github.sha }}
+          - **Branch**: ${{ github.ref_name }}
+          - **Trigger**: ${{ github.event_name }}
+          - **Actor**: ${{ github.actor }}
+          - **Build Date**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          
+          ## Artifacts Generated
+          - ✅ Protected Backend (PyArmor)
+          - ✅ Obfuscated Frontend (JavaScript Obfuscator)
+          - ✅ Deployment Scripts (Linux & Windows)
+          - ✅ Complete Package (.tar.gz & .zip)
+          
+          ## Download Links
+          - Backend Build: [Download](../../actions/runs/${{ github.run_id }})
+          - Frontend Build: [Download](../../actions/runs/${{ github.run_id }})
+          - Complete Package: [Download](../../actions/runs/${{ github.run_id }})
+          
+          ## Next Steps
+          1. Download the deployment package
+          2. Extract on target server
+          3. Run DEPLOY.sh (Linux) or DEPLOY.bat (Windows)
+          4. Configure environment variables
+          5. Start the application
+          
+          ---
+          Generated by GitHub Actions
+          EOF
+          
+          cat build-report.md
+
+      - name: Upload Build Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-report
+          path: build-report.md
+          retention-days: 90
+
+  # Job 4: Create GitHub Release (on tags)
+  create-release:
+    name: Create GitHub Release
+    needs: [create-deployment-package]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+    steps:
+      - name: Download Deployment Package (TAR)
+        uses: actions/download-artifact@v4
+        with:
+          name: deployment-package-tar
+
+      - name: Download Deployment Package (ZIP)
+        uses: actions/download-artifact@v4
+        with:
+          name: deployment-package-zip
+
+      - name: Download Build Report
+        uses: actions/download-artifact@v4
+        with:
+          name: build-report
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            django-react-protected-v${{ env.BUILD_VERSION }}.tar.gz
+            django-react-protected-v${{ env.BUILD_VERSION }}.zip
+            build-report.md
+          body: |
+            ## 🎉 Production Release v${{ github.ref_name }}
+            
+            ### 📦 What's Included
+            - Protected Django backend (PyArmor)
+            - Obfuscated React frontend
+            - Automated deployment scripts
+            - Complete documentation
+            
+            ### 📥 Download
+            - **Linux/macOS**: Download `.tar.gz`
+            - **Windows**: Download `.zip`
+            
+            ### 🚀 Quick Start
+            ```bash
+            # Extract
+            tar -xzf django-react-protected-v${{ env.BUILD_VERSION }}.tar.gz
+            cd deployment
+            
+            # Deploy
+            bash DEPLOY.sh
+            ```
+            
+            ### 📋 Build Info
+            - **Build**: #${{ env.BUILD_VERSION }}
+            - **Commit**: ${{ github.sha }}
+            - **Date**: $(date -u +"%Y-%m-%d")
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
