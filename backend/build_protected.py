@@ -103,7 +103,7 @@ class DjangoProtectedBuilder:
             except Exception as e:
                 print(f"   Warning: Could not copy {ext_file}: {e}")
         
-        print(f"   ✓ Copied {count} compiled extensions\n")
+        print(f"    Copied {count} compiled extensions\n")
     
     def copy_essential_files(self):
         """Copy files that cannot be compiled"""
@@ -125,7 +125,7 @@ class DjangoProtectedBuilder:
             if src.exists():
                 try:
                     shutil.copy2(src, self.dist_dir / filename)
-                    print(f"   ✓ {filename}")
+                    print(f"    {filename}")
                 except Exception as e:
                     print(f"   Warning: Could not copy {filename}: {e}")
         
@@ -153,7 +153,7 @@ class DjangoProtectedBuilder:
                     shutil.rmtree(dest_dir, ignore_errors=True)
                 try:
                     shutil.copytree(src_dir, dest_dir)
-                    print(f"   ✓ {dir_name}/")
+                    print(f"    {dir_name}/")
                 except Exception as e:
                     print(f"   Warning: Could not copy {dir_name}: {e}")
         
@@ -179,7 +179,7 @@ class DjangoProtectedBuilder:
             except Exception as e:
                 print(f"   Warning: Could not copy {migration_file}: {e}")
         
-        print(f"   ✓ Copied {count} migration files\n")
+        print(f"    Copied {count} migration files\n")
     
     def copy_init_files(self):
         """Copy __init__.py files (needed for Python packages)"""
@@ -203,7 +203,7 @@ class DjangoProtectedBuilder:
             except Exception as e:
                 print(f"   Warning: Could not copy {init_file}: {e}")
         
-        print(f"   ✓ Copied {count} __init__.py files\n")
+        print(f"    Copied {count} __init__.py files\n")
     
     def copy_special_files(self):
         """Copy files that need special handling"""
@@ -232,7 +232,7 @@ class DjangoProtectedBuilder:
                 except Exception as e:
                     print(f"   Warning: Could not copy {file}: {e}")
         
-        print(f"   ✓ Copied {count} configuration files\n")
+        print(f"    Copied {count} configuration files\n")
     
     def create_deployment_docs(self):
         """Create deployment documentation"""
@@ -358,7 +358,7 @@ For issues, contact your development team.
 """
         
         (self.dist_dir / "DEPLOYMENT.md").write_text(readme_content, encoding='utf-8')
-        print("   ✓ DEPLOYMENT.md\n")
+        print("    DEPLOYMENT.md\n")
     
     def create_env_example(self):
         """Create example environment file"""
@@ -385,7 +385,7 @@ MEDIA_ROOT=media/
 EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
 """
             (self.dist_dir / ".env.example").write_text(env_content, encoding='utf-8')
-            print("   ✓ Created .env.example\n")
+            print("    Created .env.example\n")
     
     def generate_build_info(self):
         """Generate build information file"""
@@ -418,7 +418,7 @@ For deployment instructions, see DEPLOYMENT.md
 """
         
         (self.dist_dir / "BUILD_INFO.txt").write_text(build_info, encoding='utf-8')
-        print("   ✓ BUILD_INFO.txt\n")
+        print("    BUILD_INFO.txt\n")
     
     def verify_build(self):
         """Verify the build output"""
@@ -431,12 +431,12 @@ For deployment instructions, see DEPLOYMENT.md
             print("   Warning: No compiled extensions found!")
             return False
         
-        print(f"   ✓ Found {len(pyd_files)} compiled extensions (.pyd)")
+        print(f"    Found {len(pyd_files)} compiled extensions (.pyd)")
         
         # Check for essential files
         essential = ["manage.py", "requirements.txt"]
         for filename in essential:
             if (self.dist_dir / filename).exists():
-                print(f"   ✓ {filename} present")
+                print(f"    {filename} present")
             else:
                 print(f"  {filename} missing")

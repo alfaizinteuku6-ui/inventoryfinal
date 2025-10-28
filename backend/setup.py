@@ -73,7 +73,7 @@ def get_extensions():
             if should_compile(py_file_normalized):
                 module_name = py_file_normalized.replace("/", ".").replace(".py", "")
                 extensions.append(Extension(module_name, [py_file]))
-                print(f"   ✓ {py_file}")
+                print(f"    {py_file}")
     
     # Compile Django apps
     for app in APPS_TO_PROTECT:
@@ -90,7 +90,7 @@ def get_extensions():
                             # Convert path to module name
                             module_name = filepath_normalized.replace("/", ".").replace(".py", "")
                             extensions.append(Extension(module_name, [filepath]))
-                            print(f"   ✓ {filepath}")
+                            print(f"    {filepath}")
     
     print(f"\n Total files to compile: {len(extensions)}\n")
     return extensions
