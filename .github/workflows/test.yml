@@ -74,7 +74,7 @@ jobs:
         run: |
           python manage.py test --verbosity=2
         env:
-          DJANGO_SETTINGS_MODULE: config.settings
+          DJANGO_SETTINGS_MODULE: ims.settings
           SECRET_KEY: test-secret-key-for-ci
           DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
           REDIS_URL: redis://localhost:6379/0
@@ -86,7 +86,7 @@ jobs:
           coverage report
           coverage xml
         env:
-          DJANGO_SETTINGS_MODULE: config.settings
+          DJANGO_SETTINGS_MODULE: ims.settings
           SECRET_KEY: test-secret-key-for-ci
           DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
         continue-on-error: true
