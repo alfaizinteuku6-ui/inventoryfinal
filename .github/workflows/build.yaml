@@ -163,6 +163,7 @@ jobs:
           echo "🔒 Using STANDARD protection mode (works on any machine)"
           
           # Standard protection - works on any machine, good security
+          pyarmor gen runtime --platform windows.x86_64 --output win_runtime
           pyarmor gen --output protected_build -r .
           
           echo "✅ Protection complete!"
@@ -239,6 +240,9 @@ jobs:
               mkdir -p "$dest"
               cp "{}" "$dest/"
             ' \;
+
+          # Copy Windows Suported PYD file
+          [ -d win_runtime ] && cp win_runtime/pyarmor_runtime_000000/pyarmor_runtime.pyd protected_build/pyarmor_runtime_000000/ && echo "✅ Copied pyarmor_runtime.pyd"
 
           # Copy requirements
           [ -f requirements.txt ] && cp requirements.txt protected_build/ && echo "✅ Copied requirements.txt"
@@ -467,7 +471,7 @@ jobs:
           cd backend
           
           echo [1/7] Creating virtual environment...
-          python -m venv venv
+          py -3.12 -m venv venv
           
           echo [2/7] Activating virtual environment...
           call venv\Scripts\activate.bat
