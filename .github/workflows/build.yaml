@@ -390,7 +390,7 @@ jobs:
           cd backend
           
           echo -e "${GREEN}[1/7] Creating virtual environment...${NC}"
-          python3 -m venv venv
+          py -3.12 -m venv venv
           
           echo -e "${GREEN}[2/7] Activating virtual environment...${NC}"
           source venv/bin/activate
