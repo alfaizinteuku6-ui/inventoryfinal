@@ -229,14 +229,6 @@ jobs:
           # Ensure target directory exists
           mkdir -p protected_build
 
-          # Copy manage.py (must be unprotected)
-          if [ -f "manage.py" ]; then
-            cp manage.py protected_build/
-            echo "✅ Copied manage.py"
-          else
-            echo "⚠️ manage.py not found!"
-          fi
-
           # Copy all __init__.py files (needed for Python packages)
           find . -name "__init__.py" \
             -not -path "./venv/*" \
