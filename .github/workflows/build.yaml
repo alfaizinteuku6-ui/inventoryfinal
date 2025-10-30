@@ -163,7 +163,6 @@ jobs:
           echo "🔒 Using STANDARD protection mode (works on any machine)"
           
           # Standard protection - works on any machine, good security
-          pyarmor gen runtime --platform windows.x86_64 --output win_runtime
           pyarmor gen --output protected_build -r .
           
           echo "✅ Protection complete!"
@@ -240,9 +239,6 @@ jobs:
               mkdir -p "$dest"
               cp "{}" "$dest/"
             ' \;
-
-          # Copy Windows Suported PYD file
-          [ -d win_runtime ] && cp win_runtime/pyarmor_runtime_000000/pyarmor_runtime.pyd protected_build/pyarmor_runtime_000000/ && echo "✅ Copied pyarmor_runtime.pyd"
 
           # Copy requirements
           [ -f requirements.txt ] && cp requirements.txt protected_build/ && echo "✅ Copied requirements.txt"
@@ -405,6 +401,12 @@ jobs:
           echo -e "${GREEN}[4/7] Installing dependencies...${NC}"
           pip install -r requirements.txt --quiet
           echo "✅ Dependencies installed"
+
+          pyarmor gen runtime --platform windows.x86_64 --output win_runtime
+
+          cp win_runtime/pyarmor_runtime_000000/pyarmor_runtime.pyd pyarmor_runtime_000000/
+
+          rm -rf win_runtime
           
           echo -e "${GREEN}[5/7] Setting up environment...${NC}"
           if [ ! -f ".env" ]; then
@@ -492,6 +494,12 @@ jobs:
                   echo WARNING: No .env file found. Please create one.
               )
           )
+
+          pyarmor gen runtime --platform windows.x86_64 --output win_runtime
+
+          cp win_runtime/pyarmor_runtime_000000/pyarmor_runtime.pyd pyarmor_runtime_000000/
+
+          rmdir /s /q win_runtime
           
           echo [6/7] Running migrations...
           python manage.py migrate
