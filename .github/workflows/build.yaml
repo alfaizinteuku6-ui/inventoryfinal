@@ -50,35 +50,6 @@ jobs:
         env:
           NODE_ENV: production
 
-      - name: Install JavaScript Obfuscator
-        run: npm install -g javascript-obfuscator
-
-      - name: Obfuscate JavaScript Files
-        working-directory: ./frontend/dist/assets
-        run: |
-          for file in *.js; do
-            if [ -f "$file" ]; then
-              echo "Obfuscating: $file"
-              javascript-obfuscator "$file" \
-                --output "$file" \
-                --compact true \
-                --control-flow-flattening true \
-                --control-flow-flattening-threshold 0.75 \
-                --dead-code-injection true \
-                --dead-code-injection-threshold 0.4 \
-                --debug-protection false \
-                --disable-console-output true \
-                --identifier-names-generator hexadecimal \
-                --log false \
-                --rename-globals false \
-                --self-defending true \
-                --string-array true \
-                --string-array-encoding 'base64' \
-                --string-array-threshold 0.75 \
-                --unicode-escape-sequence false
-            fi
-          done
-
       - name: Create Frontend Build Info
         working-directory: ./frontend/dist
         run: |
