@@ -322,6 +322,38 @@ jobs:
           
           echo "✅ Frontend integration complete!"
 
+      - name: Copy Deployment Scripts
+        working-directory: ./backend/protected_build
+        run: |
+          echo "📦 Copying deployment scripts..."
+          
+          # Copy DEPLOY.sh if it exists
+          if [ -f "../DEPLOY.sh" ]; then
+            cp ../DEPLOY.sh ./
+            chmod +x DEPLOY.sh
+            echo "✅ Copied DEPLOY.sh"
+          else
+            echo "⚠️  DEPLOY.sh not found at backend/DEPLOY.sh"
+          fi
+          
+          # Copy DEPLOY.bat if it exists
+          if [ -f "../DEPLOY.bat" ]; then
+            cp ../DEPLOY.bat ./
+            echo "✅ Copied DEPLOY.bat"
+          else
+            echo "⚠️  DEPLOY.bat not found at backend/DEPLOY.bat"
+          fi
+          
+          # Copy setup_autostart.bat from scripts folder
+          if [ -f "../setup_autostart.bat" ]; then
+            cp ../setup_autostart.bat ./
+            echo "✅ Copied setup_autostart.bat"
+          else
+            echo "⚠️  setup_autostart.bat not found at setup_autostart.bat"
+          fi
+          
+          echo "✅ Deployment scripts copied!"
+
       - name: Create Complete Build Info
         working-directory: ./backend/protected_build
         run: |
@@ -383,44 +415,11 @@ jobs:
     needs: [build-complete-backend]
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Deployment Scripts
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            backend/DEPLOY.bat
-            backend/DEPLOY.sh
-            backend/setup_autostart.bat
-          sparse-checkout-cone-mode: false
-
       - name: Download Complete Backend
         uses: actions/download-artifact@v4
         with:
           name: complete-backend-deployment
           path: deployment
-
-      - name: Copy Deployment Scripts to Package
-        run: |
-          echo "📦 Copying deployment scripts..."
-          
-          # Copy DEPLOY scripts if they exist
-          if [ -f "backend/DEPLOY.sh" ]; then
-            cp backend/DEPLOY.sh deployment/
-            chmod +x deployment/DEPLOY.sh
-            echo "✅ Copied DEPLOY.sh"
-          fi
-          
-          if [ -f "backend/DEPLOY.bat" ]; then
-            cp backend/DEPLOY.bat deployment/
-            echo "✅ Copied DEPLOY.bat"
-          fi
-          
-          # Copy setup_autostart.bat if it exists
-          if [ -f "backend/setup_autostart.bat" ]; then
-            cp backend/setup_autostart.bat deployment/
-            echo "✅ Copied setup_autostart.bat"
-          fi
-          
-          echo "✅ All scripts copied!"
 
       - name: Create README
         run: |
