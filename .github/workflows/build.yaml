@@ -1,4 +1,4 @@
-name: Protected Production Build (Fixed)
+name: Protected Production Build (Optimized)
 
 on:
   push:
@@ -25,9 +25,9 @@ env:
   BUILD_VERSION: ${{ github.run_number }}
 
 jobs:
-  # Job 1: Build and Protect Frontend
+  # Job 1: Build Frontend (Internal - Not Uploaded)
   build-frontend:
-    name: Build Protected Frontend
+    name: Build Frontend
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -92,17 +92,17 @@ jobs:
           }
           EOF
 
-      - name: Upload Frontend Artifact
+      - name: Upload Frontend Artifact (Temporary)
         uses: actions/upload-artifact@v4
         with:
-          name: frontend-build
+          name: frontend-build-temp
           path: frontend/dist/
-          retention-days: 30
-          compression-level: 9
+          retention-days: 1
 
-  # Job 2: Build and Protect Backend
-  build-backend:
-    name: Build Protected Backend
+  # Job 2: Build Complete Backend with Frontend Integrated
+  build-complete-backend:
+    name: Build Complete Backend Package
+    needs: [build-frontend]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -220,11 +220,11 @@ jobs:
           
           echo "✅ Protection complete!"
 
-      - name: Copy Essential Files
+      - name: Copy Essential Backend Files
         working-directory: ./backend
         run: |
           set -e
-          echo "📦 Copying essential files..."
+          echo "📦 Copying essential backend files..."
 
           # Ensure target directory exists
           mkdir -p protected_build
@@ -243,20 +243,25 @@ jobs:
           # Copy requirements
           [ -f requirements.txt ] && cp requirements.txt protected_build/ && echo "✅ Copied requirements.txt"
 
-          # Copy static files safely
+          # Copy staticfiles safely
           if [ -d "staticfiles" ]; then
             mkdir -p protected_build/staticfiles
             cp -r staticfiles/* protected_build/staticfiles/ 2>/dev/null || true
+            echo "✅ Copied staticfiles"
           fi
+          
+          # Copy static directory safely
           if [ -d "static" ]; then
             mkdir -p protected_build/static
             cp -r static/* protected_build/static/ 2>/dev/null || true
+            echo "✅ Copied static"
           fi
 
           # Copy templates safely
           if [ -d "templates" ]; then
             mkdir -p protected_build/templates
             cp -r templates/* protected_build/templates/ 2>/dev/null || true
+            echo "✅ Copied templates"
           fi
 
           # Copy migrations (must be unprotected)
@@ -269,15 +274,55 @@ jobs:
               mkdir -p "$dest"
               cp -r "{}" "$dest/"
             ' \;
+          echo "✅ Copied migrations"
 
           # Copy config files if they exist
           for file in .env.example runtime.txt Procfile; do
-            [ -f "$file" ] && cp "$file" protected_build/
+            [ -f "$file" ] && cp "$file" protected_build/ && echo "✅ Copied $file"
           done
 
           echo "✅ Essential file copy complete."
+
+      - name: Download Frontend Build
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build-temp
+          path: frontend-dist
+
+      - name: Integrate Frontend into Backend
+        working-directory: ./backend/protected_build
+        run: |
+          echo "🔄 Integrating frontend into backend..."
           
-      - name: Create Backend Build Info
+          # Ensure directories exist
+          mkdir -p templates
+          mkdir -p static/assets
+          mkdir -p staticfiles/assets
+          
+          # Copy index.html to templates
+          if [ -f "../../frontend-dist/index.html" ]; then
+            cp ../../frontend-dist/index.html templates/
+            echo "✅ Copied index.html to templates/"
+          fi
+          
+          # Copy frontend assets to static
+          if [ -d "../../frontend-dist/assets" ]; then
+            cp -r ../../frontend-dist/assets/* static/assets/
+            echo "✅ Copied frontend assets to static/assets/"
+          fi
+          
+          # Copy frontend assets to staticfiles
+          if [ -d "../../frontend-dist/assets" ]; then
+            cp -r ../../frontend-dist/assets/* staticfiles/assets/
+            echo "✅ Copied frontend assets to staticfiles/assets/"
+          fi
+          
+          # Copy any other files from frontend dist (favicon, etc.)
+          find ../../frontend-dist -maxdepth 1 -type f ! -name "index.html" -exec cp {} static/ \;
+          
+          echo "✅ Frontend integration complete!"
+
+      - name: Create Complete Build Info
         working-directory: ./backend/protected_build
         run: |
           cat > build-info.json << EOF
@@ -289,35 +334,53 @@ jobs:
             "protected": true,
             "protectionMode": "${{ github.event.inputs.protection_mode || 'standard' }}",
             "pythonVersion": "${{ env.PYTHON_VERSION }}",
-            "pyarmorVersion": "$(pip show pyarmor | grep Version | cut -d' ' -f2)"
+            "nodeVersion": "${{ env.NODE_VERSION }}",
+            "pyarmorVersion": "$(pip show pyarmor | grep Version | cut -d' ' -f2)",
+            "includes": {
+              "backend": true,
+              "frontend": true,
+              "static": true,
+              "templates": true
+            }
           }
           EOF
 
-      - name: Verify Protected Build
+      - name: Verify Complete Build
         working-directory: ./backend/protected_build
         run: |
-          echo "📋 Checking protected build..."
+          echo "📋 Verifying complete build..."
+          echo ""
+          echo "=== Directory Structure ==="
           ls -la
           echo ""
-          echo "📄 Checking manage.py..."
+          echo "=== Key Files Check ==="
           [ -f "manage.py" ] && echo "✅ manage.py found" || echo "❌ manage.py missing"
-          echo ""
-          echo "📦 Checking key files..."
           [ -f "requirements.txt" ] && echo "✅ requirements.txt found" || echo "❌ requirements.txt missing"
           [ -f "build-info.json" ] && echo "✅ build-info.json found" || echo "❌ build-info.json missing"
+          echo ""
+          echo "=== Frontend Integration Check ==="
+          [ -f "templates/index.html" ] && echo "✅ templates/index.html found" || echo "❌ templates/index.html missing"
+          [ -d "static/assets" ] && echo "✅ static/assets/ found" || echo "❌ static/assets/ missing"
+          [ -d "staticfiles/assets" ] && echo "✅ staticfiles/assets/ found" || echo "❌ staticfiles/assets/ missing"
+          echo ""
+          echo "=== Assets Count ==="
+          echo "Static assets: $(find static/assets -type f 2>/dev/null | wc -l) files"
+          echo "Staticfiles assets: $(find staticfiles/assets -type f 2>/dev/null | wc -l) files"
+          echo ""
+          echo "✅ Build verification complete!"
 
-      - name: Upload Backend Artifact
+      - name: Upload Complete Backend Package
         uses: actions/upload-artifact@v4
         with:
-          name: backend-build
+          name: complete-backend-deployment
           path: backend/protected_build/
-          retention-days: 30
+          retention-days: 90
           compression-level: 9
 
-  # Job 3: Create Deployment Package
+  # Job 3: Create Deployment Package with Scripts
   create-deployment-package:
     name: Create Deployment Package
-    needs: [build-frontend, build-backend]
+    needs: [build-complete-backend]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code (for docs)
@@ -328,33 +391,11 @@ jobs:
             LICENSE
           sparse-checkout-cone-mode: false
 
-      - name: Download Frontend Artifact
+      - name: Download Complete Backend
         uses: actions/download-artifact@v4
         with:
-          name: frontend-build
-          path: deployment/frontend/dist
-
-      - name: Download Backend Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: backend-build
+          name: complete-backend-deployment
           path: deployment/backend
-
-      - name: Merge Frontend into Backend
-        run: |
-          # Copy frontend build to backend
-          mkdir -p deployment/backend/templates
-          mkdir -p deployment/backend/static/assets
-          
-          if [ -f "deployment/frontend/dist/index.html" ]; then
-            cp deployment/frontend/dist/index.html deployment/backend/templates/
-            echo "✅ Copied index.html"
-          fi
-          
-          if [ -d "deployment/frontend/dist/assets" ]; then
-            cp -r deployment/frontend/dist/assets/* deployment/backend/static/assets/
-            echo "✅ Copied assets"
-          fi
 
       - name: Create Deployment Script (Linux/macOS)
         run: |
@@ -371,14 +412,14 @@ jobs:
           
           clear
           echo -e "${BLUE}=========================================${NC}"
-          echo -e "${BLUE}  Django + React Deployment Script${NC}"
+          echo -e "${BLUE}  Complete Django + React Deployment${NC}"
           echo -e "${BLUE}=========================================${NC}"
           echo ""
           
           # Check Python
           if ! command -v python3 &> /dev/null; then
               echo -e "${RED}❌ Python 3 is not installed${NC}"
-              echo "Please install Python 3.9 or higher"
+              echo "Please install Python 3.12 or higher"
               exit 1
           fi
           
@@ -390,7 +431,7 @@ jobs:
           cd backend
           
           echo -e "${GREEN}[1/7] Creating virtual environment...${NC}"
-          py -3.12 -m venv venv
+          python3 -m venv venv
           
           echo -e "${GREEN}[2/7] Activating virtual environment...${NC}"
           source venv/bin/activate
@@ -401,12 +442,6 @@ jobs:
           echo -e "${GREEN}[4/7] Installing dependencies...${NC}"
           pip install -r requirements.txt --quiet
           echo "✅ Dependencies installed"
-
-          pyarmor gen runtime --platform windows.x86_64 --output win_runtime
-
-          cp win_runtime/pyarmor_runtime_000000/pyarmor_runtime.pyd pyarmor_runtime_000000/
-
-          rm -rf win_runtime
           
           echo -e "${GREEN}[5/7] Setting up environment...${NC}"
           if [ ! -f ".env" ]; then
@@ -422,8 +457,8 @@ jobs:
           echo -e "${GREEN}[6/7] Running migrations...${NC}"
           python manage.py migrate
           
-          echo -e "${GREEN}[7/7] Collecting static files...${NC}"
-          python manage.py collectstatic --noinput
+          echo -e "${GREEN}[7/7] Verifying static files...${NC}"
+          echo "✅ Static files already integrated"
           
           echo ""
           echo -e "${GREEN}=========================================${NC}"
@@ -440,6 +475,8 @@ jobs:
           echo "  pip install gunicorn"
           echo "  gunicorn ims.wsgi:application --bind 0.0.0.0:8000 --workers 4"
           echo ""
+          echo -e "${BLUE}Access your application at: http://localhost:8000${NC}"
+          echo ""
           EOFSH
           
           chmod +x deployment/DEPLOY.sh
@@ -449,12 +486,12 @@ jobs:
           cat > deployment/DEPLOY.bat << 'EOFBAT'
           @echo off
           setlocal enabledelayedexpansion
-          title Django + React Deployment
+          title Complete Django + React Deployment
           color 0A
           
           cls
           echo =========================================
-          echo   Django + React Deployment Script
+          echo   Complete Django + React Deployment
           echo =========================================
           echo.
           
@@ -462,7 +499,7 @@ jobs:
           if %errorlevel% neq 0 (
               color 0C
               echo [ERROR] Python is not installed!
-              echo Please install Python 3.9 or higher from python.org
+              echo Please install Python 3.12 or higher from python.org
               pause
               exit /b 1
           )
@@ -473,7 +510,7 @@ jobs:
           cd backend
           
           echo [1/7] Creating virtual environment...
-          py -3.12 -m venv venv
+          python -m venv venv
           
           echo [2/7] Activating virtual environment...
           call venv\Scripts\activate.bat
@@ -495,22 +532,24 @@ jobs:
               )
           )
 
+          echo [6/7] Generating PyArmor runtime for Windows...
           pyarmor gen runtime --platform windows.x86_64 --output win_runtime
-
-          cp win_runtime/pyarmor_runtime_000000/pyarmor_runtime.pyd pyarmor_runtime_000000/
-
+          
+          echo Copying runtime files...
+          copy win_runtime\pyarmor_runtime_000000\pyarmor_runtime.pyd pyarmor_runtime_000000\
+          
+          echo Cleaning up temporary files...
           rmdir /s /q win_runtime
           
-          echo [6/7] Running migrations...
+          echo [7/7] Running migrations...
           python manage.py migrate
-          
-          echo [7/7] Collecting static files...
-          python manage.py collectstatic --noinput
           
           echo.
           echo =========================================
           echo   Deployment Complete!
           echo =========================================
+          echo.
+          echo Static files are already integrated!
           echo.
           echo To create a superuser:
           echo   python manage.py createsuperuser
@@ -518,9 +557,11 @@ jobs:
           echo To start the development server:
           echo   python manage.py runserver 0.0.0.0:8000
           echo.
-          echo For production, use Gunicorn:
-          echo   pip install gunicorn
-          echo   gunicorn ims.wsgi:application --bind 0.0.0.0:8000
+          echo For production, use Waitress:
+          echo   pip install waitress
+          echo   waitress-serve --port=8000 ims.wsgi:application
+          echo.
+          echo Access your application at: http://localhost:8000
           echo.
           pause
           EOFBAT
@@ -528,7 +569,7 @@ jobs:
       - name: Create README
         run: |
           cat > deployment/DEPLOYMENT_README.md << 'EOFMD'
-          # 🚀 Protected Production Build
+          # 🚀 Complete Protected Production Build
           
           ## 📦 Build Information
           - **Version**: ${{ env.BUILD_VERSION }}
@@ -537,9 +578,33 @@ jobs:
           - **Build Date**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
           - **Protection Mode**: ${{ github.event.inputs.protection_mode || 'standard' }}
           
+          ## 📋 What's Included
+          
+          This is a **complete, ready-to-run** deployment package that includes:
+          
+          ✅ **Backend (Protected with PyArmor)**
+          - Django application with obfuscated Python code
+          - All migrations and database models
+          - API endpoints and business logic
+          
+          ✅ **Frontend (Integrated & Obfuscated)**
+          - React application (obfuscated JavaScript)
+          - All static assets (CSS, images, fonts)
+          - Already integrated into Django's static/templates
+          
+          ✅ **Static Files**
+          - Frontend assets in `static/assets/`
+          - Collected static files in `staticfiles/`
+          - Templates including `index.html`
+          
+          ✅ **Deployment Scripts**
+          - Automated setup for Linux/macOS (`DEPLOY.sh`)
+          - Automated setup for Windows (`DEPLOY.bat`)
+          
           ## ⚠️ Security Notice
+          
           This is a PROTECTED build with obfuscated code:
-          - Backend: Protected with PyArmor
+          - Backend: Protected with PyArmor (${{ github.event.inputs.protection_mode || 'standard' }} mode)
           - Frontend: Obfuscated with JavaScript Obfuscator
           
           **Do not:**
@@ -562,11 +627,11 @@ jobs:
           ## 📋 Manual Deployment
           
           ### 1. Prerequisites
-          - Python 3.9+ installed
+          - Python 3.12+ installed
           - pip package manager
           - Virtual environment support
           
-          ### 2. Backend Setup
+          ### 2. Setup
           ```bash
           cd backend
           python3 -m venv venv
@@ -594,25 +659,45 @@ jobs:
           python manage.py createsuperuser
           ```
           
-          ### 5. Static Files
-          ```bash
-          python manage.py collectstatic --noinput
-          ```
-          
-          ### 6. Start Server
+          ### 5. Start Server
           
           **Development:**
           ```bash
           python manage.py runserver 0.0.0.0:8000
           ```
           
-          **Production (with Gunicorn):**
+          **Production (Linux/macOS - Gunicorn):**
           ```bash
           pip install gunicorn
           gunicorn ims.wsgi:application \
             --bind 0.0.0.0:8000 \
             --workers 4 \
             --timeout 120
+          ```
+          
+          **Production (Windows - Waitress):**
+          ```bash
+          pip install waitress
+          waitress-serve --port=8000 ims.wsgi:application
+          ```
+          
+          ## 📁 Directory Structure
+          
+          ```
+          backend/
+          ├── manage.py                 # Django management script
+          ├── requirements.txt          # Python dependencies
+          ├── build-info.json          # Build metadata
+          ├── .env.example             # Environment template
+          ├── static/                  # Static files + frontend
+          │   ├── assets/              # Frontend JavaScript/CSS
+          │   └── ...                  # Other static files
+          ├── staticfiles/             # Collected static files
+          │   └── assets/              # Frontend assets
+          ├── templates/               # Django templates
+          │   └── index.html           # React app entry point
+          ├── pyarmor_runtime_000000/  # PyArmor runtime
+          └── [app_folders]/           # Protected Django apps
           ```
           
           ## 🔐 Production Checklist
@@ -641,14 +726,18 @@ jobs:
                   proxy_pass http://127.0.0.1:8000;
                   proxy_set_header Host $host;
                   proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
               }
               
               location /static/ {
-                  alias /path/to/staticfiles/;
+                  alias /path/to/backend/staticfiles/;
+                  expires 1y;
+                  add_header Cache-Control "public, immutable";
               }
               
               location /media/ {
-                  alias /path/to/media/;
+                  alias /path/to/backend/media/;
               }
           }
           ```
@@ -659,19 +748,42 @@ jobs:
           # Install Redis
           # Ubuntu: sudo apt install redis-server
           # macOS: brew install redis
+          # Windows: Download from https://github.com/tporadowski/redis/releases
           
           # Start Celery Worker
-          celery -A config worker -l info
+          celery -A config worker -l info --pool=solo
           
           # Start Celery Beat (for scheduled tasks)
           celery -A config beat -l info
           ```
           
+          ## 🐛 Troubleshooting
+          
+          ### Issue: PyArmor runtime error on Windows
+          **Solution**: Run this in your virtual environment:
+          ```bash
+          pyarmor gen runtime --platform windows.x86_64 --output win_runtime
+          copy win_runtime\pyarmor_runtime_000000\pyarmor_runtime.pyd pyarmor_runtime_000000\
+          ```
+          
+          ### Issue: Static files not loading
+          **Solution**: Check if staticfiles are in the correct location:
+          ```bash
+          ls -la staticfiles/assets/
+          ```
+          
+          ### Issue: Frontend not rendering
+          **Solution**: Verify index.html exists:
+          ```bash
+          ls -la templates/index.html
+          ```
+          
           ## 📞 Support
           
           For issues or questions:
-          - Check logs: `backend/logs/`
-          - Django logs: Use `DEBUG=True` temporarily
+          - Check logs in `backend/logs/`
+          - Review `build-info.json` for build details
+          - Enable DEBUG temporarily for detailed errors
           - Contact: [Your Contact Info]
           
           ## 📄 License
@@ -685,23 +797,23 @@ jobs:
       - name: Create Archive Files
         run: |
           # Create tar.gz for Linux/macOS
-          tar -czf django-react-protected-v${{ env.BUILD_VERSION }}.tar.gz deployment/
+          tar -czf django-react-complete-v${{ env.BUILD_VERSION }}.tar.gz deployment/
           
           # Create zip for Windows
-          cd deployment && zip -r ../django-react-protected-v${{ env.BUILD_VERSION }}.zip . && cd ..
+          cd deployment && zip -r ../django-react-complete-v${{ env.BUILD_VERSION }}.zip . && cd ..
 
       - name: Upload Complete Package (TAR.GZ)
         uses: actions/upload-artifact@v4
         with:
           name: deployment-package-tar
-          path: django-react-protected-v${{ env.BUILD_VERSION }}.tar.gz
+          path: django-react-complete-v${{ env.BUILD_VERSION }}.tar.gz
           retention-days: 90
 
       - name: Upload Complete Package (ZIP)
         uses: actions/upload-artifact@v4
         with:
           name: deployment-package-zip
-          path: django-react-protected-v${{ env.BUILD_VERSION }}.zip
+          path: django-react-complete-v${{ env.BUILD_VERSION }}.zip
           retention-days: 90
 
       - name: Generate Build Report
@@ -720,11 +832,24 @@ jobs:
           
           ## 📦 Artifacts Generated
           
-          - ✅ **Backend Build** - Python code protected with PyArmor
-          - ✅ **Frontend Build** - JavaScript obfuscated
-          - ✅ **Deployment Package** - Complete ready-to-deploy package
-          - ✅ **Deployment Scripts** - Automated scripts for Linux & Windows
-          - ✅ **Documentation** - Full deployment guide included
+          ### Main Artifact: `complete-backend-deployment`
+          This is the **ONLY** artifact you need to deploy!
+          
+          ✅ **Complete Backend Build** 
+          - Protected Python code (PyArmor)
+          - All Django apps and models
+          - Migrations (unprotected)
+          
+          ✅ **Integrated Frontend**
+          - Obfuscated JavaScript/CSS
+          - All assets in `static/assets/`
+          - Collected files in `staticfiles/assets/`
+          - React entry point in `templates/index.html`
+          
+          ✅ **Ready to Deploy**
+          - No separate frontend needed
+          - No manual file copying required
+          - Just extract and run DEPLOY script
           
           ## 🔒 Protection Applied
           
@@ -744,139 +869,22 @@ jobs:
           
           1. Go to [Actions](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
           2. Scroll to **Artifacts** section
-          3. Download:
-             - `deployment-package-zip` (Windows)
-             - `deployment-package-tar` (Linux/macOS)
+          3. Download ONE of these (they're identical):
+             - `deployment-package-zip` (Windows - recommended)
+             - `deployment-package-tar` (Linux/macOS - recommended)
+             - `complete-backend-deployment` (raw files)
           
           ## 🚀 Deployment Instructions
           
           ### Quick Deploy
           ```bash
-          # Extract
-          tar -xzf django-react-protected-v${{ env.BUILD_VERSION }}.tar.gz
-          cd deployment
+          # Windows
+          1. Extract: django-react-complete-v${{ env.BUILD_VERSION }}.zip
+          2. Open folder in terminal
+          3. Run: DEPLOY.bat
           
-          # Deploy
-          bash DEPLOY.sh  # Linux/macOS
-          # or
-          DEPLOY.bat      # Windows
+          # Linux/macOS
+          1. Extract: tar -xzf django-react-complete-v${{ env.BUILD_VERSION }}.tar.gz
+          2. cd deployment
+          3. Run: bash DEPLOY.sh
           ```
-          
-          ### Manual Deploy
-          See `DEPLOYMENT_README.md` in the package for detailed instructions.
-          
-          ## ✅ What's Included
-          
-          ```
-          deployment/
-          ├── backend/               # Protected Django application
-          │   ├── manage.py
-          │   ├── requirements.txt
-          │   ├── static/           # Static files + frontend assets
-          │   ├── templates/        # Django templates + index.html
-          │   └── ...               # Protected Python modules
-          ├── DEPLOY.sh             # Linux/macOS deployment script
-          ├── DEPLOY.bat            # Windows deployment script
-          └── DEPLOYMENT_README.md  # Full documentation
-          ```
-          
-          ## 🔍 Verification
-          
-          To verify the build integrity:
-          ```bash
-          cd deployment/backend
-          python manage.py check
-          ```
-          
-          ## 📋 Next Steps
-          
-          1. ✅ Download the deployment package
-          2. ✅ Extract on target server
-          3. ✅ Run DEPLOY script
-          4. ✅ Configure .env file
-          5. ✅ Create superuser
-          6. ✅ Start application
-          
-          ---
-          
-          *Build completed successfully!* 🎉
-          EOFREP
-
-      - name: Upload Build Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-report
-          path: build-report.md
-          retention-days: 90
-
-  # Job 4: Create GitHub Release (on tags)
-  create-release:
-    name: Create GitHub Release
-    needs: [create-deployment-package]
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
-    permissions:
-      contents: write
-    steps:
-      - name: Download Deployment Package (TAR)
-        uses: actions/download-artifact@v4
-        with:
-          name: deployment-package-tar
-
-      - name: Download Deployment Package (ZIP)
-        uses: actions/download-artifact@v4
-        with:
-          name: deployment-package-zip
-
-      - name: Download Build Report
-        uses: actions/download-artifact@v4
-        with:
-          name: build-report
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            django-react-protected-v${{ env.BUILD_VERSION }}.tar.gz
-            django-react-protected-v${{ env.BUILD_VERSION }}.zip
-            build-report.md
-          body: |
-            ## 🎉 Production Release ${{ github.ref_name }}
-            
-            ### 📦 What's Included
-            - ✅ Protected Django backend (PyArmor)
-            - ✅ Obfuscated React frontend
-            - ✅ Automated deployment scripts
-            - ✅ Complete documentation
-            
-            ### 🔒 Protection Details
-            - **Backend**: PyArmor protection (mode: ${{ github.event.inputs.protection_mode || 'standard' }})
-            - **Frontend**: JavaScript obfuscation with advanced settings
-            - **Build**: #${{ env.BUILD_VERSION }}
-            - **Date**: $(date -u +"%Y-%m-%d %H:%M UTC")
-            
-            ### 📥 Download
-            - **Linux/macOS**: Download `.tar.gz`
-            - **Windows**: Download `.zip`
-            
-            ### 🚀 Quick Start
-            ```bash
-            # Extract
-            tar -xzf django-react-protected-v${{ env.BUILD_VERSION }}.tar.gz
-            cd deployment
-            
-            # Deploy
-            bash DEPLOY.sh
-            ```
-            
-            ### 📋 Build Information
-            - **Commit**: ${{ github.sha }}
-            - **Branch**: ${{ github.ref_name }}
-            - **Python**: ${{ env.PYTHON_VERSION }}
-            - **Node.js**: ${{ env.NODE_VERSION }}
-            
-            See `build-report.md` for detailed information.
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
