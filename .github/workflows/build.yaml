@@ -377,194 +377,50 @@ jobs:
           retention-days: 90
           compression-level: 9
 
-  # Job 3: Create Deployment Package with Scripts
+  # Job 3: Create Deployment Package
   create-deployment-package:
     name: Create Deployment Package
     needs: [build-complete-backend]
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code (for docs)
+      - name: Checkout Deployment Scripts
         uses: actions/checkout@v4
         with:
           sparse-checkout: |
-            README.md
-            LICENSE
+            backend/DEPLOY.bat
+            backend/DEPLOY.sh
+            backend/setup_autostart.bat
           sparse-checkout-cone-mode: false
 
       - name: Download Complete Backend
         uses: actions/download-artifact@v4
         with:
           name: complete-backend-deployment
-          path: deployment/backend
+          path: deployment
 
-      - name: Create Deployment Script (Linux/macOS)
+      - name: Copy Deployment Scripts to Package
         run: |
-          cat > deployment/DEPLOY.sh << 'EOFSH'
-          #!/bin/bash
-          set -e
+          echo "📦 Copying deployment scripts..."
           
-          # Colors
-          RED='\033[0;31m'
-          GREEN='\033[0;32m'
-          YELLOW='\033[1;33m'
-          BLUE='\033[0;34m'
-          NC='\033[0m'
-          
-          clear
-          echo -e "${BLUE}=========================================${NC}"
-          echo -e "${BLUE}  Complete Django + React Deployment${NC}"
-          echo -e "${BLUE}=========================================${NC}"
-          echo ""
-          
-          # Check Python
-          if ! command -v python3 &> /dev/null; then
-              echo -e "${RED}❌ Python 3 is not installed${NC}"
-              echo "Please install Python 3.12 or higher"
-              exit 1
+          # Copy DEPLOY scripts if they exist
+          if [ -f "backend/DEPLOY.sh" ]; then
+            cp backend/DEPLOY.sh deployment/
+            chmod +x deployment/DEPLOY.sh
+            echo "✅ Copied DEPLOY.sh"
           fi
           
-          PYTHON_VERSION=$(python3 --version | cut -d' ' -f2)
-          echo -e "${GREEN}✅ Python $PYTHON_VERSION detected${NC}"
-          echo ""
-          
-          # Navigate to backend
-          cd backend
-          
-          echo -e "${GREEN}[1/7] Creating virtual environment...${NC}"
-          python3 -m venv venv
-          
-          echo -e "${GREEN}[2/7] Activating virtual environment...${NC}"
-          source venv/bin/activate
-          
-          echo -e "${GREEN}[3/7] Upgrading pip...${NC}"
-          pip install --upgrade pip --quiet
-          
-          echo -e "${GREEN}[4/7] Installing dependencies...${NC}"
-          pip install -r requirements.txt --quiet
-          echo "✅ Dependencies installed"
-          
-          echo -e "${GREEN}[5/7] Setting up environment...${NC}"
-          if [ ! -f ".env" ]; then
-              if [ -f ".env.example" ]; then
-                  cp .env.example .env
-                  echo -e "${YELLOW}⚠️  Created .env from .env.example${NC}"
-                  echo -e "${YELLOW}⚠️  Please edit .env with your settings${NC}"
-              else
-                  echo -e "${YELLOW}⚠️  No .env file found. Please create one.${NC}"
-              fi
+          if [ -f "backend/DEPLOY.bat" ]; then
+            cp backend/DEPLOY.bat deployment/
+            echo "✅ Copied DEPLOY.bat"
           fi
           
-          echo -e "${GREEN}[6/7] Running migrations...${NC}"
-          python manage.py migrate
+          # Copy setup_autostart.bat if it exists
+          if [ -f "backend/setup_autostart.bat" ]; then
+            cp backend/setup_autostart.bat deployment/
+            echo "✅ Copied setup_autostart.bat"
+          fi
           
-          echo -e "${GREEN}[7/7] Verifying static files...${NC}"
-          echo "✅ Static files already integrated"
-          
-          echo ""
-          echo -e "${GREEN}=========================================${NC}"
-          echo -e "${GREEN}  ✅ Deployment Complete!${NC}"
-          echo -e "${GREEN}=========================================${NC}"
-          echo ""
-          echo -e "${YELLOW}To create a superuser:${NC}"
-          echo "  python manage.py createsuperuser"
-          echo ""
-          echo -e "${YELLOW}To start the development server:${NC}"
-          echo "  python manage.py runserver 0.0.0.0:8000"
-          echo ""
-          echo -e "${YELLOW}For production, use Gunicorn:${NC}"
-          echo "  pip install gunicorn"
-          echo "  gunicorn ims.wsgi:application --bind 0.0.0.0:8000 --workers 4"
-          echo ""
-          echo -e "${BLUE}Access your application at: http://localhost:8000${NC}"
-          echo ""
-          EOFSH
-          
-          chmod +x deployment/DEPLOY.sh
-
-      - name: Create Deployment Script (Windows)
-        run: |
-          cat > deployment/DEPLOY.bat << 'EOFBAT'
-          @echo off
-          setlocal enabledelayedexpansion
-          title Complete Django + React Deployment
-          color 0A
-          
-          cls
-          echo =========================================
-          echo   Complete Django + React Deployment
-          echo =========================================
-          echo.
-          
-          where python >nul 2>nul
-          if %errorlevel% neq 0 (
-              color 0C
-              echo [ERROR] Python is not installed!
-              echo Please install Python 3.12 or higher from python.org
-              pause
-              exit /b 1
-          )
-          
-          python --version
-          echo.
-          
-          cd backend
-          
-          echo [1/7] Creating virtual environment...
-          python -m venv venv
-          
-          echo [2/7] Activating virtual environment...
-          call venv\Scripts\activate.bat
-          
-          echo [3/7] Upgrading pip...
-          pip install --upgrade pip >nul 2>&1
-          
-          echo [4/7] Installing dependencies...
-          pip install -r requirements.txt
-          
-          echo [5/7] Setting up environment...
-          if not exist .env (
-              if exist .env.example (
-                  copy .env.example .env >nul
-                  echo WARNING: Created .env from .env.example
-                  echo Please edit .env with your settings
-              ) else (
-                  echo WARNING: No .env file found. Please create one.
-              )
-          )
-
-          echo [6/7] Generating PyArmor runtime for Windows...
-          pyarmor gen runtime --platform windows.x86_64 --output win_runtime
-          
-          echo Copying runtime files...
-          copy win_runtime\pyarmor_runtime_000000\pyarmor_runtime.pyd pyarmor_runtime_000000\
-          
-          echo Cleaning up temporary files...
-          rmdir /s /q win_runtime
-          
-          echo [7/7] Running migrations...
-          python manage.py migrate
-          
-          echo.
-          echo =========================================
-          echo   Deployment Complete!
-          echo =========================================
-          echo.
-          echo Static files are already integrated!
-          echo.
-          echo To create a superuser:
-          echo   python manage.py createsuperuser
-          echo.
-          echo To start the development server:
-          echo   python manage.py runserver 0.0.0.0:8000
-          echo.
-          echo For production, use Waitress:
-          echo   pip install waitress
-          echo   waitress-serve --port=8000 ims.wsgi:application
-          echo.
-          echo Access your application at: http://localhost:8000
-          echo.
-          pause
-          EOFBAT
+          echo "✅ All scripts copied!"
 
       - name: Create README
         run: |
@@ -578,39 +434,34 @@ jobs:
           - **Build Date**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
           - **Protection Mode**: ${{ github.event.inputs.protection_mode || 'standard' }}
           
-          ## 📋 What's Included
+          ## 📋 Package Contents
           
-          This is a **complete, ready-to-run** deployment package that includes:
-          
-          ✅ **Backend (Protected with PyArmor)**
-          - Django application with obfuscated Python code
-          - All migrations and database models
-          - API endpoints and business logic
-          
-          ✅ **Frontend (Integrated & Obfuscated)**
-          - React application (obfuscated JavaScript)
-          - All static assets (CSS, images, fonts)
-          - Already integrated into Django's static/templates
-          
-          ✅ **Static Files**
-          - Frontend assets in `static/assets/`
-          - Collected static files in `staticfiles/`
-          - Templates including `index.html`
-          
-          ✅ **Deployment Scripts**
-          - Automated setup for Linux/macOS (`DEPLOY.sh`)
-          - Automated setup for Windows (`DEPLOY.bat`)
+          ```
+          deployment/
+          ├── DEPLOY.sh                    # Linux/macOS deployment script
+          ├── DEPLOY.bat                   # Windows deployment script
+          ├── setup_autostart.bat          # Windows auto-start setup (NSSM)
+          ├── DEPLOYMENT_README.md         # This file
+          ├── manage.py                    # Django management
+          ├── requirements.txt             # Dependencies
+          ├── build-info.json              # Build metadata
+          ├── static/                      # Frontend assets integrated
+          │   └── assets/                  # JS, CSS, images
+          ├── staticfiles/                 # Collected static files
+          │   └── assets/                  # Frontend assets
+          ├── templates/                   # Django templates
+          │   └── index.html               # React entry point
+          ├── pyarmor_runtime_000000/      # PyArmor runtime
+          └── [protected_apps]/            # Protected Django code
+          ```
           
           ## ⚠️ Security Notice
           
-          This is a PROTECTED build with obfuscated code:
-          - Backend: Protected with PyArmor (${{ github.event.inputs.protection_mode || 'standard' }} mode)
-          - Frontend: Obfuscated with JavaScript Obfuscator
+          This is a PROTECTED build:
+          - Backend: PyArmor (${{ github.event.inputs.protection_mode || 'standard' }} mode)
+          - Frontend: JavaScript Obfuscator
           
-          **Do not:**
-          - Attempt to decompile or reverse engineer
-          - Modify protected Python files
-          - Share without authorization
+          **Do not attempt to decompile or reverse engineer.**
           
           ## 🎯 Quick Start
           
@@ -624,99 +475,85 @@ jobs:
           DEPLOY.bat
           ```
           
-          ## 📋 Manual Deployment
+          ### Windows Auto-Start (Optional)
+          ```cmd
+          setup_autostart.bat
+          ```
+          This will set up Django + Celery as Windows services using NSSM.
           
-          ### 1. Prerequisites
-          - Python 3.12+ installed
-          - pip package manager
-          - Virtual environment support
+          ## 📋 Manual Setup
           
-          ### 2. Setup
+          ### 1. Create Virtual Environment
           ```bash
-          cd backend
+          # Linux/macOS
           python3 -m venv venv
-          source venv/bin/activate  # Windows: venv\Scripts\activate
+          source venv/bin/activate
+          
+          # Windows
+          python -m venv venv
+          venv\Scripts\activate
+          ```
+          
+          ### 2. Install Dependencies
+          ```bash
+          pip install --upgrade pip
           pip install -r requirements.txt
           ```
           
-          ### 3. Environment Configuration
+          ### 3. Windows: Generate PyArmor Runtime
           ```bash
-          cp .env.example .env
-          # Edit .env with your settings
+          pyarmor gen runtime --platform windows.x86_64 --output win_runtime
+          copy win_runtime\pyarmor_runtime_000000\pyarmor_runtime.pyd pyarmor_runtime_000000\
+          rmdir /s /q win_runtime
           ```
           
-          Required environment variables:
+          ### 4. Environment Configuration
+          ```bash
+          # Copy example and edit
+          cp .env.example .env
+          ```
+          
+          Required variables:
           ```env
-          SECRET_KEY=your-secret-key-here
+          SECRET_KEY=your-secret-key
           DEBUG=False
           ALLOWED_HOSTS=your-domain.com,localhost
           DATABASE_URL=your-database-url
           ```
           
-          ### 4. Database Setup
+          ### 5. Database Setup
           ```bash
           python manage.py migrate
           python manage.py createsuperuser
           ```
           
-          ### 5. Start Server
-          
-          **Development:**
+          ### 6. Start Server
           ```bash
+          # Development
           python manage.py runserver 0.0.0.0:8000
-          ```
           
-          **Production (Linux/macOS - Gunicorn):**
-          ```bash
-          pip install gunicorn
-          gunicorn ims.wsgi:application \
-            --bind 0.0.0.0:8000 \
-            --workers 4 \
-            --timeout 120
-          ```
+          # Production (Linux/macOS)
+          gunicorn ims.wsgi:application --bind 0.0.0.0:8000 --workers 4
           
-          **Production (Windows - Waitress):**
-          ```bash
-          pip install waitress
+          # Production (Windows)
           waitress-serve --port=8000 ims.wsgi:application
-          ```
-          
-          ## 📁 Directory Structure
-          
-          ```
-          backend/
-          ├── manage.py                 # Django management script
-          ├── requirements.txt          # Python dependencies
-          ├── build-info.json          # Build metadata
-          ├── .env.example             # Environment template
-          ├── static/                  # Static files + frontend
-          │   ├── assets/              # Frontend JavaScript/CSS
-          │   └── ...                  # Other static files
-          ├── staticfiles/             # Collected static files
-          │   └── assets/              # Frontend assets
-          ├── templates/               # Django templates
-          │   └── index.html           # React app entry point
-          ├── pyarmor_runtime_000000/  # PyArmor runtime
-          └── [app_folders]/           # Protected Django apps
           ```
           
           ## 🔐 Production Checklist
           
-          - [ ] Set strong SECRET_KEY (generate new one)
+          - [ ] Generate new SECRET_KEY
           - [ ] Set DEBUG=False
           - [ ] Configure ALLOWED_HOSTS
-          - [ ] Setup production database (PostgreSQL recommended)
-          - [ ] Configure CORS settings
-          - [ ] Setup reverse proxy (Nginx/Apache)
-          - [ ] Enable HTTPS with SSL certificate
-          - [ ] Configure firewall rules
-          - [ ] Setup monitoring and logging
-          - [ ] Configure automated backups
-          - [ ] Test all functionality
+          - [ ] Use PostgreSQL/MySQL (not SQLite)
+          - [ ] Configure CORS properly
+          - [ ] Setup Nginx/Apache reverse proxy
+          - [ ] Enable HTTPS/SSL
+          - [ ] Configure firewall
+          - [ ] Setup monitoring
+          - [ ] Configure backups
           
-          ## 🌐 Web Server Configuration
+          ## 🌐 Nginx Configuration
           
-          ### Nginx Example
           ```nginx
           server {
               listen 80;
@@ -726,81 +563,73 @@ jobs:
                   proxy_pass http://127.0.0.1:8000;
                   proxy_set_header Host $host;
                   proxy_set_header X-Real-IP $remote_addr;
-                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                  proxy_set_header X-Forwarded-Proto $scheme;
               }
               
               location /static/ {
-                  alias /path/to/backend/staticfiles/;
+                  alias /path/to/staticfiles/;
                   expires 1y;
-                  add_header Cache-Control "public, immutable";
-              }
-              
-              location /media/ {
-                  alias /path/to/backend/media/;
               }
           }
           ```
           
-          ## 🔄 Celery Setup (if using background tasks)
+          ## 🔄 Celery Setup
           
           ```bash
           # Install Redis
           # Ubuntu: sudo apt install redis-server
           # macOS: brew install redis
-          # Windows: Download from https://github.com/tporadowski/redis/releases
+          # Windows: Use WSL or download from GitHub
           
-          # Start Celery Worker
+          # Start Worker
           celery -A config worker -l info --pool=solo
           
-          # Start Celery Beat (for scheduled tasks)
+          # Start Beat
           celery -A config beat -l info
           ```
           
           ## 🐛 Troubleshooting
           
-          ### Issue: PyArmor runtime error on Windows
-          **Solution**: Run this in your virtual environment:
+          **PyArmor runtime error (Windows)**:
           ```bash
           pyarmor gen runtime --platform windows.x86_64 --output win_runtime
           copy win_runtime\pyarmor_runtime_000000\pyarmor_runtime.pyd pyarmor_runtime_000000\
           ```
           
-          ### Issue: Static files not loading
-          **Solution**: Check if staticfiles are in the correct location:
+          **Static files not loading**:
           ```bash
-          ls -la staticfiles/assets/
+          python manage.py collectstatic --noinput
           ```
           
-          ### Issue: Frontend not rendering
-          **Solution**: Verify index.html exists:
-          ```bash
-          ls -la templates/index.html
-          ```
+          **Frontend not rendering**:
+          Check `templates/index.html` exists and `static/assets/` has files.
           
           ## 📞 Support
           
-          For issues or questions:
-          - Check logs in `backend/logs/`
-          - Review `build-info.json` for build details
-          - Enable DEBUG temporarily for detailed errors
-          - Contact: [Your Contact Info]
-          
-          ## 📄 License
-          
-          This is proprietary software. Unauthorized distribution is prohibited.
+          - Check `build-info.json` for build details
+          - Review logs for errors
+          - Enable DEBUG temporarily for details
           
           ---
-          Generated by GitHub Actions Build #${{ env.BUILD_VERSION }}
+          Build #${{ env.BUILD_VERSION }} | Protected by PyArmor & JavaScript Obfuscator
           EOFMD
 
       - name: Create Archive Files
         run: |
-          # Create tar.gz for Linux/macOS
-          tar -czf django-react-complete-v${{ env.BUILD_VERSION }}.tar.gz deployment/
+
+
+      - name: Create Archive Files
+        run: |
+          echo "📦 Creating deployment archives..."
           
-          # Create zip for Windows
+          # Create tar.gz for Linux/macOS (flat structure)
+          tar -czf django-react-complete-v${{ env.BUILD_VERSION }}.tar.gz -C deployment .
+          echo "✅ Created .tar.gz archive"
+          
+          # Create zip for Windows (flat structure)
           cd deployment && zip -r ../django-react-complete-v${{ env.BUILD_VERSION }}.zip . && cd ..
+          echo "✅ Created .zip archive"
+          
+          echo "✅ Archives created with flat structure!"
 
       - name: Upload Complete Package (TAR.GZ)
         uses: actions/upload-artifact@v4
@@ -879,12 +708,13 @@ jobs:
           ### Quick Deploy
           ```bash
           # Windows
-          1. Extract: django-react-complete-v${{ env.BUILD_VERSION }}.zip
-          2. Open folder in terminal
-          3. Run: DEPLOY.bat
+          1. Extract the ZIP file
+          2. Run: DEPLOY.bat
           
           # Linux/macOS
           1. Extract: tar -xzf django-react-complete-v${{ env.BUILD_VERSION }}.tar.gz
-          2. cd deployment
-          3. Run: bash DEPLOY.sh
+          2. Run: bash DEPLOY.sh
+          
+          # Auto-start on Windows (optional)
+          Run: setup_autostart.bat
           ```
