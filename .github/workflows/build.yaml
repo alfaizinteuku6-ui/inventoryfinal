@@ -314,13 +314,29 @@ jobs:
           else
             echo "⚠️  DEPLOY.bat not found at backend/DEPLOY.bat"
           fi
+
+          mkdir -p service_scripts
+
+          # Copy service scripts assets to service_scripts/
+          if [ -d "../service_scripts" ]; then
+            cp -r ../service_scripts service_scripts/
+            echo "✅ Copied service scripts to service_scripts/"
+          fi
           
-          # Copy setup_autostart.bat from scripts folder
-          if [ -f "../setup_autostart.bat" ]; then
-            cp ../setup_autostart.bat ./
-            echo "✅ Copied setup_autostart.bat"
+          # Copy setup_services.bat from scripts folder
+          if [ -f "../setup_services.bat" ]; then
+            cp ../setup_services.bat ./
+            echo "✅ Copied setup_services.bat"
           else
-            echo "⚠️  setup_autostart.bat not found at setup_autostart.bat"
+            echo "⚠️  setup_services.bat not found at setup_services.bat"
+          fi
+
+          # Copy monitor_redis.bat from scripts folder
+          if [ -f "../monitor_redis.bat" ]; then
+            cp ../monitor_redis.bat ./
+            echo "✅ Copied monitor_redis.bat"
+          else
+            echo "⚠️  monitor_redis.bat not found at monitor_redis.bat"
           fi
           
           echo "✅ Deployment scripts copied!"
@@ -410,13 +426,16 @@ jobs:
           deployment/
           ├── DEPLOY.sh                    # Linux/macOS deployment script
           ├── DEPLOY.bat                   # Windows deployment script
-          ├── setup_autostart.bat          # Windows auto-start setup (NSSM)
+          ├── setup_services.bat          # Windows auto-start setup (NSSM)
+          ├── monitor_redis.bat           # Monitor Redis service script
           ├── DEPLOYMENT_README.md         # This file
           ├── manage.py                    # Django management
           ├── requirements.txt             # Dependencies
           ├── build-info.json              # Build metadata
           ├── static/                      # Frontend assets integrated
           │   └── assets/                  # JS, CSS, images
+          ├── service_scripts/             # Service setup scripts (if any)
+          │   └── [service_files]           
           ├── staticfiles/                 # Collected static files
           │   └── assets/                  # Frontend assets
           ├── templates/                   # Django templates
@@ -447,7 +466,7 @@ jobs:
           
           ### Windows Auto-Start (Optional)
           ```cmd
-          setup_autostart.bat
+          setup_services.bat
           ```
           This will set up Django + Celery as Windows services using NSSM.
           
@@ -686,5 +705,5 @@ jobs:
           2. Run: bash DEPLOY.sh
           
           # Auto-start on Windows (optional)
-          Run: setup_autostart.bat
+          Run: setup_services.bat
           ```
