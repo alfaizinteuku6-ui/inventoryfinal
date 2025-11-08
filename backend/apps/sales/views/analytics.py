@@ -130,7 +130,7 @@ class SalesAnalyticsViewSet(viewsets.ViewSet):
         
         total_cost = self._quantize(profit_data['total_cost'])
         total_revenue = self._quantize(totals['total_revenue'])
-        total_profit = total_revenue - total_cost
+        total_profit = total_revenue - total_cost - (self._quantize(totals['total_discount']) + self._quantize(totals['total_tax']))
         profit_margin = ((total_profit / total_revenue * 100) if total_revenue > 0 else 0)
 
         # Parallel queries for status and payment methods
