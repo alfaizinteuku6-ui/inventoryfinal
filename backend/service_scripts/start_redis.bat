@@ -129,7 +129,7 @@ if exist "%REDIS_DIR%\redis.log" (
 echo ========================================
 echo SUGGESTED ACTIONS
 echo ========================================
-echo 1. Run: diagnose_redis.bat (for detailed diagnostics)
+echo 1. Run: diagnose_redis.bat for detailed diagnostics
 echo 2. Check Redis config: %REDIS_CONF%
 echo 3. Try manual start: "%REDIS_EXE%" "%REDIS_CONF%"
 echo 4. Check Windows Event Viewer for service errors

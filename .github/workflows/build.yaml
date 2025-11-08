@@ -315,12 +315,16 @@ jobs:
             echo "⚠️  DEPLOY.bat not found at backend/DEPLOY.bat"
           fi
 
-          mkdir -p service_scripts
-
           # Copy service scripts assets to service_scripts/
           if [ -d "../service_scripts" ]; then
-            cp -r ../service_scripts service_scripts/
+            cp -r ../service_scripts ./
             echo "✅ Copied service scripts to service_scripts/"
+          fi
+
+          # Copy service scripts assets to setup_functions/
+          if [ -d "../setup_functions" ]; then
+            cp -r ../setup_functions ./
+            echo "✅ Copied service scripts to setup_functions/"
           fi
           
           # Copy setup_services.bat from scripts folder
