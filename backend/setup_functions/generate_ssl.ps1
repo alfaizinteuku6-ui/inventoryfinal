@@ -83,7 +83,10 @@ try {
     Write-Host "  ✗ SSL generation failed: $($_.Exception.Message)" -ForegroundColor Red
     Write-Host "  Details: $($_.Exception.GetType().FullName)" -ForegroundColor Yellow
     if ($_.ScriptStackTrace) {
-        Write-Host "  Stack trace: $($_.ScriptStackTrace)" -ForegroundColor Yellow
+        Write-Host "  Stack trace:" -ForegroundColor Yellow
+        $_.ScriptStackTrace -split "`r?`n" | ForEach-Object {
+            Write-Host "    $_" -ForegroundColor DarkYellow
+        }
     }
     exit 1
 }
