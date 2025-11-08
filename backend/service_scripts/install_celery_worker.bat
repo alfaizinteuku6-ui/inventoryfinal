@@ -56,7 +56,7 @@ if "%DJANGO_PROJECT%"=="" (
 )
 
 :: Install Celery Worker service
-"%NSSM_PATH%" install DjangoCeleryWorker "%CELERY_PATH%" "-A" "%DJANGO_PROJECT%" "worker" "--loglevel=info" "--pool=solo" "-n" "worker@%%H"
+"%NSSM_PATH%" install DjangoCeleryWorker "%CELERY_PATH%" -A config worker -l info --pool=solo
 if %errorlevel% neq 0 (
     %ps_echo% "  ✗ Failed to install Celery Worker service" -ForegroundColor %RED%
     exit /b 1

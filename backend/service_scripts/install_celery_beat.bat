@@ -56,7 +56,7 @@ if "%DJANGO_PROJECT%"=="" (
 )
 
 :: Install Celery Beat service
-"%NSSM_PATH%" install DjangoCeleryBeat "%CELERY_PATH%" "-A" "%DJANGO_PROJECT%" "beat" "--loglevel=info"
+"%NSSM_PATH%" install DjangoCeleryBeat "%CELERY_PATH%" -A config beat -l info
 if %errorlevel% neq 0 (
     %ps_echo% "  ✗ Failed to install Celery Beat service" -ForegroundColor %RED%
     exit /b 1
