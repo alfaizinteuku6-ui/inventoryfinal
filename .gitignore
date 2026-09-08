@@ -1,0 +1,9 @@
+*.sqlite3
+db.sqlite3
+.env
+__pycache__/
+*.py[cod]
+node_modules/
+dist/
+venv/
+.DS_Store

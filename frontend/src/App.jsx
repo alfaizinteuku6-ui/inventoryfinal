@@ -18,11 +18,15 @@ const Products = React.lazy(() => import('./pages/Products'));
 const ProductForm = React.lazy(() => import('./pages/ProductForm'));
 const Sales = React.lazy(() => import('./pages/Sales'));
 const CreateSale = React.lazy(() => import('./pages/CreateSale'));
+const PosTerminal = React.lazy(() => import('./pages/PosTerminal'));
 const SaleDetails = React.lazy(() => import('./pages/SaleDetails'));
 const Customers = React.lazy(() => import('./pages/Customers'));
 const Login = React.lazy(() => import('./pages/Login'));
 const Profile = React.lazy(() => import('./pages/Profile'));
 const ProductDetails = React.lazy(() => import('./pages/ProductDetails'));
+const StockMovements = React.lazy(() => import('./pages/StockMovements'));
+const Suppliers = React.lazy(() => import('./pages/Suppliers'));
+const PrinterSettings = React.lazy(() => import('./pages/PrinterSettings'));
 
 // Loading component
 const LoadingFallback = () => (
@@ -114,12 +118,17 @@ const routes = [
   { path: '/products/new', element: ProductForm },
   { path: '/products/:id/edit', element: ProductForm },
   { path: '/sales', element: Sales },
-  { path: '/sales/new', element: CreateSale },
+  { path: '/pos', element: PosTerminal },
+  { path: '/sales/new', element: PosTerminal },
   { path: '/sales/:id/edit', element: CreateSale },
   { path: '/customers', element: Customers },
+  { path: '/suppliers', element: Suppliers },
   { path: '/profile', element: Profile },
   { path: '/sales/:id', element: SaleDetails },
   { path: '/products/:id', element: ProductDetails },
+  { path: '/stock-movements', element: StockMovements },
+  { path: '/settings', element: PrinterSettings },
+  { path: '/settings/printer', element: PrinterSettings },
 ];
 
 function App() {

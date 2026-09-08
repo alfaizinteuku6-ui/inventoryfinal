@@ -50,14 +50,16 @@ class SaleSerializer(serializers.ModelSerializer):
 
 class CreateSaleSerializer(serializers.ModelSerializer):
     items = SaleItemSerializer(many=True)
+    paid_amount = serializers.DecimalField(max_digits=12, decimal_places=2, required=False)
     
     class Meta:
         model = Sale
-        fields = ['customer', 'payment_method', 'notes', 'items', 'due_date']
+        fields = ['customer', 'payment_method', 'notes', 'items', 'due_date', 'paid_amount']
     
     @transaction.atomic
     def create(self, validated_data):
         items_data = validated_data.pop('items')
+        paid_amount_input = validated_data.pop('paid_amount', None)
         validated_data['salesperson'] = self.context['request'].user
         sale = Sale.objects.create(**validated_data)
         
@@ -87,6 +89,13 @@ class CreateSaleSerializer(serializers.ModelSerializer):
                 user=self.context['request'].user
             )
         
+        sale.update_totals()
+        if paid_amount_input is not None:
+            sale.paid_amount = Decimal(str(paid_amount_input))
+        elif sale.payment_method != 'credit':
+            sale.paid_amount = sale.total_amount
+        
+        sale.update_payment_status()
         sale.save()
         return sale
 

@@ -10,6 +10,7 @@ import {
   alpha,
   Avatar,
   Zoom,
+  Tooltip,
 } from '@mui/material';
 import {
   TrendingUp,
@@ -58,40 +59,71 @@ const StatCard = ({ title, value, subtitle, icon: Icon, trend, trendValue, color
           }
         }}
       >
-        <CardContent>
-          <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
-            <Typography variant="body2" color="text.secondary" fontWeight={600} letterSpacing={0.5}>
+        <CardContent sx={{ p: { xs: 2, sm: 2.5 }, '&:last-child': { pb: { xs: 2, sm: 2.5 } } }}>
+          <Box display="flex" justifyContent="space-between" alignItems="center" mb={1.5}>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              fontWeight={600}
+              letterSpacing={0.5}
+              noWrap
+              sx={{ textTransform: 'uppercase', fontSize: '0.75rem' }}
+            >
               {title}
             </Typography>
             <Avatar
               sx={{
                 bgcolor: alpha(theme.palette[color].main, 0.1),
                 color: theme.palette[color].main,
-                width: 48,
-                height: 48,
+                width: 42,
+                height: 42,
               }}
             >
-              <Icon />
+              <Icon fontSize="small" />
             </Avatar>
           </Box>
           
-          <Typography variant="h3" fontWeight="bold" gutterBottom sx={{ fontSize: { xs: '1.75rem', md: '2.5rem' } }}>
-            {value}
-          </Typography>
+          <Tooltip title={value || ''} arrow placement="top" disableHoverListener={!value}>
+            <Typography
+              variant="h4"
+              fontWeight={800}
+              sx={{
+                fontSize: { xs: '1.35rem', sm: '1.5rem', md: '1.65rem', lg: '1.75rem' },
+                lineHeight: 1.25,
+                mb: 0.75,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                letterSpacing: '-0.02em',
+                color: 'text.primary',
+              }}
+            >
+              {value}
+            </Typography>
+          </Tooltip>
           
           {subtitle && (
-            <Typography variant="body2" color="text.secondary" sx={{ mb: trend ? 1 : 0 }}>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              fontWeight={500}
+              noWrap
+              display="block"
+              sx={{ mb: trend ? 1 : 0 }}
+            >
               {subtitle}
             </Typography>
           )}
           
           {trend && (
-            <Box display="flex" alignItems="center" gap={0.5}>
+            <Box display="flex" alignItems="center" gap={0.75} mt={0.5} flexWrap="wrap">
               <Chip
                 icon={trend === 'up' ? <TrendingUp fontSize="small" /> : <TrendingDown fontSize="small" />}
                 label={trendValue}
                 size="small"
                 sx={{
+                  height: 22,
+                  fontSize: '0.75rem',
                   bgcolor: alpha(theme.palette[trend === 'up' ? 'success' : 'error'].main, 0.1),
                   color: theme.palette[trend === 'up' ? 'success' : 'error'].main,
                   fontWeight: 700,
@@ -100,8 +132,8 @@ const StatCard = ({ title, value, subtitle, icon: Icon, trend, trendValue, color
                   }
                 }}
               />
-              <Typography variant="caption" color="text.secondary">
-                vs last period
+              <Typography variant="caption" color="text.secondary" noWrap>
+                vs periode lalu
               </Typography>
             </Box>
           )}

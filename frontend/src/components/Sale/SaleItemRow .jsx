@@ -174,8 +174,8 @@ const SaleItemRow = ({
                     </Typography>
                     <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
                       <Chip
-                        label={`₹${product.selling_price?.toLocaleString(
-                          "en-IN"
+                        label={`Rp ${product.selling_price?.toLocaleString(
+                          "id-ID"
                         )}`}
                         size="small"
                         color="primary"
@@ -303,7 +303,7 @@ const SaleItemRow = ({
                 Line Total
               </Typography>
               <Typography variant="h6" fontWeight="bold" color="success.main">
-                ₹{parseInt(calculateLineTotal(item)).toLocaleString("en-IN")}
+                Rp {parseInt(calculateLineTotal(item)).toLocaleString("id-ID")}
               </Typography>
             </Paper>
           </Grid>

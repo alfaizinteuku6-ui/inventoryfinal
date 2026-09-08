@@ -10,6 +10,7 @@ import {
   alpha,
   Divider,
   Fade,
+  Tooltip,
 } from "@mui/material";
 import { Inventory, Warning } from "@mui/icons-material";
 import { formatCurrency } from "../../utils/utilitys";
@@ -48,88 +49,112 @@ const InventoryAlerts = ({ data, loading }) => {
         </Box>
 
         <Grid container spacing={2} mb={3}>
-          <Grid size={{ xs: 4 }}>
+          <Grid size={{ xs: 6, sm: 3 }}>
             <Box
               textAlign="center"
               p={1.5}
-              bgcolor={alpha(theme.palette.error.main, 0.1)}
+              bgcolor={alpha(theme.palette.error.main, 0.08)}
               borderRadius={2}
+              border={`1px solid ${alpha(theme.palette.error.main, 0.2)}`}
               sx={{
                 transition: "all 0.3s ease",
                 "&:hover": {
-                  transform: "translateY(-4px)",
-                  boxShadow: theme.shadows[4],
+                  transform: "translateY(-3px)",
+                  boxShadow: theme.shadows[3],
                 },
               }}
             >
-              <Typography variant="h3" fontWeight="bold" color="error.main">
+              <Typography variant="h4" fontWeight="bold" color="error.main">
                 {data?.out_of_stock_count || 0}
               </Typography>
               <Typography
                 variant="caption"
                 color="text.secondary"
                 fontWeight={600}
+                noWrap
+                display="block"
               >
-                Out of Stock
+                Habis (Out of Stock)
               </Typography>
             </Box>
           </Grid>
-          <Grid size={{ xs: 4 }}>
+
+          <Grid size={{ xs: 6, sm: 3 }}>
             <Box
               textAlign="center"
               p={1.5}
-              bgcolor={alpha(theme.palette.warning.main, 0.1)}
+              bgcolor={alpha(theme.palette.warning.main, 0.08)}
               borderRadius={2}
+              border={`1px solid ${alpha(theme.palette.warning.main, 0.2)}`}
               sx={{
                 transition: "all 0.3s ease",
                 "&:hover": {
-                  transform: "translateY(-4px)",
-                  boxShadow: theme.shadows[4],
+                  transform: "translateY(-3px)",
+                  boxShadow: theme.shadows[3],
                 },
               }}
             >
-              <Typography variant="h3" fontWeight="bold" color="warning.main">
+              <Typography variant="h4" fontWeight="bold" color="warning.main">
                 {data?.low_stock_products?.length || 0}
               </Typography>
               <Typography
                 variant="caption"
                 color="text.secondary"
                 fontWeight={600}
+                noWrap
+                display="block"
               >
-                Low Stock
+                Stok Menipis (Low)
               </Typography>
             </Box>
           </Grid>
-          <Grid size={{ xs: 4 }}>
-            <Box
-              textAlign="center"
-              p={1.5}
-              bgcolor={alpha(theme.palette.success.main, 0.1)}
-              borderRadius={2}
-              sx={{
-                transition: "all 0.3s ease",
-                "&:hover": {
-                  transform: "translateY(-4px)",
-                  boxShadow: theme.shadows[4],
-                },
-              }}
+
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <Tooltip
+              title={`Estimasi Nilai Ritel: ${formatCurrency(data?.inventory_value?.retail_value || 0)} (Modal: ${formatCurrency(data?.inventory_value?.cost_value || 0)})`}
+              arrow
+              placement="top"
             >
-              <Typography
-                variant="h4"
-                fontWeight="bold"
-                color="success.main"
-                sx={{ fontSize: "1.5rem" }}
+              <Box
+                textAlign="center"
+                p={1.5}
+                bgcolor={alpha(theme.palette.success.main, 0.08)}
+                borderRadius={2}
+                border={`1px solid ${alpha(theme.palette.success.main, 0.2)}`}
+                sx={{
+                  transition: "all 0.3s ease",
+                  cursor: "pointer",
+                  "&:hover": {
+                    transform: "translateY(-3px)",
+                    boxShadow: theme.shadows[3],
+                  },
+                }}
               >
-                {formatCurrency(data?.inventory_value?.retail_value || 0)}
-              </Typography>
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                fontWeight={600}
-              >
-                Total Value
-              </Typography>
-            </Box>
+                <Typography
+                  variant="h5"
+                  fontWeight="bold"
+                  color="success.main"
+                  sx={{
+                    fontSize: { xs: "1.15rem", sm: "1.25rem", md: "1.35rem" },
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    lineHeight: 1.3,
+                  }}
+                >
+                  {formatCurrency(data?.inventory_value?.retail_value || 0)}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  fontWeight={600}
+                  noWrap
+                  display="block"
+                >
+                  Total Nilai Aset Produk
+                </Typography>
+              </Box>
+            </Tooltip>
           </Grid>
         </Grid>
 

@@ -169,7 +169,7 @@ const CustomerTable = ({ customers, isLoading, onEdit, onDelete }) => {
                       fontWeight="bold"
                       color="success.main"
                     >
-                      ₹{customer?.total_spent || 0}
+                      Rp {Number(customer?.total_spent || 0).toLocaleString("id-ID")}
                     </Typography>
                   </TableCell>
                 )}

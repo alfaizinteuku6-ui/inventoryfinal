@@ -351,7 +351,7 @@ const NotificationMenu = ({ anchorEl, onClose, mutateStats }) => {
                 {notification.sale && (
                   <Box sx={{ mt: 1, display: "flex", gap: 1 }}>
                     <Chip
-                      label={`₹${notification.sale.total_amount}`}
+                      label={`Rp ${parseFloat(notification.sale.total_amount || 0).toLocaleString("id-ID")}`}
                       size="small"
                       sx={{ fontSize: "0.7rem", height: 20 }}
                     />

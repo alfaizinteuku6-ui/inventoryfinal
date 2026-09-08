@@ -425,8 +425,8 @@ const ProductCard = ({ product, index, onDelete }) => {
                   fontWeight="800"
                   sx={{ fontSize: "1.1rem" }}
                 >
-                  ₹
-                  {parseFloat(product.selling_price).toLocaleString("en-IN", {
+                  Rp{" "}
+                  {parseFloat(product.selling_price).toLocaleString("id-ID", {
                     maximumFractionDigits: 0,
                   })}
                 </Typography>
@@ -435,8 +435,8 @@ const ProductCard = ({ product, index, onDelete }) => {
                   color="text.secondary"
                   sx={{ fontSize: "0.7rem", textDecoration: "line-through" }}
                 >
-                  ₹
-                  {parseFloat(product.cost_price).toLocaleString("en-IN", {
+                  Rp{" "}
+                  {parseFloat(product.cost_price).toLocaleString("id-ID", {
                     maximumFractionDigits: 0,
                   })}
                 </Typography>
@@ -446,9 +446,9 @@ const ProductCard = ({ product, index, onDelete }) => {
                 color="text.secondary"
                 sx={{ fontSize: "0.7rem" }}
               >
-                Profit/unit: ₹
+                Profit/unit: Rp{" "}
                 {(product.selling_price - product.cost_price).toLocaleString(
-                  "en-IN",
+                  "id-ID",
                   { maximumFractionDigits: 0 }
                 )}
               </Typography>
@@ -523,8 +523,8 @@ const ProductCard = ({ product, index, onDelete }) => {
                 fontWeight="700"
                 sx={{ fontSize: "0.85rem" }}
               >
-                ₹
-                {stockValue.toLocaleString("en-IN", {
+                Rp{" "}
+                {stockValue.toLocaleString("id-ID", {
                   maximumFractionDigits: 0,
                 })}
               </Typography>

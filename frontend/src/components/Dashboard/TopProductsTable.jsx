@@ -53,8 +53,8 @@ const TopProductsTable = ({ products, loading }) => {
           </Box>
         </Box>
 
-        <TableContainer sx={{ maxHeight: 340 }}>
-          <Table stickyHeader>
+        <TableContainer sx={{ maxHeight: 340, overflowX: "auto" }}>
+          <Table stickyHeader sx={{ minWidth: 460 }}>
             <TableHead>
               <TableRow>
                 <TableCell
@@ -161,7 +161,7 @@ const TopProductsTable = ({ products, loading }) => {
                       />
                     </TableCell>
                     <TableCell align="right">
-                      <Typography variant="body2" fontWeight={700}>
+                      <Typography variant="body2" fontWeight={700} noWrap>
                         {formatCurrency(product.revenue)}
                       </Typography>
                     </TableCell>
@@ -171,10 +171,11 @@ const TopProductsTable = ({ products, loading }) => {
                           variant="body2"
                           fontWeight={700}
                           color="success.main"
+                          noWrap
                         >
                           {formatCurrency(product.profit)}
                         </Typography>
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="caption" color="text.secondary" noWrap display="block">
                           {product.profit_margin}% margin
                         </Typography>
                       </Box>

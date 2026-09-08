@@ -45,7 +45,12 @@ import TopCustomers from '../components/Dashboard/TopCustomers';
 import PaymentAnalytics from '../components/Dashboard/PaymentAnalytics';
 import PaymentMethodsChart from '../components/Dashboard/PaymentMethodsChart';
 
-const PERIOD_OPTIONS = ['day', 'week', 'month', 'year'];
+const PERIOD_OPTIONS = [
+  { key: 'day', label: 'Hari Ini' },
+  { key: 'week', label: 'Minggu Ini' },
+  { key: 'month', label: 'Bulan Ini' },
+  { key: 'year', label: 'Tahun Ini' },
+];
 
 // Tab Panel Component
 function TabPanel({ children, value, index, ...other }) {
@@ -57,7 +62,7 @@ function TabPanel({ children, value, index, ...other }) {
       aria-labelledby={`dashboard-tab-${index}`}
       {...other}
     >
-      {value === index && <Box sx={{ py: 3 }}>{children}</Box>}
+      {value === index && <Box sx={{ py: 2 }}>{children}</Box>}
     </div>
   );
 }
@@ -106,150 +111,150 @@ const Dashboard = () => {
   };
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', py: 3 }}>
-      <Container maxWidth="xl">
-        {/* Header */}
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
-          <Box>
-            <Typography variant="h4" fontWeight="bold" gutterBottom sx={{ 
-              background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-              backgroundClip: 'text',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-            }}>
-              Analytics Dashboard
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Real-time insights and performance metrics
-            </Typography>
-          </Box>
-          
-          <Box display="flex" gap={2} alignItems="center" flexWrap="wrap">
-            <ButtonGroup variant="outlined" size="small">
-              {PERIOD_OPTIONS.map((p) => (
-                <Button
-                  key={p}
-                  onClick={() => setPeriod(p)}
-                  variant={period === p ? 'contained' : 'outlined'}
-                  sx={{ 
-                    textTransform: 'capitalize',
-                    minWidth: 70,
-                    fontWeight: 600
-                  }}
-                >
-                  {p}
-                </Button>
-              ))}
-            </ButtonGroup>
-            
-            <Tooltip title="Refresh Data">
-              <IconButton 
-                onClick={handleRefresh} 
-                disabled={isRefreshing}
-                size="small"
+    <Box sx={{ width: '100%', minWidth: 0 }}>
+      {/* Header */}
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2.5} flexWrap="wrap" gap={2}>
+        <Box>
+          <Typography variant="h5" fontWeight="bold" gutterBottom sx={{ 
+            background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+            backgroundClip: 'text',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            fontSize: { xs: '1.5rem', sm: '1.75rem', md: '2rem' },
+          }}>
+            Dashboard Analisis & Performa
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Ringkasan metrik penjualan, perputaran stok, dan arus kas toko
+          </Typography>
+        </Box>
+        
+        <Box display="flex" gap={1.5} alignItems="center" flexWrap="wrap">
+          <ButtonGroup variant="outlined" size="small">
+            {PERIOD_OPTIONS.map((p) => (
+              <Button
+                key={p.key}
+                onClick={() => setPeriod(p.key)}
+                variant={period === p.key ? 'contained' : 'outlined'}
                 sx={{ 
-                  bgcolor: 'background.paper',
-                  border: `2px solid ${theme.palette.primary.main}`,
-                  '&:hover': {
-                    bgcolor: alpha(theme.palette.primary.main, 0.1),
-                    transform: 'rotate(180deg)',
-                  },
-                  transition: 'all 0.5s ease'
+                  minWidth: { xs: 65, sm: 80 },
+                  fontWeight: 600,
+                  fontSize: '0.8rem',
                 }}
               >
-                <Refresh className={isRefreshing ? 'spin' : ''} />
-              </IconButton>
-            </Tooltip>
-          </Box>
+                {p.label}
+              </Button>
+            ))}
+          </ButtonGroup>
+          
+          <Tooltip title="Perbarui Data">
+            <IconButton 
+              onClick={handleRefresh} 
+              disabled={isRefreshing}
+              size="small"
+              sx={{ 
+                bgcolor: 'background.paper',
+                border: `2px solid ${theme.palette.primary.main}`,
+                '&:hover': {
+                  bgcolor: alpha(theme.palette.primary.main, 0.1),
+                  transform: 'rotate(180deg)',
+                },
+                transition: 'all 0.5s ease'
+              }}
+            >
+              <Refresh className={isRefreshing ? 'spin' : ''} />
+            </IconButton>
+          </Tooltip>
         </Box>
+      </Box>
 
-        {/* Loading bar */}
-        {isLoading && (
-          <Box mb={2}>
-            <LinearProgress />
-          </Box>
-        )}
+      {/* Loading bar */}
+      {isLoading && (
+        <Box mb={2}>
+          <LinearProgress sx={{ borderRadius: 1 }} />
+        </Box>
+      )}
 
-        {/* Key Metrics - Always Visible */}
-        <Grid container spacing={2} mb={3}>
-          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-            <StatCard
-              title="Total Revenue"
-              value={formatCurrency(summary.total_revenue)}
-              subtitle={`${formatNumber(summary.total_sales)} sales`}
-              icon={AttachMoney}
-              trend={trend}
-              trendValue={`${Math.abs(summary.revenue_change_percent || 0)}%`}
-              color="primary"
-              loading={loadingDashboard}
-            />
-          </Grid>
-          
-          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-            <StatCard
-              title="Total Profit"
-              value={formatCurrency(summary.total_profit)}
-              subtitle={`${summary.profit_margin}% margin`}
-              icon={TrendingUp}
-              color="success"
-              loading={loadingDashboard}
-            />
-          </Grid>
-          
-          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-            <StatCard
-              title="Outstanding"
-              value={formatCurrency(summary.total_due)}
-              subtitle={`${paymentData?.outstanding?.count || 0} invoices`}
-              icon={Timer}
-              color="warning"
-              loading={loadingDashboard}
-            />
-          </Grid>
-          
-          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-            <StatCard
-              title="Average Order"
-              value={formatCurrency(summary.average_order_value)}
-              subtitle="Per transaction"
-              icon={ShoppingCart}
-              color="info"
-              loading={loadingDashboard}
-            />
-          </Grid>
+      {/* Key Metrics - Always Visible */}
+      <Grid container spacing={2} mb={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 6, lg: 3 }}>
+          <StatCard
+            title="Total Pendapatan"
+            value={formatCurrency(summary.total_revenue)}
+            subtitle={`${formatNumber(summary.total_sales)} transaksi`}
+            icon={AttachMoney}
+            trend={trend}
+            trendValue={`${Math.abs(summary.revenue_change_percent || 0)}%`}
+            color="primary"
+            loading={loadingDashboard}
+          />
         </Grid>
+        
+        <Grid size={{ xs: 12, sm: 6, md: 6, lg: 3 }}>
+          <StatCard
+            title="Total Keuntungan"
+            value={formatCurrency(summary.total_profit)}
+            subtitle={`${summary.profit_margin}% margin laba`}
+            icon={TrendingUp}
+            color="success"
+            loading={loadingDashboard}
+          />
+        </Grid>
+        
+        <Grid size={{ xs: 12, sm: 6, md: 6, lg: 3 }}>
+          <StatCard
+            title="Piutang Berjalan"
+            value={formatCurrency(summary.total_due)}
+            subtitle={`${paymentData?.outstanding?.count || 0} faktur belum lunas`}
+            icon={Timer}
+            color="warning"
+            loading={loadingDashboard}
+          />
+        </Grid>
+        
+        <Grid size={{ xs: 12, sm: 6, md: 6, lg: 3 }}>
+          <StatCard
+            title="Rata-rata Transaksi"
+            value={formatCurrency(summary.average_order_value)}
+            subtitle="Per penjualan"
+            icon={ShoppingCart}
+            color="info"
+            loading={loadingDashboard}
+          />
+        </Grid>
+      </Grid>
 
-        {/* Tabs Navigation */}
-        <Paper sx={{ mb: 3 }}>
-          <Tabs 
-            value={activeTab} 
-            onChange={handleTabChange}
-            variant="fullWidth"
-            sx={{
-              '& .MuiTab-root': {
-                minHeight: 64,
-                fontWeight: 600,
-                fontSize: '0.95rem',
-              },
-            }}
-          >
-            <Tab 
-              icon={<ShowChart />} 
-              label="Sales & Trends" 
-              iconPosition="start"
-            />
-            <Tab 
-              icon={<Inventory />} 
-              label="Products & Inventory" 
-              iconPosition="start"
-            />
-            <Tab 
-              icon={<Payment />} 
-              label="Payments & Customers" 
-              iconPosition="start"
-            />
-          </Tabs>
-        </Paper>
+      {/* Tabs Navigation */}
+      <Paper sx={{ mb: 3, borderRadius: 2, overflow: 'hidden' }}>
+        <Tabs 
+          value={activeTab} 
+          onChange={handleTabChange}
+          variant="fullWidth"
+          sx={{
+            '& .MuiTab-root': {
+              minHeight: 56,
+              fontWeight: 600,
+              fontSize: { xs: '0.8rem', sm: '0.9rem' },
+            },
+          }}
+        >
+          <Tab 
+            icon={<ShowChart />} 
+            label="Tren Penjualan" 
+            iconPosition="start"
+          />
+          <Tab 
+            icon={<Inventory />} 
+            label="Produk & Stok" 
+            iconPosition="start"
+          />
+          <Tab 
+            icon={<Payment />} 
+            label="Pembayaran & Pelanggan" 
+            iconPosition="start"
+          />
+        </Tabs>
+      </Paper>
 
         {/* Tab 1: Sales & Trends */}
         <TabPanel value={activeTab} index={0}>
@@ -317,8 +322,6 @@ const Dashboard = () => {
             </Grid>
           </Grid>
         </TabPanel>
-
-      </Container>
       
       {/* Animations */}
       <style>{`

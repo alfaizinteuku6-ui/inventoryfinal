@@ -45,7 +45,7 @@ const Sales = () => {
         open={salesState.cancelOpen}
         onClose={() => salesState.setCancelOpen(false)}
         onChoose={salesState.handleChoice}
-        isPartialPaid={salesState.selectedSale?.payment_status === "partial"}
+        sale={salesState.selectedSale}
       />
 
       <SalesHeader navigate={navigate} />

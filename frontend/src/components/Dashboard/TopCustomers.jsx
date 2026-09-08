@@ -56,33 +56,33 @@ const TopCustomers = ({ data, loading }) => {
                 }
               }}
             >
-              <Typography variant="h3" fontWeight="bold" color="primary.main">
+              <Typography variant="h4" fontWeight="bold" color="primary.main">
                 {data?.customer_segments?.total_customers || 0}
               </Typography>
-              <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                Total Customers
+              <Typography variant="caption" color="text.secondary" fontWeight={600} noWrap display="block">
+                Total Pelanggan
               </Typography>
             </Box>
           </Grid>
           <Grid size={{ xs: 6 }}>
             <Box 
               textAlign="center" 
-              p={1} 
+              p={1.5} 
               bgcolor={alpha(theme.palette.success.main, 0.1)} 
               borderRadius={2}
               sx={{
                 transition: 'all 0.3s ease',
                 '&:hover': {
-                  transform: 'translateY(-4px)',
-                  boxShadow: theme.shadows[4]
+                  transform: 'translateY(-3px)',
+                  boxShadow: theme.shadows[3]
                 }
               }}
             >
-              <Typography variant="h3" fontWeight="bold" color="success.main">
+              <Typography variant="h4" fontWeight="bold" color="success.main">
                 {data?.customer_segments?.high_value || 0}
               </Typography>
-              <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                High Value (₹10k+)
+              <Typography variant="caption" color="text.secondary" fontWeight={600} noWrap display="block">
+                High Value (> Rp 1jt)
               </Typography>
             </Box>
           </Grid>
@@ -91,44 +91,53 @@ const TopCustomers = ({ data, loading }) => {
         <Divider sx={{ my: 2 }} />
 
         <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-          🌟 Top Spenders
+          🌟 Pelanggan Teratas (Top Spenders)
         </Typography>
-        <Box sx={{ maxHeight: 150, overflow: 'auto' }}>
+        <Box sx={{ maxHeight: 220, overflow: 'auto' }}>
           {(data?.top_customers || []).slice(0, 5).map((customer, index) => (
             <Box 
               key={customer.customer_id} 
               display="flex"
               justifyContent="space-between"
               alignItems="center"
-              py={1.5}
+              py={1.25}
               px={1}
-              borderRadius={1}
+              borderRadius={1.5}
               sx={{
                 '&:hover': {
                   bgcolor: alpha(theme.palette.primary.main, 0.05)
                 }
               }}
             >
-              <Box display="flex" alignItems="center" gap={2}>
+              <Box display="flex" alignItems="center" gap={1.5} sx={{ minWidth: 0, flex: 1, mr: 1.5 }}>
                 <Avatar 
                   sx={{ 
+                    width: 34,
+                    height: 34,
+                    fontSize: '0.85rem',
                     bgcolor: COLORS[index % COLORS.length],
-                    fontWeight: 700
+                    fontWeight: 700,
+                    flexShrink: 0,
                   }}
                 >
                   {customer.customer_name.charAt(0)}
                 </Avatar>
-                <Box>
-                  <Typography variant="body2" fontWeight={600}>
+                <Box sx={{ minWidth: 0, flex: 1 }}>
+                  <Typography
+                    variant="body2"
+                    fontWeight={600}
+                    noWrap
+                    sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}
+                  >
                     {customer.customer_name}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {customer.total_purchases} purchases
+                  <Typography variant="caption" color="text.secondary" noWrap display="block">
+                    {customer.total_purchases} pesanan
                   </Typography>
                 </Box>
               </Box>
-              <Box textAlign="right">
-                <Typography variant="body2" fontWeight={700}>
+              <Box textAlign="right" sx={{ flexShrink: 0 }}>
+                <Typography variant="body2" fontWeight={700} noWrap>
                   {formatCurrency(customer.total_spent)}
                 </Typography>
                 {parseFloat(customer.total_due) > 0 && (

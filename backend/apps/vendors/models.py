@@ -28,7 +28,7 @@ class Vendor(TimestampedModel):
     credit_limit = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     
     # Business settings
-    currency = models.CharField(max_length=10, default='INR')
+    currency = models.CharField(max_length=10, default='IDR')
     tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=18.0, help_text="Default tax rate %")
     logo = models.ImageField(upload_to='vendor_logos/', blank=True, null=True)
     website = models.URLField(blank=True)

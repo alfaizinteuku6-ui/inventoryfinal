@@ -47,10 +47,14 @@ import {
   Today,
   Phone,
   Email,
+  SettingsBackupRestore,
 } from "@mui/icons-material";
 import { useNavigate, useParams } from "react-router-dom";
 import { useSale } from "../hooks/useSWR";
+import { sales as salesApi } from "../services/api";
 import PaymentModal from "../components/Sale/PaymentModal";
+import CancelSaleModal from "../components/Sale/CancelSaleModal";
+import CustomSnackbar from "../components/CustomSnackbar";
 import { useSalesState } from "../hooks/useSalesState";
 
 const SaleDetails = () => {
@@ -58,7 +62,32 @@ const SaleDetails = () => {
   const salesState = useSalesState();
   const navigate = useNavigate();
   const { id } = useParams();
-  const { data: sale, isLoading: loading, error } = useSale(id);
+  const { data: sale, isLoading: loading, error, mutate: mutateSale } = useSale(id);
+
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [returSnackbar, setReturSnackbar] = useState({ open: false, message: "", severity: "success" });
+
+  const handleReturSale = async (choice) => {
+    try {
+      let query = "";
+      if (choice === "refund") query = "?refund=true";
+      else if (choice === "credit") query = "?credit=true";
+      await salesApi.cancelSale(sale.id, query);
+      setReturSnackbar({
+        open: true,
+        message: "Transaksi berhasil dibatalkan dan stok dikembalikan ke inventaris!",
+        severity: "success",
+      });
+      setCancelModalOpen(false);
+      mutateSale();
+    } catch (err) {
+      setReturSnackbar({
+        open: true,
+        message: err.response?.data?.error || "Gagal membatalkan transaksi",
+        severity: "error",
+      });
+    }
+  };
 
   // Calculate derived values
   const balanceDue = useMemo(() => {
@@ -199,7 +228,7 @@ const SaleDetails = () => {
                   {sale?.sale_number}
                 </Typography>
                 <Typography variant="body1" color="text.secondary">
-                  {new Date(sale?.sale_date).toLocaleDateString("en-IN", {
+                  {new Date(sale?.sale_date).toLocaleDateString("id-ID", {
                     weekday: "long",
                     year: "numeric",
                     month: "long",
@@ -341,7 +370,7 @@ const SaleDetails = () => {
                               </TableCell>
                               <TableCell align="center">{item.quantity}</TableCell>
                               <TableCell align="right">
-                                ₹{parseFloat(item.unit_price).toFixed(2)}
+                                Rp {parseFloat(item.unit_price).toLocaleString("id-ID")}
                               </TableCell>
                               <TableCell align="right">
                                 {item.discount_percent ? `${item.discount_percent}%` : "-"}
@@ -350,7 +379,7 @@ const SaleDetails = () => {
                                 {item.tax_rate ? `${item.tax_rate}%` : "-"}
                               </TableCell>
                               <TableCell align="right" sx={{ fontWeight: 600 }}>
-                                ₹{parseFloat(item.line_total).toFixed(2)}
+                                Rp {parseFloat(item.line_total).toLocaleString("id-ID")}
                               </TableCell>
                             </TableRow>
                           ))}
@@ -400,7 +429,7 @@ const SaleDetails = () => {
                         Total Amount
                       </Typography>
                       <Typography variant="body1" fontWeight={600}>
-                        ₹{parseFloat(sale?.total_amount || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                        Rp {parseFloat(sale?.total_amount || 0).toLocaleString("id-ID")}
                       </Typography>
                     </Box>
 
@@ -409,7 +438,7 @@ const SaleDetails = () => {
                         Paid Amount
                       </Typography>
                       <Typography variant="body1" fontWeight={600} color="success.main">
-                        ₹{parseFloat(sale?.paid_amount || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                        Rp {parseFloat(sale?.paid_amount || 0).toLocaleString("id-ID")}
                       </Typography>
                     </Box>
 
@@ -419,7 +448,7 @@ const SaleDetails = () => {
                           Balance Due
                         </Typography>
                         <Typography variant="body1" fontWeight={600} color="error.main">
-                          ₹{balanceDue.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                          Rp {balanceDue.toLocaleString("id-ID")}
                         </Typography>
                       </Box>
                     )}
@@ -472,7 +501,7 @@ const SaleDetails = () => {
                           </Typography>
                         </Stack>
                         <Typography variant="body2" fontWeight={600}>
-                          {new Date(sale.due_date).toLocaleDateString("en-IN")}
+                          {new Date(sale.due_date).toLocaleDateString("id-ID")}
                         </Typography>
                       </Box>
                     )}
@@ -490,7 +519,7 @@ const SaleDetails = () => {
                           REFUNDED AMOUNT
                         </Typography>
                         <Typography variant="h6" fontWeight={700} color="error.main" sx={{ mt: 0.5 }}>
-                          ₹{parseFloat(sale.refunded_amount).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                          Rp {parseFloat(sale.refunded_amount).toLocaleString("id-ID")}
                         </Typography>
                       </Stack>
                     </Stack>
@@ -555,6 +584,24 @@ const SaleDetails = () => {
                       </Button>
                     )}
 
+                    {sale?.payment_status !== "cancelled" &&
+                      sale?.payment_status !== "refunded" && (
+                        <Button
+                          variant="outlined"
+                          color="warning"
+                          startIcon={<SettingsBackupRestore />}
+                          onClick={() => setCancelModalOpen(true)}
+                          fullWidth
+                          sx={{
+                            borderRadius: 2,
+                            textTransform: "none",
+                            fontWeight: 600,
+                          }}
+                        >
+                          Retur / Batalkan Transaksi
+                        </Button>
+                      )}
+
                     <Tooltip title="Delete this sale permanently">
                       <Button
                         variant="outlined"
@@ -594,7 +641,7 @@ const SaleDetails = () => {
                         Sale Date
                       </Typography>
                       <Typography variant="body2" fontWeight={600}>
-                        {new Date(sale?.sale_date).toLocaleDateString("en-IN")}
+                        {new Date(sale?.sale_date).toLocaleDateString("id-ID")}
                       </Typography>
                     </Box>
 
@@ -603,7 +650,7 @@ const SaleDetails = () => {
                         Due Date
                       </Typography>
                       <Typography variant="body2" fontWeight={600}>
-                        {sale?.due_date ? new Date(sale.due_date).toLocaleDateString("en-IN") : "N/A"}
+                        {sale?.due_date ? new Date(sale.due_date).toLocaleDateString("id-ID") : "N/A"}
                       </Typography>
                     </Box>
 
@@ -654,6 +701,20 @@ const SaleDetails = () => {
         onPaymentOptionChange={salesState.setPaymentOption}
         onCustomAmountChange={salesState.setCustomAmount}
         onSubmit={salesState.handlePaymentSubmit}
+      />
+
+      <CancelSaleModal
+        open={cancelModalOpen}
+        onClose={() => setCancelModalOpen(false)}
+        onChoose={handleReturSale}
+        sale={sale}
+      />
+
+      <CustomSnackbar
+        open={returSnackbar.open}
+        message={returSnackbar.message}
+        severity={returSnackbar.severity}
+        onClose={() => setReturSnackbar({ ...returSnackbar, open: false })}
       />
     </Container>
   );

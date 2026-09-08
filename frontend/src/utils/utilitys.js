@@ -1,14 +1,14 @@
 export const formatCurrency = (value) => {
-    return new Intl.NumberFormat('en-IN', {
+    return new Intl.NumberFormat('id-ID', {
         style: 'currency',
-        currency: 'INR',
+        currency: 'IDR',
         minimumFractionDigits: 0,
         maximumFractionDigits: 0,
     }).format(parseFloat(value || 0));
 };
 
 export const formatNumber = (value) => {
-    return new Intl.NumberFormat('en-IN').format(value);
+    return new Intl.NumberFormat('id-ID').format(value);
 };
 
 export const formatDate = (dateString) => {

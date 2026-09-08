@@ -47,9 +47,9 @@ const PaymentStatusChart = ({ data, loading }) => {
               nameKey="status"
               cx="50%"
               cy="50%"
-              outerRadius={90}
-              label={({ status, percent }) => `${status}: ${(percent * 100).toFixed(0)}%`}
-              labelLine={false}
+              innerRadius={55}
+              outerRadius={80}
+              paddingAngle={3}
             >
               {(data || []).map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -57,20 +57,22 @@ const PaymentStatusChart = ({ data, loading }) => {
             </Pie>
             <RechartsTooltip 
               formatter={(value, name, props) => [
-                `${value} orders (${formatCurrency(props.payload.amount)})`,
+                `${value} transaksi (${formatCurrency(props.payload.amount)})`,
                 props.payload.status
               ]}
               contentStyle={{
+                backgroundColor: theme.palette.background.paper,
                 border: `1px solid ${theme.palette.divider}`,
-                borderRadius: 8
+                borderRadius: 8,
+                boxShadow: theme.shadows[4],
               }}
             />
           </PieChart>
         </ResponsiveContainer>
         
-        <Divider sx={{ my: 2 }} />
+        <Divider sx={{ my: 1.5 }} />
         
-        <Box>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
           {(data || []).map((item, index) => {
             const percentage = totalAmount > 0 ? (parseFloat(item.amount) / totalAmount * 100).toFixed(1) : 0;
             return (
@@ -79,34 +81,35 @@ const PaymentStatusChart = ({ data, loading }) => {
                 display="flex" 
                 justifyContent="space-between" 
                 alignItems="center"
-                py={1}
+                py={0.75}
                 px={1}
-                borderRadius={1}
+                borderRadius={1.5}
                 sx={{
                   '&:hover': {
-                    bgcolor: alpha(COLORS[index % COLORS.length], 0.05)
+                    bgcolor: alpha(COLORS[index % COLORS.length], 0.06)
                   }
                 }}
               >
-                <Box display="flex" alignItems="center" gap={1.5}>
+                <Box display="flex" alignItems="center" gap={1.25} sx={{ minWidth: 0, flex: 1, mr: 1 }}>
                   <Box
                     sx={{
-                      width: 16,
-                      height: 16,
-                      borderRadius: 1,
+                      width: 12,
+                      height: 12,
+                      borderRadius: 0.75,
                       bgcolor: COLORS[index % COLORS.length],
+                      flexShrink: 0,
                     }}
                   />
-                  <Box>
-                    <Typography variant="body2" textTransform="capitalize" fontWeight={600}>
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography variant="body2" textTransform="capitalize" fontWeight={600} noWrap>
                       {item.status}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {item.count} orders • {percentage}%
+                    <Typography variant="caption" color="text.secondary" noWrap display="block">
+                      {item.count} pesanan • {percentage}%
                     </Typography>
                   </Box>
                 </Box>
-                <Typography variant="body2" fontWeight="bold">
+                <Typography variant="body2" fontWeight="bold" noWrap sx={{ flexShrink: 0 }}>
                   {formatCurrency(item.amount)}
                 </Typography>
               </Box>

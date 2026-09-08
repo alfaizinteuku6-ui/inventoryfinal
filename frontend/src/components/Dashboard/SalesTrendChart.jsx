@@ -34,10 +34,10 @@ const SalesTrendChart = ({ data, loading, period }) => {
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
           <Box>
             <Typography variant="h6" fontWeight="bold">
-              Sales Trend
+              Tren Penjualan & Laba
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Revenue and profit over time
+              Perkembangan omzet dan keuntungan bersih dari waktu ke waktu
             </Typography>
           </Box>
           <Chip label={period.toUpperCase()} size="small" color="primary" variant="outlined" />
@@ -65,7 +65,7 @@ const SalesTrendChart = ({ data, loading, period }) => {
             <YAxis 
               stroke={theme.palette.text.secondary}
               style={{ fontSize: 12 }}
-              tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}k`}
+              tickFormatter={(value) => value >= 1000000 ? `Rp ${(value / 1000000).toFixed(1)}jt` : `Rp ${(value / 1000).toFixed(0)}rb`}
             />
             <RechartsTooltip 
               formatter={(value) => formatCurrency(value)}
@@ -84,7 +84,7 @@ const SalesTrendChart = ({ data, loading, period }) => {
               stroke="#6366f1" 
               fillOpacity={1} 
               fill="url(#colorRevenue)" 
-              name="Revenue"
+              name="Pendapatan (Omzet)"
               strokeWidth={3}
             />
             <Area 
@@ -93,7 +93,7 @@ const SalesTrendChart = ({ data, loading, period }) => {
               stroke="#10b981" 
               fillOpacity={1} 
               fill="url(#colorProfit)" 
-              name="Profit"
+              name="Keuntungan (Laba)"
               strokeWidth={3}
             />
           </AreaChart>

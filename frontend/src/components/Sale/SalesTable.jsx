@@ -246,7 +246,7 @@ const SalesTable = ({
                 <TableCell>
                   <Box>
                     <Typography variant="body2">
-                      {new Date(sale.sale_date).toLocaleDateString("en-IN", {
+                      {new Date(sale.sale_date).toLocaleDateString("id-ID", {
                         day: "2-digit",
                         month: "short",
                         year: "numeric",
@@ -255,7 +255,7 @@ const SalesTable = ({
                     {sale.due_date && (
                       <Typography variant="caption" color="text.secondary" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                         <CalendarToday sx={{ fontSize: 12 }} />
-                        Due: {new Date(sale.due_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}
+                        Due: {new Date(sale.due_date).toLocaleDateString("id-ID", { day: "2-digit", month: "short" })}
                       </Typography>
                     )}
                   </Box>
@@ -277,11 +277,11 @@ const SalesTable = ({
 
                 <TableCell align="right">
                   <Typography variant="body2" fontWeight="700" color="primary">
-                    ₹{parseFloat(sale.total_amount).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                    Rp {parseFloat(sale.total_amount).toLocaleString("id-ID")}
                   </Typography>
                   {sale.refunded_amount > 0 && (
                     <Typography variant="caption" color="error" fontWeight="600">
-                      Refunded: ₹{parseFloat(sale.refunded_amount).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                      Refunded: Rp {parseFloat(sale.refunded_amount).toLocaleString("id-ID")}
                     </Typography>
                   )}
                 </TableCell>
@@ -294,7 +294,7 @@ const SalesTable = ({
                           Paid:
                         </Typography>
                         <Typography variant="body2" fontWeight="600" color="success.main">
-                          ₹{parseFloat(sale.paid_amount).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                          Rp {parseFloat(sale.paid_amount).toLocaleString("id-ID")}
                         </Typography>
                       </Stack>
                       {balanceDue > 0 && (
@@ -304,7 +304,7 @@ const SalesTable = ({
                               Due:
                             </Typography>
                             <Typography variant="body2" fontWeight="600" color="error.main">
-                              ₹{balanceDue.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                              Rp {balanceDue.toLocaleString("id-ID")}
                             </Typography>
                           </Stack>
                           <LinearProgress

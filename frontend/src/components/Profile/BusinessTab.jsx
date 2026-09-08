@@ -32,13 +32,13 @@ function BusinessTab({ vendorDetails, onUpdate, canManageVendor, loading }) {
     city: "",
     state: "",
     postal_code: "",
-    country: "India",
+    country: "Indonesia",
     gstin: "",
     pan_number: "",
     payment_terms: "Net 30",
     credit_limit: "0",
-    currency: "INR",
-    tax_rate: "18.0",
+    currency: "IDR",
+    tax_rate: "11.0",
     website: "",
     logo: null,
   });
@@ -87,13 +87,13 @@ function BusinessTab({ vendorDetails, onUpdate, canManageVendor, loading }) {
         city: "",
         state: "",
         postal_code: "",
-        country: "India",
+        country: "Indonesia",
         gstin: "",
         pan_number: "",
         payment_terms: "Net 30",
         credit_limit: "0",
-        currency: "INR",
-        tax_rate: "18.0",
+        currency: "IDR",
+        tax_rate: "11.0",
         website: "",
         logo: null,
       });
@@ -425,7 +425,7 @@ function BusinessTab({ vendorDetails, onUpdate, canManageVendor, loading }) {
               variant={isEditing || isCreationMode ? "outlined" : "filled"}
               InputProps={{
                 startAdornment: (
-                  <InputAdornment position="start">₹</InputAdornment>
+                  <InputAdornment position="start">Rp</InputAdornment>
                 ),
               }}
               sx={{

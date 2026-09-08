@@ -67,14 +67,14 @@ import Pagination from "../components/Pagination";
 
 // ============ UTILITY FUNCTIONS ============
 const formatCurrency = (amount) => {
-  return `₹${parseFloat(amount).toLocaleString("en-IN", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+  return `Rp ${parseFloat(amount).toLocaleString("id-ID", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   })}`;
 };
 
 const formatDate = (dateString) => {
-  return new Date(dateString).toLocaleDateString("en-IN", {
+  return new Date(dateString).toLocaleDateString("id-ID", {
     year: "numeric",
     month: "short",
     day: "numeric",

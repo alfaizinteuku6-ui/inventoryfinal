@@ -108,12 +108,12 @@ const PaymentModal = ({
               Outstanding Balance
             </Typography>
             <Typography variant="h4" fontWeight="700" color="primary.main">
-              ₹
+              Rp{" "}
               {parseFloat(selectedSale?.balance_due || 0).toLocaleString(
-                "en-IN",
+                "id-ID",
                 {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 0,
                 }
               )}
             </Typography>
@@ -144,12 +144,12 @@ const PaymentModal = ({
                       Pay Full Amount
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      ₹
+                      Rp{" "}
                       {parseFloat(
                         selectedSale?.balance_due || 0
-                      ).toLocaleString("en-IN", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
+                      ).toLocaleString("id-ID", {
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0,
                       })}
                     </Typography>
                   </Box>
@@ -204,14 +204,14 @@ const PaymentModal = ({
                   value={customAmount}
                   onChange={(e) => onCustomAmountChange(e.target.value)}
                   startAdornment={
-                    <InputAdornment position="start">₹</InputAdornment>
+                    <InputAdornment position="start">Rp</InputAdornment>
                   }
                   label="Custom Amount"
                   type="number"
                   inputProps={{
-                    min: 0.01,
+                    min: 1,
                     max: selectedSale?.balance_due,
-                    step: 0.01,
+                    step: 1,
                   }}
                   sx={{
                     borderRadius: 2,
@@ -225,12 +225,12 @@ const PaymentModal = ({
                   color="text.secondary"
                   sx={{ mt: 1, ml: 1 }}
                 >
-                  Maximum: ₹
+                  Maximum: Rp{" "}
                   {parseFloat(selectedSale?.balance_due || 0).toLocaleString(
-                    "en-IN",
+                    "id-ID",
                     {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
+                      minimumFractionDigits: 0,
+                      maximumFractionDigits: 0,
                     }
                   )}
                 </Typography>

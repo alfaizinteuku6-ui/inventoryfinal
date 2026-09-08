@@ -149,6 +149,9 @@ export const products = {
 export const stockMovements = {
   getAll: (params) => api.get("/stock-movements/", { params }),
   getById: (id) => api.get(`/stock-movements/${id}/`),
+  stockIn: (data) => api.post("/stock-movements/stock-in/", data),
+  adjust: (data) => api.post("/stock-movements/adjust/", data),
+  getSummary: () => api.get("/stock-movements/summary/"),
 };
 
 export const categories = {
@@ -215,6 +218,15 @@ export const vendors = {
   create: (data) => api.post('/vendors/', data),
   update: (id, data) => api.patch(`/vendors/${id}/`, data),
   delete: (id) => api.delete(`/vendors/${id}/`),
+};
+
+export const suppliers = {
+  getAll: (params) => api.get('/suppliers/', { params }),
+  getById: (id) => api.get(`/suppliers/${id}/`),
+  create: (data) => api.post('/suppliers/', data),
+  update: (id, data) => api.put(`/suppliers/${id}/`, data),
+  patch: (id, data) => api.patch(`/suppliers/${id}/`, data),
+  delete: (id) => api.delete(`/suppliers/${id}/`),
 };
 
 export const notifications = {

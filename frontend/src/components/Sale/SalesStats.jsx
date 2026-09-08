@@ -19,24 +19,24 @@ const SalesStats = ({ summary }) => {
     },
     {
       title: "Gross Revenue",
-      value: `₹${
-        summary?.revenue_metrics?.gross_revenue?.toLocaleString("en-IN") || 0
+      value: `Rp ${
+        summary?.revenue_metrics?.gross_revenue?.toLocaleString("id-ID") || 0
       }`,
       icon: <Analytics />,
       color: "success",
     },
     {
       title: "Paid Amount",
-      value: `₹${
-        summary?.payment_metrics?.total_paid?.toLocaleString("en-IN") || 0
+      value: `Rp ${
+        summary?.payment_metrics?.total_paid?.toLocaleString("id-ID") || 0
       }`,
       icon: <Payment />,
       color: "warning",
     },
     {
       title: "Pending Payments",
-      value: `₹${
-        summary?.payment_metrics?.total_outstanding?.toLocaleString("en-IN") ||
+      value: `Rp ${
+        summary?.payment_metrics?.total_outstanding?.toLocaleString("id-ID") ||
         0
       }`,
       icon: <ReceiptLong />,

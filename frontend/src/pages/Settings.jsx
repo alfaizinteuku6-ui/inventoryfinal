@@ -21,7 +21,7 @@ const Settings = () => {
     phone: '+1234567890',
     address: '',
     taxNumber: '',
-    currency: 'INR',
+    currency: 'IDR',
     lowStockThreshold: 10,
     enableNotifications: true,
     enableAutoBackup: false,

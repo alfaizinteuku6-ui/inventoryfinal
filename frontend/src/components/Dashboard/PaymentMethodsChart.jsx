@@ -59,7 +59,7 @@ const PaymentMethodsChart = ({ data, loading }) => {
                 <XAxis 
                   type="number" 
                   stroke={theme.palette.text.secondary}
-                  tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}k`}
+                  tickFormatter={(value) => value >= 1000000 ? `Rp ${(value / 1000000).toFixed(1)}jt` : `Rp ${(value / 1000).toFixed(0)}rb`}
                 />
                 <YAxis 
                   dataKey="method" 
@@ -89,27 +89,28 @@ const PaymentMethodsChart = ({ data, loading }) => {
                 return (
                   <Box key={method.method} mb={2.5}>
                     <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                      <Box display="flex" alignItems="center" gap={1.5}>
+                      <Box display="flex" alignItems="center" gap={1.5} sx={{ minWidth: 0, flex: 1, mr: 1 }}>
                         <Avatar 
                           sx={{ 
-                            width: 36, 
-                            height: 36, 
+                            width: 34, 
+                            height: 34, 
                             bgcolor: alpha(COLORS[index % COLORS.length], 0.2),
-                            color: COLORS[index % COLORS.length]
+                            color: COLORS[index % COLORS.length],
+                            flexShrink: 0,
                           }}
                         >
                           <CreditCard fontSize="small" />
                         </Avatar>
-                        <Typography variant="body2" fontWeight={700} textTransform="uppercase">
+                        <Typography variant="body2" fontWeight={700} textTransform="uppercase" noWrap>
                           {method.method}
                         </Typography>
                       </Box>
-                      <Box textAlign="right">
-                        <Typography variant="body2" fontWeight="bold">
+                      <Box textAlign="right" sx={{ flexShrink: 0 }}>
+                        <Typography variant="body2" fontWeight="bold" noWrap>
                           {formatCurrency(method.amount)}
                         </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {percentage}% • {method.count} txns
+                        <Typography variant="caption" color="text.secondary" noWrap display="block">
+                          {percentage}% • {method.count} transaksi
                         </Typography>
                       </Box>
                     </Box>

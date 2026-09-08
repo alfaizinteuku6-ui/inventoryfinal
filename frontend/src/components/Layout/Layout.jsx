@@ -33,6 +33,11 @@ import {
   Notifications as NotificationsIcon,
   Store as StoreIcon,
   Receipt as ReceiptIcon,
+  PointOfSale as PointOfSaleIcon,
+  AddCircleOutline as AddCircleOutlineIcon,
+  SwapVert as SwapVertIcon,
+  Print as PrintIcon,
+  LocalShipping as LocalShippingIcon,
 } from "@mui/icons-material";
 import { useAuth } from "../../hooks/useAuth";
 import { ThemeToggleButton } from "../ThemeToggleButton";
@@ -45,23 +50,48 @@ const drawerWidth = 280;
 
 const menuItems = [
   { text: "Dashboard", icon: <DashboardIcon />, path: "/", color: "#1976d2" },
+  { text: "POS Kasir", icon: <PointOfSaleIcon />, path: "/pos", color: "#2e7d32" },
   {
-    text: "Products",
+    text: "Daftar Produk",
     icon: <InventoryIcon />,
     path: "/products",
     color: "#ed6c02",
   },
   {
-    text: "Sales",
+    text: "Tambah Produk",
+    icon: <AddCircleOutlineIcon />,
+    path: "/products/new",
+    color: "#e65100",
+  },
+  {
+    text: "Mutasi Stok",
+    icon: <SwapVertIcon />,
+    path: "/stock-movements",
+    color: "#00897b",
+  },
+  {
+    text: "Penjualan (Sales)",
     icon: <ReceiptIcon />,
     path: "/sales",
     color: "#5e35b1",
   },
   {
-    text: "Customers",
+    text: "Pelanggan",
     icon: <PeopleIcon />,
     path: "/customers",
-    color: "#5e35b1",
+    color: "#0288d1",
+  },
+  {
+    text: "Pemasok / Supplier",
+    icon: <LocalShippingIcon />,
+    path: "/suppliers",
+    color: "#7b1fa2",
+  },
+  {
+    text: "Pengaturan Printer",
+    icon: <PrintIcon />,
+    path: "/settings/printer",
+    color: "#455a64",
   },
 ];
 
@@ -463,6 +493,17 @@ const Layout = () => {
           </ListItemIcon>
           Profile Settings
         </MenuItem>
+        <MenuItem
+          onClick={() => {
+            navigate("/settings/printer");
+            handleMenuClose();
+          }}
+        >
+          <ListItemIcon>
+            <PrintIcon fontSize="small" />
+          </ListItemIcon>
+          Pengaturan Printer
+        </MenuItem>
         <Divider />
         <MenuItem onClick={handleLogout} sx={{ color: "error.main" }}>
           <ListItemIcon>
@@ -516,13 +557,15 @@ const Layout = () => {
         component="main"
         sx={{
           flexGrow: 1,
-          width: `calc(100vw - ${drawerWidth + 19}px)`,
+          width: { sm: `calc(100% - ${drawerWidth}px)`, xs: "100%" },
+          minWidth: 0,
           minHeight: "100vh",
           backgroundColor: theme.palette.background.default,
+          overflowX: "hidden",
         }}
       >
         <Toolbar />
-        <Box sx={{ p: 3 }}>
+        <Box sx={{ p: { xs: 1.5, sm: 2.5, md: 3 } }}>
           <Outlet />
         </Box>
       </Box>

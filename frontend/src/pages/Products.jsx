@@ -8,8 +8,9 @@ import {
   CircularProgress,
   useMediaQuery,
   useTheme,
+  Stack,
 } from "@mui/material";
-import { Add, Inventory } from "@mui/icons-material";
+import { Add, Inventory, LocalShipping, Tune } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { useCategories, useProducts } from "../hooks/useSWR";
 import { products as productsApi } from "../services/api";
@@ -20,7 +21,8 @@ import PaginationComponent from "../components/Pagination";
 import ProductFilters from "../components/Products/ProductFilters";
 import ProductsList from "../components/Products/ProductsList";
 import DeleteProductDialog from "../components/Products/DeleteProductDialog";
-import ProductsSpeedDial from "../components/Products/ProductsSpeedDial";
+import StockInModal from "../components/Products/StockInModal";
+import StockAdjustModal from "../components/Products/StockAdjustModal";
 
 // Custom hook
 import { useProductsState } from "../hooks/useProductsState";
@@ -32,6 +34,8 @@ const Products = () => {
 
   // View mode state (grid or table)
   const [viewMode, setViewMode] = useState("grid");
+  const [stockInOpen, setStockInOpen] = useState(false);
+  const [stockAdjustOpen, setStockAdjustOpen] = useState(false);
 
   // Use custom hook for state management
   const {
@@ -134,24 +138,56 @@ const Products = () => {
       {/* Header Section */}
       <HeaderCard
         icon={<Inventory fontSize="large" />}
-        title="Products Management"
-        subtitle={`Manage your Products (${totalCount.toLocaleString()} total)`}
+        title="Manajemen Produk"
+        subtitle={`Kelola katalog & stok produk Anda (Total ${totalCount.toLocaleString()} produk)`}
         actionButton={
-          !isMobile && (
+          <Stack direction="row" spacing={1} flexWrap="wrap">
             <Button
               variant="contained"
-              size="large"
-              startIcon={<Add />}
-              onClick={() => navigate("/products/new")}
+              size="medium"
+              startIcon={<LocalShipping />}
+              onClick={() => setStockInOpen(true)}
               sx={{
                 bgcolor: "rgba(255,255,255,0.2)",
                 "&:hover": { bgcolor: "rgba(255,255,255,0.3)" },
                 borderRadius: 2,
+                fontWeight: "bold",
+                textTransform: "none",
               }}
             >
-              Add Product
+              + Terima Barang
             </Button>
-          )
+            <Button
+              variant="contained"
+              size="medium"
+              startIcon={<Tune />}
+              onClick={() => setStockAdjustOpen(true)}
+              sx={{
+                bgcolor: "rgba(255,255,255,0.2)",
+                "&:hover": { bgcolor: "rgba(255,255,255,0.3)" },
+                borderRadius: 2,
+                fontWeight: "bold",
+                textTransform: "none",
+              }}
+            >
+              ± Sesuaikan Stok
+            </Button>
+            <Button
+              variant="contained"
+              size="medium"
+              startIcon={<Add />}
+              onClick={() => navigate("/products/new")}
+              sx={{
+                bgcolor: "rgba(255,255,255,0.35)",
+                "&:hover": { bgcolor: "rgba(255,255,255,0.45)" },
+                borderRadius: 2,
+                fontWeight: "bold",
+                textTransform: "none",
+              }}
+            >
+              + Tambah Produk
+            </Button>
+          </Stack>
         }
       />
 
@@ -228,8 +264,24 @@ const Products = () => {
         </Alert>
       </Snackbar>
 
-      {/* Floating Speed Dial */}
-      {/* <ProductsSpeedDial onRefresh={() => mutate()} /> */}
+      {/* Modals for Stock Management */}
+      <StockInModal
+        open={stockInOpen}
+        onClose={() => setStockInOpen(false)}
+        onSuccess={(msg) => {
+          showSnackbar(msg, "success");
+          mutate();
+        }}
+      />
+
+      <StockAdjustModal
+        open={stockAdjustOpen}
+        onClose={() => setStockAdjustOpen(false)}
+        onSuccess={(msg) => {
+          showSnackbar(msg, "success");
+          mutate();
+        }}
+      />
     </Box>
   );
 };

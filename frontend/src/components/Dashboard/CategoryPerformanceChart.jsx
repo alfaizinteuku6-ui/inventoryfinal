@@ -39,29 +39,29 @@ const CategoryPerformanceChart = ({ data, loading }) => {
           <LocalOffer sx={{ color: theme.palette.secondary.main }} />
           <Box>
             <Typography variant="h6" fontWeight="bold">
-              Category Performance
+              Performa Kategori Produk
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Revenue and profit by category
+              Omzet dan keuntungan bersih per kategori barang
             </Typography>
           </Box>
         </Box>
         
         <ResponsiveContainer width="100%" height={350}>
-          <BarChart data={chartData}>
+          <BarChart data={chartData} margin={{ top: 10, right: 20, left: 10, bottom: 25 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
             <XAxis 
               dataKey="category_name" 
               stroke={theme.palette.text.secondary}
-              angle={-45}
+              angle={-30}
               textAnchor="end"
-              height={100}
+              height={60}
               style={{ fontSize: 11 }}
             />
             <YAxis 
               stroke={theme.palette.text.secondary}
               style={{ fontSize: 12 }}
-              tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}k`}
+              tickFormatter={(value) => value >= 1000000 ? `Rp ${(value / 1000000).toFixed(1)}jt` : `Rp ${(value / 1000).toFixed(0)}rb`}
             />
             <RechartsTooltip 
               formatter={(value) => formatCurrency(value)}
@@ -73,8 +73,8 @@ const CategoryPerformanceChart = ({ data, loading }) => {
               }}
             />
             <Legend />
-            <Bar dataKey="revenue" fill="#6366f1" name="Revenue" radius={[8, 8, 0, 0]} />
-            <Bar dataKey="profit" fill="#10b981" name="Profit" radius={[8, 8, 0, 0]} />
+            <Bar dataKey="revenue" fill="#6366f1" name="Pendapatan (Omzet)" radius={[6, 6, 0, 0]} />
+            <Bar dataKey="profit" fill="#10b981" name="Keuntungan (Laba)" radius={[6, 6, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </Paper>

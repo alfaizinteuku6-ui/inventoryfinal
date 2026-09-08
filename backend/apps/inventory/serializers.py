@@ -1,6 +1,17 @@
-# backend/apps/inventory/serializers.py
 from rest_framework import serializers
-from .models import Category, Product, StockMovement, ProductImage
+from .models import Category, Product, StockMovement, ProductImage, Supplier
+
+class SupplierSerializer(serializers.ModelSerializer):
+    deliveries_count = serializers.IntegerField(read_only=True, default=0)
+    products_count = serializers.IntegerField(read_only=True, default=0)
+
+    class Meta:
+        model = Supplier
+        fields = [
+            'id', 'name', 'contact_person', 'phone', 'email', 'address', 'city',
+            'payment_terms', 'bank_account', 'notes', 'is_active',
+            'deliveries_count', 'products_count', 'created_at', 'updated_at'
+        ]
 
 class CategorySerializer(serializers.ModelSerializer):
     children = serializers.SerializerMethodField()
@@ -21,6 +32,7 @@ class ProductImageSerializer(serializers.ModelSerializer):
 
 class ProductSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)
+    supplier_name = serializers.CharField(source='supplier.name', read_only=True, allow_null=True)
     is_low_stock = serializers.ReadOnlyField()
     profit_margin = serializers.ReadOnlyField()
     
@@ -91,9 +103,19 @@ class ProductListSerializer(serializers.ModelSerializer):
         
 class StockMovementSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source='product.name', read_only=True)
-    user_name = serializers.CharField(source='user.get_full_name', read_only=True)
-    
+    product_sku = serializers.CharField(source='product.sku', read_only=True)
+    supplier_name = serializers.CharField(source='supplier.name', read_only=True, allow_null=True)
+    user_name = serializers.SerializerMethodField()
+
+    def get_user_name(self, obj):
+        if obj.user:
+            return obj.user.get_full_name() or obj.user.email or obj.user.username
+        return 'Sistem'
+
     class Meta:
         model = StockMovement
-        fields = '__all__'
+        fields = [
+            'id', 'product', 'product_name', 'product_sku', 'supplier', 'supplier_name',
+            'movement_type', 'quantity', 'reference', 'notes', 'user', 'user_name', 'created_at'
+        ]
 

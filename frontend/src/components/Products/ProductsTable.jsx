@@ -268,8 +268,8 @@ const ProductsTable = ({ products, handleDeleteClick }) => {
                     color="primary"
                     sx={{ fontSize: "0.9rem" }}
                   >
-                    ₹
-                    {product.selling_price.toLocaleString("en-IN", {
+                    Rp{" "}
+                    {Number(product.selling_price).toLocaleString("id-ID", {
                       maximumFractionDigits: 0,
                     })}
                   </Typography>
@@ -281,8 +281,8 @@ const ProductsTable = ({ products, handleDeleteClick }) => {
                       fontSize: "0.7rem",
                     }}
                   >
-                    ₹
-                    {product.cost_price.toLocaleString("en-IN", {
+                    Rp{" "}
+                    {Number(product.cost_price).toLocaleString("id-ID", {
                       maximumFractionDigits: 0,
                     })}
                   </Typography>

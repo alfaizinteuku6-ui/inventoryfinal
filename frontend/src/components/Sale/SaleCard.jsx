@@ -220,7 +220,7 @@ const SaleCard = ({
                     sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
                   >
                     <CalendarToday sx={{ fontSize: 12 }} />
-                    {new Date(sale.sale_date).toLocaleDateString("en-IN", {
+                    {new Date(sale.sale_date).toLocaleDateString("id-ID", {
                       day: "2-digit",
                       month: "short",
                       year: "numeric",
@@ -261,7 +261,7 @@ const SaleCard = ({
               {sale.due_date && (
                 <Typography variant="body2" color="text.secondary" sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.5 }}>
                   <CalendarToday sx={{ fontSize: 14 }} />
-                  Due: {new Date(sale.due_date).toLocaleDateString("en-IN")}
+                  Due: {new Date(sale.due_date).toLocaleDateString("id-ID")}
                 </Typography>
               )}
             </Box>
@@ -288,7 +288,7 @@ const SaleCard = ({
                   )}
                 </Stack>
                 <Typography variant="h5" fontWeight="700" color="primary.main">
-                  ₹{parseFloat(sale.total_amount).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                  Rp {parseFloat(sale.total_amount).toLocaleString("id-ID")}
                 </Typography>
               </Stack>
 
@@ -299,7 +299,7 @@ const SaleCard = ({
                       Subtotal
                     </Typography>
                     <Typography variant="body2" fontWeight="600">
-                      ₹{parseFloat(sale.subtotal).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                      Rp {parseFloat(sale.subtotal).toLocaleString("id-ID")}
                     </Typography>
                   </Stack>
 
@@ -309,7 +309,7 @@ const SaleCard = ({
                         Discount
                       </Typography>
                       <Typography variant="body2" fontWeight="600" color="success.main">
-                        -₹{parseFloat(sale.discount_amount).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                        -Rp {parseFloat(sale.discount_amount).toLocaleString("id-ID")}
                       </Typography>
                     </Stack>
                   )}
@@ -320,7 +320,7 @@ const SaleCard = ({
                         Tax
                       </Typography>
                       <Typography variant="body2" fontWeight="600">
-                        ₹{parseFloat(sale.tax_amount).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                        Rp {parseFloat(sale.tax_amount).toLocaleString("id-ID")}
                       </Typography>
                     </Stack>
                   )}
@@ -338,7 +338,7 @@ const SaleCard = ({
                         PAID AMOUNT
                       </Typography>
                       <Typography variant="h6" fontWeight="700" color="success.main">
-                        ₹{parseFloat(sale.paid_amount).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                        Rp {parseFloat(sale.paid_amount).toLocaleString("id-ID")}
                       </Typography>
                     </Stack>
                     {balanceDue > 0 && (
@@ -347,7 +347,7 @@ const SaleCard = ({
                           BALANCE DUE
                         </Typography>
                         <Typography variant="h6" fontWeight="700" color="error.main">
-                          ₹{balanceDue.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                          Rp {balanceDue.toLocaleString("id-ID")}
                         </Typography>
                       </Stack>
                     )}
@@ -386,7 +386,7 @@ const SaleCard = ({
                     Refunded Amount
                   </Typography>
                   <Typography variant="body2" fontWeight="700" color="error.main">
-                    ₹{parseFloat(sale.refunded_amount).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                    Rp {parseFloat(sale.refunded_amount).toLocaleString("id-ID")}
                   </Typography>
                 </Stack>
               </Box>

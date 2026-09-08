@@ -9,6 +9,7 @@ import {
   useTheme,
   alpha,
   Fade,
+  Tooltip,
 } from '@mui/material';
 import {
   Receipt,
@@ -80,25 +81,38 @@ const PaymentAnalytics = ({ data, loading }) => {
           <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <Box 
               textAlign="center" 
-              p={2.5} 
-              bgcolor={alpha(theme.palette.success.main, 0.1)} 
+              p={2} 
+              bgcolor={alpha(theme.palette.success.main, 0.08)} 
               borderRadius={2}
+              border={`1px solid ${alpha(theme.palette.success.main, 0.2)}`}
               sx={{
                 transition: 'all 0.3s ease',
                 '&:hover': {
-                  transform: 'translateY(-4px)',
-                  boxShadow: theme.shadows[4]
+                  transform: 'translateY(-3px)',
+                  boxShadow: theme.shadows[3]
                 }
               }}
             >
-              <Typography variant="h5" fontWeight="bold" color="success.main">
-                {formatCurrency(data?.total_collected || 0)}
+              <Tooltip title={formatCurrency(data?.total_collected || 0)} arrow placement="top">
+                <Typography
+                  variant="h5"
+                  fontWeight="bold"
+                  color="success.main"
+                  sx={{
+                    fontSize: { xs: '1.15rem', sm: '1.25rem', md: '1.35rem' },
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {formatCurrency(data?.total_collected || 0)}
+                </Typography>
+              </Tooltip>
+              <Typography variant="body2" color="text.secondary" mt={0.5} fontWeight={600} noWrap>
+                Total Terkumpul
               </Typography>
-              <Typography variant="body2" color="text.secondary" mt={1} fontWeight={600}>
-                Collected
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                of {formatCurrency(data?.total_billed || 0)}
+              <Typography variant="caption" color="text.secondary" noWrap display="block">
+                dari {formatCurrency(data?.total_billed || 0)}
               </Typography>
             </Box>
           </Grid>
@@ -106,25 +120,38 @@ const PaymentAnalytics = ({ data, loading }) => {
           <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <Box 
               textAlign="center" 
-              p={2.5} 
-              bgcolor={alpha(theme.palette.warning.main, 0.1)} 
+              p={2} 
+              bgcolor={alpha(theme.palette.warning.main, 0.08)} 
               borderRadius={2}
+              border={`1px solid ${alpha(theme.palette.warning.main, 0.2)}`}
               sx={{
                 transition: 'all 0.3s ease',
                 '&:hover': {
-                  transform: 'translateY(-4px)',
-                  boxShadow: theme.shadows[4]
+                  transform: 'translateY(-3px)',
+                  boxShadow: theme.shadows[3]
                 }
               }}
             >
-              <Typography variant="h5" fontWeight="bold" color="warning.main">
-                {formatCurrency(data?.outstanding?.amount || 0)}
+              <Tooltip title={formatCurrency(data?.outstanding?.amount || 0)} arrow placement="top">
+                <Typography
+                  variant="h5"
+                  fontWeight="bold"
+                  color="warning.main"
+                  sx={{
+                    fontSize: { xs: '1.15rem', sm: '1.25rem', md: '1.35rem' },
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {formatCurrency(data?.outstanding?.amount || 0)}
+                </Typography>
+              </Tooltip>
+              <Typography variant="body2" color="text.secondary" mt={0.5} fontWeight={600} noWrap>
+                Piutang Berjalan
               </Typography>
-              <Typography variant="body2" color="text.secondary" mt={1} fontWeight={600}>
-                Outstanding
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {data?.outstanding?.count || 0} invoices
+              <Typography variant="caption" color="text.secondary" noWrap display="block">
+                {data?.outstanding?.count || 0} faktur
               </Typography>
             </Box>
           </Grid>
@@ -132,25 +159,38 @@ const PaymentAnalytics = ({ data, loading }) => {
           <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <Box 
               textAlign="center" 
-              p={2.5} 
-              bgcolor={alpha(theme.palette.error.main, 0.1)} 
+              p={2} 
+              bgcolor={alpha(theme.palette.error.main, 0.08)} 
               borderRadius={2}
+              border={`1px solid ${alpha(theme.palette.error.main, 0.2)}`}
               sx={{
                 transition: 'all 0.3s ease',
                 '&:hover': {
-                  transform: 'translateY(-4px)',
-                  boxShadow: theme.shadows[4]
+                  transform: 'translateY(-3px)',
+                  boxShadow: theme.shadows[3]
                 }
               }}
             >
-              <Typography variant="h5" fontWeight="bold" color="error.main">
-                {formatCurrency(data?.overdue?.amount || 0)}
+              <Tooltip title={formatCurrency(data?.overdue?.amount || 0)} arrow placement="top">
+                <Typography
+                  variant="h5"
+                  fontWeight="bold"
+                  color="error.main"
+                  sx={{
+                    fontSize: { xs: '1.15rem', sm: '1.25rem', md: '1.35rem' },
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {formatCurrency(data?.overdue?.amount || 0)}
+                </Typography>
+              </Tooltip>
+              <Typography variant="body2" color="text.secondary" mt={0.5} fontWeight={600} noWrap>
+                Jatuh Tempo (Overdue)
               </Typography>
-              <Typography variant="body2" color="text.secondary" mt={1} fontWeight={600}>
-                Overdue
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {data?.overdue?.count || 0} invoices
+              <Typography variant="caption" color="text.secondary" noWrap display="block">
+                {data?.overdue?.count || 0} faktur
               </Typography>
             </Box>
           </Grid>

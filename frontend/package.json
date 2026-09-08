@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "build:production": "vite build --mode production"
+    "build:production": "vite build --mode production && cp -r dist/* ../backend/static/ && cp dist/index.html ../backend/templates/index.html && cd ../backend && venv/bin/python manage.py collectstatic --noinput"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

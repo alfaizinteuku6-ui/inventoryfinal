@@ -91,7 +91,7 @@ const HtmlInvoice = () => {
   };
 
   const formatCurrency = (amount) => {
-    return `₹${parseFloat(amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+    return `Rp ${parseFloat(amount).toLocaleString('id-ID', { minimumFractionDigits: 0 })}`;
   };
 
   const getStatusColor = (status) => {

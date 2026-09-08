@@ -5,6 +5,7 @@ import {
   sales,
   customers,
   vendors,
+  suppliers,
   stockMovements,
   accounts,
   notifications,
@@ -45,6 +46,10 @@ const fetcher = (url, params) => {
       return accounts.getMe().then(res => res.data);
     case 'vendors':
       return vendors.getAll(params).then(res => res.data);
+    case 'suppliers':
+      return suppliers.getAll(params).then(res => res.data);
+    case 'supplier':
+      return suppliers.getById(args[0]).then(res => res.data);
     case 'notifications':
       return notifications.getAll(params).then(res => res.data);
     case 'notification':
@@ -165,6 +170,14 @@ export const useCustomers = (params = {}) => {
 
 export const useVendors = (params = {}) => {
   return useSWR(['vendors', params], ([url, params]) => fetcher(url, params));
+};
+
+export const useSuppliers = (params = {}) => {
+  return useSWR(['suppliers', params], ([url, params]) => fetcher(url, params));
+};
+
+export const useSupplier = (id) => {
+  return useSWR(id ? `supplier|${id}` : null, fetcher);
 };
 
 export const useNotifications = (params = {}) => {

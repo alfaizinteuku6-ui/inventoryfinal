@@ -488,7 +488,7 @@ const CreateSale = () => {
                             fontWeight="bold"
                             color="text.primary"
                           >
-                            ₹{parseInt(totals.subtotal).toLocaleString("en-IN")}
+                            Rp {parseInt(totals.subtotal).toLocaleString("id-ID")}
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
                             Subtotal
@@ -502,7 +502,7 @@ const CreateSale = () => {
                             fontWeight="bold"
                             color="warning.main"
                           >
-                            ₹{parseInt(totals.discount).toLocaleString("en-IN")}
+                            Rp {parseInt(totals.discount).toLocaleString("id-ID")}
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
                             Discount
@@ -516,7 +516,7 @@ const CreateSale = () => {
                             fontWeight="bold"
                             color="info.main"
                           >
-                            ₹{parseInt(totals.tax).toLocaleString("en-IN")}
+                            Rp {parseInt(totals.tax).toLocaleString("id-ID")}
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
                             Tax
@@ -538,7 +538,7 @@ const CreateSale = () => {
                             fontWeight="bold"
                             color="success.main"
                           >
-                            ₹{parseInt(totals.total).toLocaleString("en-IN")}
+                            Rp {parseInt(totals.total).toLocaleString("id-ID")}
                           </Typography>
                           <Typography
                             variant="body1"

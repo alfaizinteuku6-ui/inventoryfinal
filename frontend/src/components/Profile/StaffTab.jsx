@@ -278,7 +278,7 @@ function StaffTab({
                   }
                   InputProps={{
                     startAdornment: (
-                      <InputAdornment position="start">₹</InputAdornment>
+                      <InputAdornment position="start">Rp</InputAdornment>
                     ),
                   }}
                 />
@@ -404,7 +404,7 @@ function StaffTab({
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                       <AttachMoney fontSize="small" color="action" />
                       <Typography variant="body2" color="text.secondary">
-                        ₹{staff.salary.toLocaleString()}/month
+                        Rp {Number(staff.salary).toLocaleString("id-ID")}/bulan
                       </Typography>
                     </Box>
                   )}
