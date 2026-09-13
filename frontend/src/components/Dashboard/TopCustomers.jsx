@@ -82,7 +82,7 @@ const TopCustomers = ({ data, loading }) => {
                 {data?.customer_segments?.high_value || 0}
               </Typography>
               <Typography variant="caption" color="text.secondary" fontWeight={600} noWrap display="block">
-                High Value (> Rp 1jt)
+                {"High Value (> Rp 1jt)"}
               </Typography>
             </Box>
           </Grid>
